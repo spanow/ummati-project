@@ -1,0 +1,10 @@
+spring:
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    orga.takwa.ummati: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+

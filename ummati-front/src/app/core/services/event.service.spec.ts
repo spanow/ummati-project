@@ -1,0 +1,95 @@
+import { TestBed } from '@angular/core/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { EventService } from './event.service';
+
+describe('EventService', () => {
+  let service: EventService;
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), EventService],
+    });
+    service = TestBed.inject(EventService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => httpMock.verify());
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  it('listEvents should call GET /events with params', () => {
+    service.listEvents({ page: 0, size: 10, type: 'FORMATION', city: 'Paris' }).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/events') && r.method === 'GET');
+    expect(req.request.params.get('type')).toBe('FORMATION');
+    expect(req.request.params.get('city')).toBe('Paris');
+    expect(req.request.params.get('page')).toBe('0');
+    req.flush({ success: true, data: { content: [], totalElements: 0 } });
+  });
+
+  it('listEvents should not set undefined params', () => {
+    service.listEvents({ page: 0, size: 10 }).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/events'));
+    expect(req.request.params.has('type')).toBe(false);
+    expect(req.request.params.has('city')).toBe(false);
+    req.flush({ success: true, data: { content: [], totalElements: 0 } });
+  });
+
+  it('getEvent should call GET /events/:id', () => {
+    service.getEvent('abc-123').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/abc-123'));
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: {} });
+  });
+
+  it('createEvent should call POST /organizations/:orgId/events', () => {
+    const body = { title: 'Test', description: 'Desc', type: 'MARAUDE' };
+    service.createEvent('org-1', body).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/organizations/org-1/events'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(body);
+    req.flush({ success: true, data: {} });
+  });
+
+  it('signup should call POST /events/:id/signups', () => {
+    service.signup('evt-1').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/signups'));
+    expect(req.request.method).toBe('POST');
+    req.flush({ success: true, data: { status: 'REGISTERED' } });
+  });
+
+  it('cancelSignup should call DELETE /events/:id/signups', () => {
+    service.cancelSignup('evt-1').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/signups'));
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+  });
+
+  it('changeStatus should call PATCH /events/:id/status', () => {
+    service.changeStatus('evt-1', { status: 'PUBLISH' }).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/status'));
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body.status).toBe('PUBLISH');
+    req.flush({ success: true, data: {} });
+  });
+
+  it('markAttendance should send userIds', () => {
+    service.markAttendance('evt-1', ['u1', 'u2']).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/attendance'));
+    expect(req.request.body.userIds).toEqual(['u1', 'u2']);
+    req.flush(null);
+  });
+
+  it('createFeedback should call POST /events/:id/feedbacks', () => {
+    const fb = { rating: 4, comment: 'Nice', anonymous: false };
+    service.createFeedback('evt-1', fb).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/feedbacks'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.rating).toBe(4);
+    req.flush({ success: true, data: {} });
+  });
+});
+

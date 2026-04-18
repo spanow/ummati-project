@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+  <div style="background: #1976d2; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; color: white;" th:text="${appName}">Ummati</h1>
+  </div>
+  <div style="background: #fff; padding: 30px; border: 1px solid #eee; border-radius: 0 0 8px 8px;">
+    <p>Bonjour <strong th:text="${orgAdminName}">Admin</strong>,</p>
+    <h2>❌ Votre organisation n'a pas été validée</h2>
+    <p>Après examen de votre dossier, votre organisation <strong th:text="${orgName}">Nom</strong> n'a pas pu être validée.</p>
+    <p><strong>Motif :</strong> <span th:text="${reason}">Motif</span></p>
+    <p>Vous pouvez corriger les informations manquantes et soumettre à nouveau votre demande.</p>
+    <p style="color: #999; font-size: 12px;">Ummati — La plateforme du bénévolat solidaire</p>
+  </div>
+</body>
+</html>
+

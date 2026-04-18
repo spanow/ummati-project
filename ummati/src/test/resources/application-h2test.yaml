@@ -1,0 +1,42 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:ummati_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 3025
+
+app:
+  jwt:
+    secret: testSecretKeyForIntegrationTestsMustBeAtLeast256BitsLongForHS256!!
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
+  mail:
+    from: test@ummati.org
+    sender-name: Ummati Test
+  upload:
+    dir: ./test-uploads
+    max-file-size-mb: 10
+    allowed-types: application/pdf,image/jpeg,image/png
+  base-url: http://localhost:8080
+  admin:
+    email: admin@ummati.org
+    password: Admin123!
+  cors:
+    allowed-origins: http://localhost:4200
+
+logging:
+  level:
+    orga.takwa.ummati: DEBUG
+    org.hibernate.SQL: DEBUG

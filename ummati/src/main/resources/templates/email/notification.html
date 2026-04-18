@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #1976d2; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0;" th:text="${appName}">Ummati</h1>
+  </div>
+  <div style="background: #fff; padding: 30px; border: 1px solid #eee; border-radius: 0 0 8px 8px;">
+    <p>Bonjour <strong th:text="${firstName}">Prénom</strong>,</p>
+    <h2 th:text="${title}">Titre</h2>
+    <p th:text="${message}">Message</p>
+    <div th:if="${actionUrl}" style="text-align: center; margin: 24px 0;">
+      <a th:href="${actionUrl}" style="background: #1976d2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Voir les détails</a>
+    </div>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;"/>
+    <p style="color: #999; font-size: 12px;">Cet email a été envoyé automatiquement par Ummati.</p>
+  </div>
+</body>
+</html>
+

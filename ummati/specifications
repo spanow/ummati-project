@@ -1,0 +1,2335 @@
+================================================================================
+  UMMATI — Spécifications Fonctionnelles & Techniques (FSD)
+  Plateforme de Bénévolat & Gestion d'ONG
+  Version 3.0 — 18 avril 2026
+================================================================================
+
+TABLE DES MATIÈRES
+──────────────────
+  1.  Introduction & vision
+  2.  Acteurs & modèle de rôles
+  3.  Modèle de données
+  4.  User Stories — Phase 1 (MVP)
+  5.  Règles métier
+  6.  API REST — Contrat détaillé
+  7.  Machines à états & workflows
+  8.  Catalogue d'erreurs
+  9.  Templates email
+ 10.  Interface utilisateur & parcours
+ 11.  Exigences non fonctionnelles
+ 12.  Sécurité & conformité RGPD
+ 13.  Architecture technique
+ 14.  Stratégie de tests
+ 15.  Roadmap & priorisation
+ 16.  Risques & mitigation
+ 17.  KPIs & métriques
+ 18.  Annexes
+
+================================================================================
+1. INTRODUCTION & VISION
+================================================================================
+
+1.1. Problème adressé
+─────────────────────
+Les ONG et associations loi 1901 en France s'appuient largement sur des
+outils fragmentés (email, WhatsApp, tableurs Excel) pour recruter des
+bénévoles, organiser des événements et gérer leurs membres. Ce manque de
+centralisation entraîne :
+  • Perte de temps administrative
+  • Difficulté à trouver des bénévoles adaptés
+  • Manque de visibilité sur l'impact réel
+  • Faible engagement et rétention des bénévoles
+
+1.2. Solution : Ummati
+──────────────────────
+Ummati est une plateforme web tout-en-un qui met en relation ONG et
+bénévoles. Elle offre :
+  • Un annuaire d'ONG vérifiées
+  • Un système d'adhésion et de gestion de membres
+  • Un gestionnaire d'événements avec inscriptions
+  • Un matching compétences ↔ besoins
+  • Un suivi de l'engagement via des statistiques transparentes
+
+1.3. Portée Phase 1 (MVP — 3 mois)
+───────────────────────────────────
+  ✓ Authentification complète (inscription, connexion, reset, email verify)
+  ✓ Profils bénévoles avec compétences
+  ✓ ONG : CRUD + validation par la plateforme
+  ✓ Système d'adhésion (membership)
+  ✓ Événements : CRUD + inscription + liste d'attente + feedback
+  ✓ Notifications in-app + email
+  ✓ Dashboard par rôle
+  ✓ API REST documentée OpenAPI
+  ✓ Interface web responsive
+  ✓ Tests unitaires + intégration
+
+1.4. Stack technique
+────────────────────
+  Backend      Java 21, Spring Boot 4.0.x, Spring Security 7
+  BDD          PostgreSQL 16+
+  Migrations   Flyway
+  Cache        Spring Cache + Caffeine (Phase 1), Redis (Phase 2)
+  Email        Spring Mail + Thymeleaf templates
+  Stockage     Système de fichiers local (Phase 1), S3-compatible (Phase 2)
+  Build        Maven
+  CI/CD        GitHub Actions
+  Tests        JUnit 5, Mockito, Testcontainers, RestAssured
+  Docs API     SpringDoc OpenAPI 3.1
+  Monitoring   Spring Boot Actuator + Micrometer
+
+================================================================================
+2. ACTEURS & MODÈLE DE RÔLES
+================================================================================
+
+2.1. Principes de conception du modèle de rôles
+────────────────────────────────────────────────
+DÉCISION IMPORTANTE : Le rôle d'un utilisateur vis-à-vis d'une ONG est porté
+par l'entité Membership, PAS par l'entité User.
+
+Un même utilisateur peut être :
+  • Simple bénévole dans l'ONG A (Membership.role = MEMBER)
+  • Administrateur de l'ONG B (Membership.role = ADMIN)
+  • Comptable de l'ONG C (Membership.role = ACCOUNTANT)
+
+L'entité User ne porte qu'un rôle PLATEFORME :
+  • VOLUNTEER : tout utilisateur inscrit (rôle par défaut)
+  • PLATFORM_ADMIN : super-admin de la plateforme (créé via seed data)
+
+2.2. Rôles plateforme (User.role)
+─────────────────────────────────
+┌──────────────────┬────────────────────────────────────────────────────────┐
+│ VOLUNTEER        │ Rôle par défaut. Peut : gérer son profil, rejoindre   │
+│                  │ des ONG, créer une ONG, s'inscrire aux événements.    │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│ PLATFORM_ADMIN   │ Supervise la plateforme. Peut : valider/suspendre     │
+│                  │ les ONG, modérer les utilisateurs, accéder à tout.    │
+└──────────────────┴────────────────────────────────────────────────────────┘
+
+2.3. Rôles ONG (Membership.role)
+────────────────────────────────
+┌──────────────────┬────────────────────────────────────────────────────────┐
+│ MEMBER           │ Bénévole affilié. Accès aux infos internes, chat,     │
+│                  │ événements de l'ONG.                                  │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│ ADMIN            │ Administrateur. CRUD sur l'ONG, ses événements,       │
+│                  │ valide les adhésions, gère les rôles des membres.     │
+├──────────────────┼────────────────────────────────────────────────────────┤
+│ ACCOUNTANT       │ Comptable. Accès lecture/écriture module financier.   │
+│                  │ (Phase 2 — réservé dans le modèle)                    │
+└──────────────────┴────────────────────────────────────────────────────────┘
+
+2.4. Matrice de permissions détaillée
+─────────────────────────────────────
+
+Légende : C=Create R=Read U=Update D=Delete — =Interdit
+          (own) = ses propres données  (org) = son ONG uniquement
+
+Ressource                 GUEST  VOLUNTEER        ORG MEMBER  ORG ADMIN       PLATFORM_ADMIN
+────────────────────────  ─────  ───────────────  ──────────  ──────────────  ──────────────
+Profil (self)              —     CRU(own)          —           —              —
+Profil (autres)            —     R(basique)       R(basique)  R(membres org) R(tout)
+Supprimer son compte       —     D(own)            —           —              —
+ONG (liste publique)      R      R                R           R              R
+ONG (créer)                —     C (→PENDING)      —           —              C
+ONG (modifier)             —      —                —          U(org)         U(tout)
+ONG (valider/rejeter)      —      —                —           —             U
+ONG (suspendre)            —      —                —           —             U
+Membership (demander)      —     C                 —           —              —
+Membership (voir demandes) —      —                —          R(org)         R(tout)
+Membership (valider)       —      —                —          U(org)         U(tout)
+Membership (quitter)       —      —               D(self)    D(self)*        —
+Membership (exclure)       —      —                —          D(org)         D(tout)
+Membership (changer rôle)  —      —                —          U(org)         U(tout)
+Événement (liste publique)R      R                R           R              R
+Événement (créer)          —      —                —          C(org)         C
+Événement (modifier)       —      —                —          U(org)         U(tout)
+Événement (publier)        —      —                —          U(org)         U(tout)
+Événement (annuler)        —      —                —          U(org)         U(tout)
+Inscription événement      —     C/D(self)        C/D(self)  R(org events)  R(tout)
+Feedback événement         —     C(si participé)  C(si part.) R(org events) R(tout)
+Notification (self)        —     R/U(own)         R/U(own)   R/U(own)       R/U(own)
+Documents ONG              —      —               R(org)     CRD(org)       CRD(tout)
+Admin - utilisateurs       —      —                —           —             RU
+Admin - statistiques       —      —                —           —             R
+
+* Un ADMIN ne peut quitter que s'il reste au moins un autre ADMIN dans l'ONG.
+
+================================================================================
+3. MODÈLE DE DONNÉES
+================================================================================
+
+3.1. Vue d'ensemble des relations
+─────────────────────────────────
+
+  ┌──────────┐       ┌────────────┐       ┌──────────────┐
+  │  users   │1────N│memberships │N────1│organizations │
+  └────┬─────┘       └────────────┘       └──────┬───────┘
+       │1                                        │1
+       │N                                        │N
+  ┌────┴──────────┐                        ┌─────┴────┐
+  │ event_signups │N──────────────────1│  events  │
+  └───────────────┘                        └─────┬────┘
+                                                 │1
+  ┌──────────┐                                   │N
+  │  skills  │N──────M┌───────────────┐    ┌─────┴──────────┐
+  └──────────┘        │ user_skills   │    │ event_feedbacks │
+                      └───────────────┘    └────────────────┘
+  ┌───────────────┐
+  │ documents     │  (polymorphique via owner_type + owner_id)
+  └───────────────┘
+  ┌───────────────┐
+  │ notifications │
+  └───────────────┘
+  ┌─────────────────────┐
+  │ verification_tokens │
+  └─────────────────────┘
+  ┌───────────────┐
+  │ audit_logs    │
+  └───────────────┘
+
+3.2. Entités détaillées
+───────────────────────
+
+━━━ users ━━━
+  id               UUID         PK, gen auto
+  email            VARCHAR(255) UNIQUE NOT NULL
+  password_hash    VARCHAR(255) NOT NULL
+  first_name       VARCHAR(100) NOT NULL
+  last_name        VARCHAR(100) NOT NULL
+  phone            VARCHAR(20)  NULL
+  date_of_birth    DATE         NULL
+  photo_url        VARCHAR(500) NULL
+  bio              TEXT         NULL
+  address_street   VARCHAR(255) NULL
+  address_city     VARCHAR(100) NULL
+  address_zip      VARCHAR(10)  NULL
+  address_country  VARCHAR(100) DEFAULT 'France'
+  role             VARCHAR(20)  NOT NULL DEFAULT 'VOLUNTEER'
+                                CHECK (role IN ('VOLUNTEER','PLATFORM_ADMIN'))
+  email_verified   BOOLEAN      DEFAULT FALSE
+  phone_verified   BOOLEAN      DEFAULT FALSE
+  enabled          BOOLEAN      DEFAULT TRUE
+  locked_until     TIMESTAMP    NULL  (blocage temporaire anti brute-force)
+  failed_attempts  INT          DEFAULT 0
+  last_login_at    TIMESTAMP    NULL
+  onboarding_done  BOOLEAN      DEFAULT FALSE
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+  updated_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Contraintes :
+    • email : format RFC 5322, unique, indexé
+    • password_hash : bcrypt, JAMAIS le mot de passe en clair
+    • phone : format E.164 si renseigné (+33612345678)
+    • date_of_birth : doit être dans le passé, âge ≥ 16 ans
+
+━━━ organizations ━━━
+  id               UUID         PK
+  name             VARCHAR(255) UNIQUE NOT NULL
+  slug             VARCHAR(255) UNIQUE NOT NULL  (auto-généré, ex: "les-restos-du-coeur")
+  description      TEXT         NOT NULL
+  mission          TEXT         NULL
+  domain           VARCHAR(30)  NOT NULL
+                                CHECK (domain IN ('EDUCATION','SANTE','ENVIRONNEMENT',
+                                'SOCIAL','CULTURE','SPORT','HUMANITAIRE','DROITS_HUMAINS',
+                                'AIDE_URGENCE','AUTRE'))
+  logo_url         VARCHAR(500) NULL
+  banner_url       VARCHAR(500) NULL
+  address_street   VARCHAR(255) NULL
+  address_city     VARCHAR(100) NOT NULL
+  address_zip      VARCHAR(10)  NOT NULL
+  address_country  VARCHAR(100) DEFAULT 'France'
+  phone            VARCHAR(20)  NULL
+  email            VARCHAR(255) NOT NULL
+  website          VARCHAR(500) NULL
+  status           VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+                                CHECK (status IN ('PENDING','ACTIVE','SUSPENDED','ARCHIVED'))
+  rejection_reason TEXT         NULL  (motif si rejeté)
+  created_by       UUID         FK → users.id NOT NULL
+  validated_by     UUID         FK → users.id NULL
+  validated_at     TIMESTAMP    NULL
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+  updated_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Contraintes :
+    • slug : auto-généré depuis name (lowercase, espaces→tirets, sans accents)
+    • Transition PENDING→ACTIVE requiert validated_by (PLATFORM_ADMIN)
+    • Domaines enrichis : DROITS_HUMAINS, AIDE_URGENCE ajoutés
+
+━━━ memberships ━━━
+  id               UUID         PK
+  user_id          UUID         FK → users.id NOT NULL
+  organization_id  UUID         FK → organizations.id NOT NULL
+  role             VARCHAR(20)  NOT NULL DEFAULT 'MEMBER'
+                                CHECK (role IN ('MEMBER','ADMIN','ACCOUNTANT'))
+  status           VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+                                CHECK (status IN ('PENDING','ACTIVE','REJECTED','LEFT'))
+  motivation       TEXT         NULL  (max 1000 chars applicatif)
+  rejected_at      TIMESTAMP    NULL
+  joined_at        TIMESTAMP    NULL  (date passage à ACTIVE)
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+  updated_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  UNIQUE(user_id, organization_id)
+
+  Contraintes :
+    • Un user peut avoir N memberships (N ONG différentes)
+    • Le créateur d'une ONG reçoit automatiquement (ADMIN, ACTIVE)
+    • Re-candidature après rejet : rejected_at + 30 jours < NOW()
+
+━━━ skills ━━━
+  id               UUID         PK
+  name             VARCHAR(100) UNIQUE NOT NULL
+  category         VARCHAR(50)  NOT NULL
+                                CHECK (category IN ('TECHNIQUE','COMMUNICATION',
+                                'LOGISTIQUE','MEDICAL','JURIDIQUE','ENSEIGNEMENT',
+                                'ARTISANAT','CUISINE','CONDUITE','LANGUE','AUTRE'))
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Données initiales (seed) :
+    TECHNIQUE     : Développement web, Graphisme, Photographie, Vidéo
+    COMMUNICATION : Rédaction, Réseaux sociaux, Relations presse, Traduction
+    LOGISTIQUE    : Transport, Manutention, Organisation événementielle
+    MEDICAL       : Premiers secours, Infirmerie, Psychologie
+    JURIDIQUE     : Droit associatif, Conseil juridique
+    ENSEIGNEMENT  : Soutien scolaire, Formation adultes, Alphabétisation
+    CUISINE       : Cuisine collective, Pâtisserie
+    CONDUITE      : Permis B, Permis C
+    LANGUE        : Français, Anglais, Arabe, Espagnol, Autre
+
+━━━ user_skills ━━━  (table de jointure)
+  user_id          UUID         FK → users.id
+  skill_id         UUID         FK → skills.id
+  PRIMARY KEY (user_id, skill_id)
+
+━━━ events ━━━
+  id                    UUID         PK
+  organization_id       UUID         FK → organizations.id NOT NULL
+  title                 VARCHAR(255) NOT NULL
+  description           TEXT         NOT NULL
+  objectives            TEXT         NULL
+  type                  VARCHAR(30)  NOT NULL
+                                     CHECK (type IN ('MISSION_TERRAIN','FORMATION',
+                                     'COLLECTE','REUNION','SENSIBILISATION',
+                                     'MARAUDE','DISTRIBUTION','AUTRE'))
+  location_name         VARCHAR(255) NULL  (ex: "Salle des fêtes")
+  location_address      VARCHAR(255) NULL
+  location_city         VARCHAR(100) NOT NULL
+  location_zip          VARCHAR(10)  NULL
+  location_lat          DECIMAL(10,8) NULL
+  location_lng          DECIMAL(11,8) NULL
+  is_online             BOOLEAN      DEFAULT FALSE
+  online_link           VARCHAR(500) NULL  (si is_online=true)
+  start_date            TIMESTAMP    NOT NULL
+  end_date              TIMESTAMP    NOT NULL
+  registration_deadline TIMESTAMP    NULL  (si NULL → inscription ouverte jusqu'à start_date)
+  max_participants      INT          NULL  (NULL = illimité)
+  min_age               INT          NULL  (âge minimum requis)
+  status                VARCHAR(20)  NOT NULL DEFAULT 'DRAFT'
+                                     CHECK (status IN ('DRAFT','PUBLISHED','CANCELLED','COMPLETED'))
+  cancellation_reason   TEXT         NULL
+  created_by            UUID         FK → users.id NOT NULL
+  created_at            TIMESTAMP    NOT NULL DEFAULT NOW()
+  updated_at            TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Contraintes :
+    • end_date > start_date
+    • registration_deadline ≤ start_date (si défini)
+    • Types enrichis : MARAUDE, DISTRIBUTION ajoutés (très courants dans l'associatif)
+    • Support événements en ligne (is_online + online_link)
+
+━━━ event_required_skills ━━━  (table de jointure)
+  event_id         UUID         FK → events.id
+  skill_id         UUID         FK → skills.id
+  PRIMARY KEY (event_id, skill_id)
+
+━━━ event_signups ━━━
+  id               UUID         PK
+  event_id         UUID         FK → events.id NOT NULL
+  user_id          UUID         FK → users.id NOT NULL
+  status           VARCHAR(20)  NOT NULL DEFAULT 'REGISTERED'
+                                CHECK (status IN ('REGISTERED','WAITLISTED','CANCELLED','ATTENDED'))
+  registered_at    TIMESTAMP    NOT NULL DEFAULT NOW()
+  cancelled_at     TIMESTAMP    NULL
+  attended_at      TIMESTAMP    NULL
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  UNIQUE(event_id, user_id)
+
+━━━ event_feedbacks ━━━  (NOUVEAU — retour d'expérience post-événement)
+  id               UUID         PK
+  event_id         UUID         FK → events.id NOT NULL
+  user_id          UUID         FK → users.id NOT NULL
+  rating           INT          NOT NULL CHECK (rating BETWEEN 1 AND 5)
+  comment          TEXT         NULL  (max 2000 chars applicatif)
+  is_anonymous     BOOLEAN      DEFAULT FALSE
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  UNIQUE(event_id, user_id)
+
+  Contraintes :
+    • Seul un utilisateur avec EventSignup.status=ATTENDED peut laisser un feedback
+    • Un seul feedback par utilisateur par événement
+    • Si is_anonymous=true, le nom n'est pas affiché publiquement
+
+━━━ documents ━━━
+  id               UUID         PK
+  owner_type       VARCHAR(20)  NOT NULL CHECK (owner_type IN ('ORGANIZATION','EVENT'))
+  owner_id         UUID         NOT NULL
+  name             VARCHAR(255) NOT NULL
+  original_name    VARCHAR(255) NOT NULL  (nom du fichier uploadé)
+  file_path        VARCHAR(500) NOT NULL  (chemin stockage serveur)
+  content_type     VARCHAR(100) NOT NULL  (MIME type)
+  file_size        BIGINT       NOT NULL  (en octets)
+  uploaded_by      UUID         FK → users.id NOT NULL
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Contraintes :
+    • Types acceptés : PDF, JPG, PNG, DOCX (whitelist MIME)
+    • Taille max : 10 Mo par fichier
+    • Stockage Phase 1 : dossier local /uploads/{owner_type}/{owner_id}/{uuid}.ext
+    • Stockage Phase 2 : migration vers S3 (MinIO ou AWS)
+
+━━━ notifications ━━━
+  id               UUID         PK
+  user_id          UUID         FK → users.id NOT NULL
+  type             VARCHAR(30)  NOT NULL
+                                CHECK (type IN (
+                                  'WELCOME',
+                                  'EMAIL_VERIFIED',
+                                  'ONG_SUBMITTED',
+                                  'ONG_VALIDATED',
+                                  'ONG_REJECTED',
+                                  'MEMBERSHIP_REQUESTED',
+                                  'MEMBERSHIP_ACCEPTED',
+                                  'MEMBERSHIP_REJECTED',
+                                  'EVENT_PUBLISHED',
+                                  'EVENT_REMINDER_7D',
+                                  'EVENT_REMINDER_1D',
+                                  'EVENT_CANCELLED',
+                                  'EVENT_COMPLETED',
+                                  'SIGNUP_CONFIRMED',
+                                  'SIGNUP_WAITLISTED',
+                                  'SIGNUP_PROMOTED',
+                                  'FEEDBACK_REQUESTED',
+                                  'GENERAL'
+                                ))
+  title            VARCHAR(255) NOT NULL
+  message          TEXT         NOT NULL
+  is_read          BOOLEAN      DEFAULT FALSE
+  link             VARCHAR(500) NULL  (deep link vers la page concernée)
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+━━━ verification_tokens ━━━  (NOUVEAU — tokens email/reset)
+  id               UUID         PK
+  user_id          UUID         FK → users.id NOT NULL
+  token            VARCHAR(255) UNIQUE NOT NULL
+  type             VARCHAR(20)  NOT NULL
+                                CHECK (type IN ('EMAIL_VERIFICATION','PASSWORD_RESET'))
+  expires_at       TIMESTAMP    NOT NULL
+  used_at          TIMESTAMP    NULL
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Contraintes :
+    • Token : UUID aléatoire (pas de données sensibles dedans)
+    • EMAIL_VERIFICATION : expire 24h
+    • PASSWORD_RESET : expire 1h
+    • Un seul token actif par user+type (les anciens sont invalidés)
+
+━━━ audit_logs ━━━  (NOUVEAU — traçabilité des actions)
+  id               UUID         PK
+  actor_id         UUID         FK → users.id NULL  (NULL = système)
+  action           VARCHAR(50)  NOT NULL  (ex: 'ONG_CREATED', 'MEMBERSHIP_APPROVED')
+  entity_type      VARCHAR(50)  NOT NULL  (ex: 'Organization', 'Membership')
+  entity_id        UUID         NOT NULL
+  old_value        JSONB        NULL  (état avant modification)
+  new_value        JSONB        NULL  (état après modification)
+  ip_address       VARCHAR(45)  NULL
+  created_at       TIMESTAMP    NOT NULL DEFAULT NOW()
+
+  Contraintes :
+    • Insertion uniquement (pas de UPDATE ni DELETE sur cette table)
+    • Rétention : 2 ans puis archivage
+
+3.3. Index
+──────────
+  users              : idx_users_email (email)
+                       idx_users_role (role)
+  organizations      : idx_orgs_slug (slug)
+                       idx_orgs_status (status)
+                       idx_orgs_domain (domain)
+                       idx_orgs_city (address_city)
+  memberships        : idx_memberships_user (user_id)
+                       idx_memberships_org (organization_id)
+                       idx_memberships_status (status)
+  events             : idx_events_org (organization_id)
+                       idx_events_status_date (status, start_date)
+                       idx_events_city (location_city)
+                       idx_events_type (type)
+  event_signups      : idx_signups_event (event_id)
+                       idx_signups_user (user_id)
+                       idx_signups_status (status)
+  event_feedbacks    : idx_feedbacks_event (event_id)
+  notifications      : idx_notifs_user_read (user_id, is_read)
+  verification_tokens: idx_vtokens_token (token)
+                       idx_vtokens_user_type (user_id, type)
+  audit_logs         : idx_audit_entity (entity_type, entity_id)
+                       idx_audit_actor (actor_id)
+                       idx_audit_date (created_at)
+
+================================================================================
+4. USER STORIES — PHASE 1 (MVP)
+================================================================================
+
+Notation :  [Mxxx] = MUST HAVE   [Sxxx] = SHOULD HAVE   [Cxxx] = COULD HAVE
+
+────────────────────────────────────────
+4.1. AUTHENTIFICATION
+────────────────────────────────────────
+
+[M001] Inscription
+  EN TANT QUE visiteur
+  JE VEUX créer un compte
+  AFIN D'accéder à la plateforme
+
+  Critères d'acceptation :
+    ✓ Champs : email, mot de passe, confirmation mdp, prénom, nom
+    ✓ Mot de passe : ≥8 chars, 1 majuscule, 1 minuscule, 1 chiffre, 1 spécial
+    ✓ Email de confirmation envoyé (token expire 24h)
+    ✓ Compte créé : role=VOLUNTEER, email_verified=false, onboarding_done=false
+    ✓ Doublon email → 409 CONFLICT
+    ✓ Notification in-app WELCOME créée
+    ✓ Audit log : USER_REGISTERED
+
+[M002] Confirmation email
+  EN TANT QUE nouvel inscrit
+  JE VEUX confirmer mon email via le lien reçu
+  AFIN D'activer mon compte
+
+  Critères :
+    ✓ Token valide → email_verified=true, token marqué used
+    ✓ Token expiré → 410 GONE + bouton "Renvoyer"
+    ✓ Token déjà utilisé → 409 + message "Déjà confirmé"
+    ✓ Audit log : EMAIL_VERIFIED
+
+[M003] Connexion
+  EN TANT QU'utilisateur inscrit
+  JE VEUX me connecter
+  AFIN D'accéder à mon espace
+
+  Critères :
+    ✓ Email vérifié + identifiants OK → JWT (access 15min + refresh 7j)
+    ✓ Email non vérifié → 403 + message explicite + option renvoyer
+    ✓ Identifiants incorrects → 401 (message générique : "Email ou mot de passe incorrect")
+    ✓ 5 échecs en 15 min → compte locked_until=now+30min, 429 TOO MANY REQUESTS
+    ✓ Compte désactivé (enabled=false) → 403
+    ✓ Succès → last_login_at mis à jour, failed_attempts remis à 0
+    ✓ Audit log : LOGIN_SUCCESS ou LOGIN_FAILED
+
+[M004] Réinitialisation mot de passe
+  EN TANT QU'utilisateur
+  JE VEUX réinitialiser mon mot de passe
+  AFIN DE retrouver l'accès à mon compte
+
+  Critères :
+    ✓ POST email → TOUJOURS 200 (pas de leak d'existence de compte)
+    ✓ Si email existe → envoi lien reset (token expire 1h)
+    ✓ Nouveau token → anciens tokens PASSWORD_RESET invalidés
+    ✓ Reset effectif → mêmes règles de complexité, audit log PASSWORD_RESET
+
+[M005] Déconnexion
+  EN TANT QU'utilisateur connecté
+  JE VEUX me déconnecter
+  AFIN DE sécuriser mon accès
+
+  Critères :
+    ✓ Refresh token invalidé côté serveur (blacklist ou suppression)
+    ✓ Client supprime les tokens locaux
+
+[S006] Renvoi email de confirmation
+  EN TANT QU'utilisateur non vérifié
+  JE VEUX renvoyer l'email de confirmation
+  AFIN DE finaliser mon inscription
+
+  Critères :
+    ✓ Rate limit : 1 renvoi max toutes les 2 minutes
+    ✓ Ancien token invalidé, nouveau créé
+
+────────────────────────────────────────
+4.2. PROFIL & COMPÉTENCES
+────────────────────────────────────────
+
+[M010] Onboarding guidé (NOUVEAU)
+  EN TANT QUE nouvel utilisateur (onboarding_done=false)
+  JE VEUX être guidé pour compléter mon profil
+  AFIN DE bien démarrer sur la plateforme
+
+  Critères :
+    ✓ Après première connexion, redirection vers /onboarding
+    ✓ Étape 1 : Photo + bio (optionnel, skip possible)
+    ✓ Étape 2 : Adresse (ville obligatoire pour suggestions locales)
+    ✓ Étape 3 : Compétences (sélection ≥1 recommandée, skip possible)
+    ✓ Étape 4 : Centres d'intérêt (domaines d'ONG préférés)
+    ✓ À la fin : onboarding_done=true, redirection dashboard
+    ✓ Peut être refait depuis les paramètres
+
+[M011] Voir mon profil
+  EN TANT QUE bénévole connecté
+  JE VEUX consulter mon profil complet
+  AFIN DE vérifier mes informations
+
+  Critères :
+    ✓ Toutes les infos personnelles
+    ✓ Liste de mes compétences
+    ✓ Statistiques : nombre d'ONG, événements participés, heures de bénévolat
+    ✓ Mes ONG (memberships ACTIVE)
+    ✓ Mes prochains événements
+
+[M012] Modifier mon profil
+  EN TANT QUE bénévole connecté
+  JE VEUX modifier mes informations
+  AFIN DE les garder à jour
+
+  Critères :
+    ✓ Tous les champs modifiables SAUF email (processus spécial)
+    ✓ Ajout/suppression de compétences (depuis la liste + saisie libre)
+    ✓ Saisie libre de compétence → crée une nouvelle entrée en skills si n'existe pas
+    ✓ Photo : upload JPG/PNG, max 5 Mo, redimensionnement 400x400
+    ✓ Audit log : PROFILE_UPDATED
+
+[M013] Supprimer mon compte (RGPD)
+  EN TANT QUE bénévole
+  JE VEUX supprimer mon compte définitivement
+  AFIN D'exercer mon droit à l'oubli
+
+  Critères :
+    ✓ Confirmation : saisie du mot de passe actuel
+    ✓ Soft delete immédiat :
+      - first_name → "Utilisateur", last_name → "Supprimé"
+      - email → "deleted_{uuid}@ummati.org"
+      - phone, bio, photo, adresse → NULL
+      - enabled → false
+    ✓ Désinscription de tous les événements futurs (avec promotion waitlist)
+    ✓ Tous les memberships → status=LEFT
+    ✓ Si dernier ADMIN d'une ONG → BLOQUÉ (doit transférer d'abord)
+    ✓ Purge définitive des données après 30 jours (batch job)
+    ✓ Audit log : ACCOUNT_DELETED
+
+[S014] Changer d'email
+  EN TANT QUE bénévole
+  JE VEUX changer mon adresse email
+  AFIN DE mettre à jour mon contact
+
+  Critères :
+    ✓ Saisie nouvel email + mot de passe actuel
+    ✓ Email de confirmation envoyé au nouvel email
+    ✓ Ancien email actif tant que le nouveau n'est pas confirmé
+    ✓ Token expire 24h
+    ✓ Audit log : EMAIL_CHANGE_REQUESTED, EMAIL_CHANGED
+
+[S015] Changer de mot de passe
+  EN TANT QU'utilisateur connecté
+  JE VEUX changer mon mot de passe
+  AFIN DE sécuriser mon compte
+
+  Critères :
+    ✓ Saisie : ancien mot de passe + nouveau + confirmation
+    ✓ Nouveau ≠ ancien
+    ✓ Mêmes règles de complexité
+    ✓ Tous les refresh tokens existants invalidés (force re-login)
+    ✓ Audit log : PASSWORD_CHANGED
+
+────────────────────────────────────────
+4.3. ORGANISATIONS (ONG)
+────────────────────────────────────────
+
+[M020] Créer une ONG
+  EN TANT QUE bénévole (email vérifié)
+  JE VEUX créer une organisation
+  AFIN DE la gérer sur Ummati
+
+  Critères :
+    ✓ Prérequis : email_verified=true (sinon 403)
+    ✓ Champs obligatoires : nom, description, domaine, ville, code postal, email contact
+    ✓ Champs optionnels : mission, adresse complète, téléphone, website, logo
+    ✓ Upload document obligatoire : statuts officiels (PDF)
+    ✓ ONG créée : status=PENDING
+    ✓ Membership auto : (user, org, role=ADMIN, status=ACTIVE, joined_at=now)
+    ✓ Notification PLATFORM_ADMIN : "Nouvelle ONG en attente de validation"
+    ✓ Notification créateur : ONG_SUBMITTED
+    ✓ Email au créateur : confirmation de soumission
+    ✓ Nom unique → 409 si doublon
+    ✓ Slug auto-généré et unique
+    ✓ Audit log : ONG_CREATED
+
+[M021] Valider / Rejeter une ONG
+  EN TANT QUE PLATFORM_ADMIN
+  JE VEUX traiter les demandes d'ONG en attente
+  AFIN DE garantir la légitimité des organisations
+
+  Critères :
+    ✓ Liste des ONG PENDING triées par date (plus anciennes d'abord)
+    ✓ Vue détaillée avec documents téléchargeables
+    ✓ APPROVE → status=ACTIVE, validated_by, validated_at
+    ✓ REJECT → rejection_reason obligatoire (min 20 chars)
+    ✓ Notification créateur : ONG_VALIDATED ou ONG_REJECTED (avec motif)
+    ✓ Email au créateur dans les deux cas
+    ✓ Délai cible : < 72h (KPI suivi)
+    ✓ Audit log : ONG_VALIDATED ou ONG_REJECTED
+
+[M022] Consulter la liste des ONG
+  EN TANT QU'invité ou utilisateur
+  JE VEUX parcourir les ONG actives
+  AFIN DE trouver une organisation qui me correspond
+
+  Critères :
+    ✓ Uniquement les ONG status=ACTIVE
+    ✓ Pagination : 12 items/page (grille responsive : 3×4, 2×6, 1×12)
+    ✓ Filtres cumulables :
+      - Domaine (multiselect)
+      - Ville (autocomplete)
+      - Recherche textuelle (nom + description, insensible casse/accents)
+    ✓ Tri : pertinence (si recherche), nom A-Z, plus récentes, nb de membres
+    ✓ Card affichée : logo, nom, domaine (badge couleur), ville, nb membres, extrait description
+    ✓ Résultat vide → message encourageant + suggestion de créer une ONG
+
+[M023] Page détail ONG
+  EN TANT QU'invité ou utilisateur
+  JE VEUX consulter la page d'une ONG
+  AFIN DE connaître sa mission et ses activités
+
+  Critères :
+    ✓ Informations publiques : nom, bannière, logo, description, mission, domaine, coordonnées
+    ✓ Onglet "À propos" : description complète, date de création
+    ✓ Onglet "Événements" : liste des événements PUBLISHED à venir (paginée)
+    ✓ Onglet "Équipe" : nombre de membres (pas la liste détaillée en public)
+    ✓ Statistiques visibles : nb membres, nb événements réalisés, note moyenne feedback
+    ✓ Bouton "Rejoindre" : visible si connecté ET pas déjà membre/pending
+    ✓ Badge "En attente" si déjà une demande PENDING
+    ✓ Accès via slug : /organizations/les-restos-du-coeur
+
+[M024] Modifier mon ONG
+  EN TANT QU'admin d'une ONG
+  JE VEUX modifier les informations de mon organisation
+  AFIN DE les garder à jour
+
+  Critères :
+    ✓ Vérification : Membership(user, org, role=ADMIN, status=ACTIVE)
+    ✓ Tous les champs modifiables SAUF le nom (changement de nom → contacter support)
+    ✓ Upload nouveau logo/bannière (remplace l'ancien, ancien fichier supprimé)
+    ✓ Audit log avec old_value/new_value
+
+────────────────────────────────────────
+4.4. MEMBERSHIP (ADHÉSION)
+────────────────────────────────────────
+
+[M030] Demander à rejoindre une ONG
+  EN TANT QUE bénévole
+  JE VEUX envoyer une demande d'adhésion
+  AFIN DE participer aux activités de l'ONG
+
+  Critères :
+    ✓ ONG doit être ACTIVE (sinon 400)
+    ✓ Message de motivation optionnel (max 1000 chars)
+    ✓ Déjà ACTIVE → 409 "Vous êtes déjà membre"
+    ✓ Déjà PENDING → 409 "Demande en cours"
+    ✓ REJECTED récent (< 30 jours) → 400 "Réessayez après le {date}"
+    ✓ Membership créé : status=PENDING
+    ✓ Notification à TOUS les admins de l'ONG : MEMBERSHIP_REQUESTED
+    ✓ Audit log : MEMBERSHIP_REQUESTED
+
+[M031] Traiter une demande d'adhésion
+  EN TANT QU'admin ONG
+  JE VEUX accepter ou refuser les demandes
+  AFIN DE gérer mon équipe
+
+  Critères :
+    ✓ Vue : liste des PENDING pour mon ONG, avec profil du demandeur et motivation
+    ✓ APPROVE → status=ACTIVE, joined_at=now
+    ✓ REJECT → status=REJECTED, rejected_at=now
+    ✓ Notification au bénévole : MEMBERSHIP_ACCEPTED ou MEMBERSHIP_REJECTED
+    ✓ Audit log : MEMBERSHIP_APPROVED ou MEMBERSHIP_REJECTED
+
+[M032] Quitter une ONG
+  EN TANT QUE membre d'une ONG
+  JE VEUX quitter l'organisation
+  AFIN DE ne plus y être affilié
+
+  Critères :
+    ✓ Confirmation requise ("Êtes-vous sûr ?")
+    ✓ Membership → status=LEFT
+    ✓ Si dernier ADMIN restant → BLOQUÉ "Transférez le rôle admin d'abord"
+    ✓ Désinscription auto des événements futurs de cette ONG (+ promotion waitlist)
+    ✓ Audit log : MEMBERSHIP_LEFT
+
+[M033] Lister les membres
+  EN TANT QU'admin ONG
+  JE VEUX voir la liste des membres
+  AFIN DE gérer mon équipe
+
+  Critères :
+    ✓ Liste paginée : photo, nom, rôle (badge), date d'adhésion, compétences
+    ✓ Filtres : rôle, recherche nom
+    ✓ Tri : nom, date d'adhésion
+    ✓ Actions par membre : changer rôle, exclure
+
+[M034] Changer le rôle d'un membre
+  EN TANT QU'admin ONG
+  JE VEUX promouvoir/rétrograder un membre
+  AFIN D'organiser les responsabilités
+
+  Critères :
+    ✓ Changements possibles : MEMBER↔ADMIN, MEMBER↔ACCOUNTANT
+    ✓ Un ADMIN ne peut pas se rétrograder lui-même s'il est le seul ADMIN
+    ✓ Notification au membre concerné
+    ✓ Audit log : MEMBERSHIP_ROLE_CHANGED
+
+[M035] Exclure un membre
+  EN TANT QU'admin ONG
+  JE VEUX exclure un membre
+  AFIN DE protéger l'organisation
+
+  Critères :
+    ✓ Confirmation + motif optionnel
+    ✓ Membership → status=LEFT
+    ✓ Un ADMIN ne peut pas s'exclure lui-même
+    ✓ Un ADMIN ne peut pas exclure un autre ADMIN (il faut d'abord le rétrograder)
+    ✓ Désinscription auto des événements futurs de l'ONG
+    ✓ Notification au membre exclu
+    ✓ Audit log : MEMBERSHIP_EXCLUDED
+
+────────────────────────────────────────
+4.5. ÉVÉNEMENTS
+────────────────────────────────────────
+
+[M040] Créer un événement
+  EN TANT QU'admin ONG
+  JE VEUX créer un événement
+  AFIN D'organiser une activité
+
+  Critères :
+    ✓ Prérequis : ONG status=ACTIVE
+    ✓ Obligatoire : titre, description, type, ville, start_date, end_date
+    ✓ Optionnel : objectifs, lieu exact, GPS, max_participants, compétences requises,
+                   registration_deadline, min_age, is_online, online_link
+    ✓ Événement créé : status=DRAFT (pas encore visible publiquement)
+    ✓ Compétences requises : sélection depuis la table skills
+    ✓ Validation : end_date > start_date, registration_deadline ≤ start_date
+    ✓ Audit log : EVENT_CREATED
+
+[M041] Publier un événement
+  EN TANT QU'admin ONG
+  JE VEUX publier un événement DRAFT
+  AFIN DE le rendre visible
+
+  Critères :
+    ✓ Transition : DRAFT → PUBLISHED uniquement
+    ✓ Validation : tous les champs obligatoires remplis
+    ✓ Notification à tous les membres ACTIVE de l'ONG : EVENT_PUBLISHED
+    ✓ Visible publiquement dans la liste des événements
+    ✓ Audit log : EVENT_PUBLISHED
+
+[M042] Modifier un événement
+  EN TANT QU'admin ONG
+  JE VEUX modifier un événement
+  AFIN De corriger ou mettre à jour les détails
+
+  Critères :
+    ✓ DRAFT : tous les champs modifiables
+    ✓ PUBLISHED : titre, description, objectifs, lieu modifiables
+      MAIS dates, max_participants NON modifiables (annuler + recréer)
+    ✓ CANCELLED/COMPLETED : rien modifiable
+    ✓ Audit log avec diff : EVENT_UPDATED
+
+[M043] Consulter les événements
+  EN TANT QU'invité ou utilisateur
+  JE VEUX parcourir les événements à venir
+  AFIN DE trouver une activité
+
+  Critères :
+    ✓ Uniquement PUBLISHED avec start_date ≥ now
+    ✓ Pagination : 10 items/page
+    ✓ Filtres cumulables :
+      - Type (multiselect)
+      - Ville (autocomplete)
+      - ONG (autocomplete)
+      - Plage de dates (du — au)
+      - En ligne / présentiel
+      - Compétences requises
+    ✓ Tri : date la plus proche (défaut), places restantes
+    ✓ Card : titre, ONG (lien), type (badge), date, ville, places (X/Y ou "Illimité")
+    ✓ Indicateur visuel si presque complet (< 20% de places restantes)
+    ✓ Si connecté : badge "Inscrit" sur les événements où on est inscrit
+
+[M044] Page détail événement
+  EN TANT QU'invité ou utilisateur
+  JE VEUX consulter le détail d'un événement
+  AFIN DE décider de m'inscrire
+
+  Critères :
+    ✓ Toutes les infos : titre, ONG, description, objectifs, type, lieu, dates, compétences
+    ✓ Compteur de places : "12 / 30 inscrits" ou "12 inscrits (illimité)"
+    ✓ Barre de progression visuelle des places
+    ✓ Carte géographique si coordonnées GPS disponibles
+    ✓ Si connecté + non inscrit → bouton "S'inscrire"
+    ✓ Si connecté + inscrit → bouton "Se désinscrire" + statut (REGISTERED/WAITLISTED)
+    ✓ Si deadline passée → "Inscriptions closes"
+    ✓ Si événement passé + feedbacks → affichage note moyenne + commentaires
+    ✓ Lien vers la page ONG
+
+[M045] S'inscrire à un événement
+  EN TANT QUE bénévole connecté
+  JE VEUX m'inscrire à un événement
+  AFIN D'y participer
+
+  Critères :
+    ✓ Événement PUBLISHED uniquement
+    ✓ registration_deadline non passée (ou ≤ start_date si pas de deadline)
+    ✓ Si max_participants non atteint → REGISTERED
+    ✓ Si max_participants atteint → WAITLISTED
+    ✓ Si min_age défini et user trop jeune → 400 "Âge minimum requis : {min_age} ans"
+    ✓ Doublon → 409 "Déjà inscrit"
+    ✓ Email de confirmation avec détails de l'événement
+    ✓ Notification : SIGNUP_CONFIRMED ou SIGNUP_WAITLISTED
+    ✓ Audit log : EVENT_SIGNUP
+
+[M046] Se désinscrire
+  EN TANT QUE bénévole inscrit
+  JE VEUX annuler mon inscription
+  AFIN DE libérer ma place
+
+  Critères :
+    ✓ Impossible si événement passé (end_date < now)
+    ✓ EventSignup → status=CANCELLED, cancelled_at=now
+    ✓ Si était REGISTERED + waitlist non vide :
+      → Premier WAITLISTED (par registered_at ASC) promu à REGISTERED
+      → Notification SIGNUP_PROMOTED au promu + email
+    ✓ Audit log : EVENT_UNSIGNUP
+
+[M047] Annuler un événement
+  EN TANT QU'admin ONG
+  JE VEUX annuler un événement
+  AFIN D'informer tout le monde
+
+  Critères :
+    ✓ PUBLISHED → CANCELLED uniquement
+    ✓ cancellation_reason obligatoire (min 10 chars)
+    ✓ Notification + email à TOUS les inscrits (REGISTERED + WAITLISTED)
+    ✓ Tous les signups → CANCELLED
+    ✓ Audit log : EVENT_CANCELLED
+
+[M048] Liste des inscrits
+  EN TANT QU'admin ONG
+  JE VEUX voir les inscrits à mon événement
+  AFIN DE préparer la logistique
+
+  Critères :
+    ✓ Liste : nom, email, statut (badge couleur), date inscription, compétences
+    ✓ Compteurs : X REGISTERED, Y WAITLISTED, Z CANCELLED
+    ✓ Export CSV (nom, prénom, email, téléphone, statut)
+    ✓ Tri : date inscription, nom
+
+[S049] Marquer la présence
+  EN TANT QU'admin ONG
+  JE VEUX marquer qui était présent
+  AFIN DE suivre la participation réelle
+
+  Critères :
+    ✓ Action disponible après start_date de l'événement
+    ✓ Checkbox par inscrit REGISTERED → ATTENDED (attended_at=now)
+    ✓ Action de masse : "Tous présents"
+    ✓ Déclenche le passage Event → COMPLETED quand marquage terminé
+    ✓ Notification FEEDBACK_REQUESTED envoyée aux ATTENDED
+
+[S050] Feedback post-événement
+  EN TANT QUE bénévole ayant participé (ATTENDED)
+  JE VEUX donner mon avis sur l'événement
+  AFIN D'aider l'ONG à s'améliorer
+
+  Critères :
+    ✓ Accessible uniquement si EventSignup.status=ATTENDED
+    ✓ Note : 1 à 5 étoiles (obligatoire)
+    ✓ Commentaire : texte libre max 2000 chars (optionnel)
+    ✓ Option anonyme (is_anonymous=true → nom masqué sur la page publique)
+    ✓ Un seul feedback par user par événement → 409 si doublon
+    ✓ Feedback visible sur la page de l'événement (passé)
+    ✓ Note moyenne mise en cache pour la page ONG
+
+────────────────────────────────────────
+4.6. NOTIFICATIONS
+────────────────────────────────────────
+
+[M060] Centre de notifications
+  EN TANT QU'utilisateur connecté
+  JE VEUX voir mes notifications
+  AFIN DE ne rien manquer
+
+  Critères :
+    ✓ Icône cloche avec badge compteur (non lues)
+    ✓ Dropdown rapide : 5 dernières notifications
+    ✓ Page complète : liste paginée, plus récentes en premier
+    ✓ Chaque notification : icône par type, titre, extrait message, date relative, lien
+    ✓ Clic → marque comme lu + navigation vers le lien
+    ✓ Action "Tout marquer comme lu"
+
+────────────────────────────────────────
+4.7. DASHBOARD
+────────────────────────────────────────
+
+[M070] Dashboard bénévole
+  EN TANT QUE bénévole connecté
+  JE VEUX voir mon tableau de bord
+  AFIN D'avoir une vue d'ensemble de mon activité
+
+  Critères :
+    ✓ Message de bienvenue personnalisé
+    ✓ Si onboarding_done=false → bannière "Complétez votre profil"
+    ✓ Widget "Mes prochains événements" (3 prochains, lien vers tous)
+    ✓ Widget "Mes ONG" (liste compacte de mes memberships ACTIVE)
+    ✓ Widget "Événements suggérés" (basé sur ville + compétences, max 4)
+    ✓ Widget "Notifications récentes" (3 dernières non lues)
+    ✓ Statistiques personnelles :
+      - Nombre d'événements participés (ATTENDED)
+      - Nombre d'ONG rejointes
+      - Heures de bénévolat estimées (somme des durées des events ATTENDED)
+
+[M071] Dashboard admin ONG
+  EN TANT QU'admin d'une ONG
+  JE VEUX voir le tableau de bord de mon organisation
+  AFIN DE piloter efficacement
+
+  Critères :
+    ✓ Sélecteur d'ONG (si admin de plusieurs)
+    ✓ Widget "Demandes en attente" (memberships PENDING, avec action rapide)
+    ✓ Widget "Prochains événements" (avec nb inscrits)
+    ✓ Widget "Derniers membres" (5 derniers arrivés)
+    ✓ Statistiques ONG :
+      - Nombre de membres actifs
+      - Nombre d'événements ce mois / total
+      - Taux de remplissage moyen des événements
+      - Note moyenne des feedbacks
+    ✓ Raccourcis : "Créer un événement", "Gérer les membres"
+
+[S072] Dashboard PLATFORM_ADMIN
+  EN TANT QUE super-admin
+  JE VEUX voir le tableau de bord plateforme
+  AFIN DE superviser Ummati
+
+  Critères :
+    ✓ Widget "ONG en attente" (nb + lien, alerte si > 72h)
+    ✓ Widget "Statistiques globales" :
+      - Total utilisateurs / ONG / événements
+      - Inscriptions cette semaine
+      - Top 5 ONG les plus actives
+    ✓ Widget "Dernières inscriptions" (5 derniers users)
+    ✓ Widget "Alertes" (comptes signalés, ONG en attente > 72h)
+
+────────────────────────────────────────
+4.8. ADMINISTRATION PLATEFORME
+────────────────────────────────────────
+
+[M080] Gestion des utilisateurs
+  EN TANT QUE PLATFORM_ADMIN
+  JE VEUX gérer les utilisateurs
+  AFIN DE modérer la plateforme
+
+  Critères :
+    ✓ Liste paginée : nom, email, rôle, date inscription, statut (actif/désactivé)
+    ✓ Recherche par nom ou email
+    ✓ Action : désactiver (enabled=false) / réactiver
+    ✓ Désactivation → déconnexion forcée (tokens invalidés)
+    ✓ Audit log : USER_DISABLED / USER_ENABLED
+
+[M081] Gestion des ONG
+  EN TANT QUE PLATFORM_ADMIN
+  JE VEUX gérer toutes les organisations
+  AFIN D'assurer la qualité de la plateforme
+
+  Critères :
+    ✓ Liste paginée avec filtre par status (PENDING, ACTIVE, SUSPENDED, ARCHIVED)
+    ✓ Actions : valider, rejeter, suspendre, réactiver, archiver
+    ✓ Suspension → ONG invisible publiquement, événements non accessibles
+    ✓ Audit log pour chaque action
+
+================================================================================
+5. RÈGLES MÉTIER
+================================================================================
+
+── Utilisateurs ──
+RM-01  Âge minimum : 16 ans (calculé depuis date_of_birth).
+RM-02  Mots de passe : bcrypt cost 12, jamais en clair, jamais loggés.
+RM-03  Tokens JWT : access 15 min, refresh 7 jours.
+RM-04  Brute-force : 5 échecs en 15 min → blocage 30 min (locked_until).
+RM-05  Suppression de compte : soft-delete avec anonymisation, purge après 30j.
+
+── Organisations ──
+RM-10  Seul un utilisateur email_verified peut créer une ONG.
+RM-11  Une ONG PENDING ne peut pas avoir d'événements PUBLISHED.
+RM-12  Le slug est auto-généré, unique, et immuable.
+RM-13  Le rejet d'une ONG requiert un motif ≥ 20 caractères.
+
+── Memberships ──
+RM-20  Un user ne peut avoir qu'un seul Membership par ONG (contrainte unique).
+RM-21  Re-candidature après rejet : attendre 30 jours depuis rejected_at.
+RM-22  Le dernier ADMIN d'une ONG ne peut pas quitter ni être rétrogradé.
+RM-23  Un ADMIN ne peut pas exclure un autre ADMIN directement (rétrograder d'abord).
+RM-24  Quitter une ONG → désinscription auto des événements futurs de cette ONG.
+
+── Événements ──
+RM-30  Seule une ONG ACTIVE peut avoir des événements PUBLISHED.
+RM-31  Inscription impossible après registration_deadline (ou start_date si pas de deadline).
+RM-32  Si max_participants atteint → inscription en WAITLISTED.
+RM-33  Annulation d'un REGISTERED → promotion automatique du premier WAITLISTED (FIFO).
+RM-34  Événement passé (end_date < now) → COMPLETED (batch quotidien 03:00 UTC).
+RM-35  Annulation d'événement → notification à tous les inscrits.
+RM-36  Feedback uniquement possible si EventSignup.status=ATTENDED.
+RM-37  Un seul feedback par user par événement.
+
+── Notifications ──
+RM-40  Toute notification in-app est accompagnée d'un email (sauf GENERAL).
+RM-41  Emails envoyés de manière asynchrone (ne pas bloquer la requête HTTP).
+
+================================================================================
+6. API REST — CONTRAT DÉTAILLÉ
+================================================================================
+
+Base URL : /api/v1
+Content-Type : application/json (sauf upload : multipart/form-data)
+
+────────────────────────────────────────
+6.1. AUTHENTIFICATION
+────────────────────────────────────────
+
+POST /api/v1/auth/register
+  Description : Inscription d'un nouveau bénévole
+  Auth : Non
+  Body :
+    {
+      "email": "fatima@example.com",
+      "password": "S3cur3!Pass",
+      "firstName": "Fatima",
+      "lastName": "Benali"
+    }
+  Réponse 201 :
+    {
+      "data": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "email": "fatima@example.com",
+        "firstName": "Fatima",
+        "lastName": "Benali",
+        "role": "VOLUNTEER",
+        "emailVerified": false,
+        "createdAt": "2026-04-18T10:30:00Z"
+      }
+    }
+  Erreurs : 400 (validation), 409 (email existant)
+
+POST /api/v1/auth/confirm-email?token={token}
+  Description : Confirmation de l'email
+  Auth : Non
+  Réponse 200 : { "message": "Email confirmé avec succès" }
+  Erreurs : 400 (token invalide), 410 (token expiré)
+
+POST /api/v1/auth/resend-confirmation
+  Description : Renvoyer l'email de confirmation
+  Auth : Non
+  Body : { "email": "fatima@example.com" }
+  Réponse 200 : { "message": "Si ce compte existe, un email a été envoyé" }
+  Rate limit : 1 / 2 min
+
+POST /api/v1/auth/login
+  Description : Connexion
+  Auth : Non
+  Body :
+    {
+      "email": "fatima@example.com",
+      "password": "S3cur3!Pass"
+    }
+  Réponse 200 :
+    {
+      "data": {
+        "accessToken": "eyJhbGciOi...",
+        "refreshToken": "dGhpcyBpcyBh...",
+        "expiresIn": 900,
+        "tokenType": "Bearer",
+        "user": {
+          "id": "550e8400-...",
+          "email": "fatima@example.com",
+          "firstName": "Fatima",
+          "lastName": "Benali",
+          "role": "VOLUNTEER",
+          "onboardingDone": false
+        }
+      }
+    }
+  Erreurs : 401 (identifiants), 403 (non vérifié/désactivé), 429 (bloqué)
+
+POST /api/v1/auth/refresh
+  Description : Renouveler l'access token
+  Auth : Bearer refresh token
+  Réponse 200 :
+    {
+      "data": {
+        "accessToken": "eyJhbGciOi...",
+        "expiresIn": 900,
+        "tokenType": "Bearer"
+      }
+    }
+
+POST /api/v1/auth/forgot-password
+  Body : { "email": "fatima@example.com" }
+  Réponse 200 : { "message": "Si ce compte existe, un email a été envoyé" }
+
+POST /api/v1/auth/reset-password
+  Body :
+    {
+      "token": "abc123...",
+      "newPassword": "N3wS3cur3!Pass"
+    }
+  Réponse 200 : { "message": "Mot de passe réinitialisé" }
+
+POST /api/v1/auth/logout
+  Auth : Bearer access token
+  Réponse 204
+
+────────────────────────────────────────
+6.2. PROFIL
+────────────────────────────────────────
+
+GET /api/v1/profile
+  Auth : Bearer
+  Réponse 200 :
+    {
+      "data": {
+        "id": "550e8400-...",
+        "email": "fatima@example.com",
+        "firstName": "Fatima",
+        "lastName": "Benali",
+        "phone": "+33612345678",
+        "dateOfBirth": "1995-03-15",
+        "photoUrl": "/uploads/users/550e8400.../photo.jpg",
+        "bio": "Passionnée par l'éducation...",
+        "address": {
+          "street": "12 Rue de la Paix",
+          "city": "Paris",
+          "zip": "75001",
+          "country": "France"
+        },
+        "skills": [
+          { "id": "...", "name": "Soutien scolaire", "category": "ENSEIGNEMENT" },
+          { "id": "...", "name": "Traduction", "category": "COMMUNICATION" }
+        ],
+        "stats": {
+          "organizationCount": 2,
+          "eventsAttended": 8,
+          "volunteerHours": 42
+        },
+        "onboardingDone": true,
+        "emailVerified": true,
+        "createdAt": "2026-01-15T08:00:00Z"
+      }
+    }
+
+PUT /api/v1/profile
+  Auth : Bearer
+  Body :
+    {
+      "firstName": "Fatima",
+      "lastName": "Benali",
+      "phone": "+33612345678",
+      "dateOfBirth": "1995-03-15",
+      "bio": "Passionnée par l'éducation...",
+      "address": {
+        "street": "12 Rue de la Paix",
+        "city": "Paris",
+        "zip": "75001",
+        "country": "France"
+      },
+      "skillIds": ["uuid1", "uuid2"],
+      "newSkills": ["Cuisine végane"]
+    }
+  Réponse 200 : profil mis à jour (même format que GET)
+
+POST /api/v1/profile/photo
+  Auth : Bearer
+  Content-Type : multipart/form-data
+  Body : file (JPG/PNG, max 5 Mo)
+  Réponse 200 : { "data": { "photoUrl": "/uploads/users/.../photo.jpg" } }
+
+DELETE /api/v1/profile
+  Auth : Bearer
+  Body : { "password": "S3cur3!Pass" }
+  Réponse 204
+
+PUT /api/v1/profile/password
+  Auth : Bearer
+  Body :
+    {
+      "currentPassword": "S3cur3!Pass",
+      "newPassword": "N3wS3cur3!Pass"
+    }
+  Réponse 200 : { "message": "Mot de passe modifié" }
+
+POST /api/v1/profile/onboarding
+  Auth : Bearer
+  Body :
+    {
+      "bio": "...",
+      "city": "Paris",
+      "skillIds": ["uuid1"],
+      "preferredDomains": ["EDUCATION", "SOCIAL"]
+    }
+  Réponse 200 : profil mis à jour, onboardingDone=true
+
+GET /api/v1/profile/memberships
+  Auth : Bearer
+  Réponse 200 : liste paginée de mes memberships + infos ONG
+
+GET /api/v1/profile/signups
+  Auth : Bearer
+  Query : ?status=REGISTERED&timeframe=upcoming
+  Réponse 200 : liste paginée de mes inscriptions + infos événement
+
+────────────────────────────────────────
+6.3. ORGANISATIONS
+────────────────────────────────────────
+
+GET /api/v1/organizations
+  Auth : Optionnelle
+  Query : ?page=0&size=12&sort=name,asc&domain=EDUCATION,SOCIAL&city=Paris&search=restos
+  Réponse 200 :
+    {
+      "data": [
+        {
+          "id": "...",
+          "name": "Les Restos du Cœur",
+          "slug": "les-restos-du-coeur",
+          "domain": "SOCIAL",
+          "logoUrl": "...",
+          "city": "Paris",
+          "memberCount": 45,
+          "descriptionExcerpt": "Aide alimentaire et..."
+        }
+      ],
+      "meta": {
+        "page": 0,
+        "size": 12,
+        "totalElements": 156,
+        "totalPages": 13
+      }
+    }
+
+GET /api/v1/organizations/{slug}
+  Auth : Optionnelle
+  Réponse 200 : détail complet + stats + events à venir (top 5)
+
+POST /api/v1/organizations
+  Auth : Bearer (email vérifié)
+  Content-Type : multipart/form-data
+  Body :
+    name, description, mission, domain, addressCity, addressZip,
+    email, phone, website, logo (file), statutes (file PDF)
+  Réponse 201 : ONG créée (status=PENDING)
+
+PUT /api/v1/organizations/{id}
+  Auth : Bearer (admin de cette ONG)
+  Body : champs modifiables
+  Réponse 200 : ONG mise à jour
+
+PATCH /api/v1/organizations/{id}/status
+  Auth : Bearer (PLATFORM_ADMIN)
+  Body :
+    { "status": "ACTIVE" }
+    ou
+    { "status": "SUSPENDED", "reason": "Documents non conformes..." }
+  Réponse 200
+
+────────────────────────────────────────
+6.4. MEMBERSHIPS
+────────────────────────────────────────
+
+POST /api/v1/organizations/{orgId}/memberships
+  Auth : Bearer
+  Body : { "motivation": "Je souhaite contribuer..." }
+  Réponse 201
+
+GET /api/v1/organizations/{orgId}/memberships
+  Auth : Bearer (admin ONG)
+  Query : ?status=PENDING&page=0&size=20
+  Réponse 200 : liste paginée avec profil résumé du membre
+
+GET /api/v1/organizations/{orgId}/memberships/pending/count
+  Auth : Bearer (admin ONG)
+  Réponse 200 : { "data": { "count": 5 } }
+
+PATCH /api/v1/memberships/{membershipId}
+  Auth : Bearer (admin ONG concernée)
+  Body : { "action": "APPROVE" } ou { "action": "REJECT" }
+  Réponse 200
+
+PATCH /api/v1/memberships/{membershipId}/role
+  Auth : Bearer (admin ONG)
+  Body : { "role": "ADMIN" }
+  Réponse 200
+
+DELETE /api/v1/memberships/{membershipId}
+  Auth : Bearer (self = quitter, admin ONG = exclure)
+  Réponse 204
+
+────────────────────────────────────────
+6.5. ÉVÉNEMENTS
+────────────────────────────────────────
+
+GET /api/v1/events
+  Auth : Optionnelle
+  Query : ?page=0&size=10&sort=startDate,asc&type=FORMATION&city=Lyon
+          &from=2026-05-01&to=2026-06-30&online=true&skillId=uuid
+  Réponse 200 : liste paginée avec infos résumées
+
+GET /api/v1/events/{id}
+  Auth : Optionnelle
+  Réponse 200 : détail complet + ONG + compteurs + feedbacks (si passé)
+
+POST /api/v1/organizations/{orgId}/events
+  Auth : Bearer (admin ONG)
+  Body :
+    {
+      "title": "Maraude solidaire Paris 15e",
+      "description": "Distribution de repas...",
+      "type": "MARAUDE",
+      "locationName": "Place de la Convention",
+      "locationAddress": "Place de la Convention",
+      "locationCity": "Paris",
+      "locationZip": "75015",
+      "startDate": "2026-05-15T19:00:00Z",
+      "endDate": "2026-05-15T23:00:00Z",
+      "registrationDeadline": "2026-05-14T18:00:00Z",
+      "maxParticipants": 20,
+      "requiredSkillIds": ["uuid-cuisine"],
+      "isOnline": false
+    }
+  Réponse 201
+
+PUT /api/v1/events/{id}
+  Auth : Bearer (admin ONG)
+  Réponse 200
+
+PATCH /api/v1/events/{id}/status
+  Auth : Bearer (admin ONG)
+  Body : { "action": "PUBLISH" }
+         { "action": "CANCEL", "reason": "Météo défavorable" }
+         { "action": "COMPLETE" }
+  Réponse 200
+
+── Inscriptions ──
+
+POST /api/v1/events/{id}/signups
+  Auth : Bearer
+  Réponse 201 : { "data": { "status": "REGISTERED" } }
+                 ou { "data": { "status": "WAITLISTED", "position": 3 } }
+
+DELETE /api/v1/events/{id}/signups
+  Auth : Bearer
+  Réponse 204
+
+GET /api/v1/events/{id}/signups
+  Auth : Bearer (admin ONG)
+  Réponse 200 : liste + compteurs
+
+GET /api/v1/events/{id}/signups/export
+  Auth : Bearer (admin ONG)
+  Content-Type : text/csv
+  Réponse 200 : fichier CSV
+
+PATCH /api/v1/events/{id}/signups/attendance
+  Auth : Bearer (admin ONG)
+  Body : { "attendedUserIds": ["uuid1", "uuid2", "uuid3"] }
+  Réponse 200
+
+── Feedbacks ──
+
+POST /api/v1/events/{id}/feedbacks
+  Auth : Bearer (status=ATTENDED requis)
+  Body :
+    {
+      "rating": 4,
+      "comment": "Très belle expérience, bien organisé !",
+      "isAnonymous": false
+    }
+  Réponse 201
+
+GET /api/v1/events/{id}/feedbacks
+  Auth : Optionnelle
+  Réponse 200 : liste paginée + note moyenne
+
+────────────────────────────────────────
+6.6. NOTIFICATIONS
+────────────────────────────────────────
+
+GET /api/v1/notifications
+  Auth : Bearer
+  Query : ?page=0&size=20&unreadOnly=true
+  Réponse 200 : liste paginée
+
+GET /api/v1/notifications/unread-count
+  Auth : Bearer
+  Réponse 200 : { "data": { "count": 7 } }
+
+PATCH /api/v1/notifications/{id}/read
+  Auth : Bearer
+  Réponse 204
+
+PATCH /api/v1/notifications/read-all
+  Auth : Bearer
+  Réponse 204
+
+────────────────────────────────────────
+6.7. DOCUMENTS
+────────────────────────────────────────
+
+POST /api/v1/organizations/{orgId}/documents
+  Auth : Bearer (admin ONG)
+  Content-Type : multipart/form-data
+  Body : name, file
+  Réponse 201
+
+GET /api/v1/organizations/{orgId}/documents
+  Auth : Bearer (membre ONG)
+  Réponse 200 : liste
+
+GET /api/v1/documents/{id}/download
+  Auth : Bearer (membre ONG ou PLATFORM_ADMIN)
+  Réponse 200 : fichier binaire
+
+DELETE /api/v1/documents/{id}
+  Auth : Bearer (admin ONG)
+  Réponse 204
+
+────────────────────────────────────────
+6.8. ADMINISTRATION
+────────────────────────────────────────
+
+GET /api/v1/admin/users
+  Auth : Bearer (PLATFORM_ADMIN)
+  Query : ?page=0&size=20&search=fatima&enabled=true
+  Réponse 200
+
+PATCH /api/v1/admin/users/{id}/status
+  Auth : Bearer (PLATFORM_ADMIN)
+  Body : { "enabled": false }
+  Réponse 200
+
+GET /api/v1/admin/organizations
+  Auth : Bearer (PLATFORM_ADMIN)
+  Query : ?status=PENDING
+  Réponse 200
+
+GET /api/v1/admin/stats
+  Auth : Bearer (PLATFORM_ADMIN)
+  Réponse 200 :
+    {
+      "data": {
+        "totalUsers": 1250,
+        "totalOrganizations": 67,
+        "totalEvents": 234,
+        "pendingOrganizations": 3,
+        "registrationsThisWeek": 42,
+        "eventsThisMonth": 18
+      }
+    }
+
+────────────────────────────────────────
+6.9. SKILLS (référentiel)
+────────────────────────────────────────
+
+GET /api/v1/skills
+  Auth : Optionnelle
+  Query : ?category=TECHNIQUE&search=web
+  Réponse 200 : liste complète (pas de pagination, référentiel compact)
+
+────────────────────────────────────────
+6.10. CONVENTIONS API
+────────────────────────────────────────
+
+Pagination :
+  ?page=0&size=20&sort=createdAt,desc
+  Défaut : page=0, size=20
+
+Enveloppe réponse succès :
+  {
+    "data": { ... },          // ou [...]
+    "meta": {                  // si paginé
+      "page": 0,
+      "size": 20,
+      "totalElements": 150,
+      "totalPages": 8
+    }
+  }
+
+Enveloppe réponse erreur :
+  {
+    "status": 400,
+    "error": "Bad Request",
+    "code": "VALIDATION_ERROR",
+    "message": "Le mot de passe doit contenir au moins 8 caractères",
+    "details": [              // optionnel, pour erreurs de validation multiples
+      { "field": "password", "message": "Doit contenir au moins 1 majuscule" },
+      { "field": "email", "message": "Format invalide" }
+    ],
+    "timestamp": "2026-04-18T10:30:00Z",
+    "path": "/api/v1/auth/register"
+  }
+
+Codes HTTP utilisés :
+  200  OK
+  201  Created
+  204  No Content (suppression, actions sans body)
+  400  Bad Request (validation, règle métier violée)
+  401  Unauthorized (non authentifié)
+  403  Forbidden (pas les droits)
+  404  Not Found
+  409  Conflict (doublon)
+  410  Gone (token expiré)
+  422  Unprocessable Entity (données valides mais logique impossible)
+  429  Too Many Requests (rate limiting)
+  500  Internal Server Error
+
+================================================================================
+7. MACHINES À ÉTATS & WORKFLOWS
+================================================================================
+
+7.1. Organisation
+─────────────────
+                    ┌──[reject]──→ (motif envoyé, peut recréer)
+                    │
+  PENDING ──[approve]──→ ACTIVE ──[suspend]──→ SUSPENDED
+                           │                       │
+                           │ [archive]             │ [reactivate]
+                           ↓                       ↓
+                        ARCHIVED                 ACTIVE
+
+  Transitions autorisées :
+    PENDING    → ACTIVE      (PLATFORM_ADMIN)
+    PENDING    → (supprimé)  (PLATFORM_ADMIN, reject)
+    ACTIVE     → SUSPENDED   (PLATFORM_ADMIN)
+    ACTIVE     → ARCHIVED    (PLATFORM_ADMIN ou ONG_ADMIN)
+    SUSPENDED  → ACTIVE      (PLATFORM_ADMIN)
+
+7.2. Événement
+──────────────
+  DRAFT ──[publish]──→ PUBLISHED ──[cancel]──→ CANCELLED
+                           │
+                           │ [end_date passée + présence marquée]
+                           ↓
+                       COMPLETED
+
+  Transitions autorisées :
+    DRAFT      → PUBLISHED  (ONG_ADMIN)
+    DRAFT      → (supprimé) (ONG_ADMIN, hard delete car jamais publié)
+    PUBLISHED  → CANCELLED  (ONG_ADMIN)
+    PUBLISHED  → COMPLETED  (ONG_ADMIN ou batch job)
+
+7.3. Membership
+───────────────
+                    ┌──[reject]──→ REJECTED ──[30j + re-demande]──→ PENDING
+                    │
+  PENDING ──[approve]──→ ACTIVE ──[leave/exclude]──→ LEFT
+
+7.4. Inscription événement
+──────────────────────────
+                                     ┌──[cancel]──→ CANCELLED
+                                     │
+  (inscription) ──→ REGISTERED ──────┤
+                         ↑           │
+                         │ promotion │ [événement terminé]
+                         │           ↓
+  (inscription) ──→ WAITLISTED    ATTENDED
+                         │
+                         └──[cancel]──→ CANCELLED
+
+  Promotion automatique :
+    Quand un REGISTERED cancel → le WAITLISTED le plus ancien (FIFO) passe REGISTERED
+
+================================================================================
+8. CATALOGUE D'ERREURS
+================================================================================
+
+Code applicatif          HTTP   Message
+───────────────────────  ────   ──────────────────────────────────────────────
+AUTH_EMAIL_EXISTS         409   Un compte avec cet email existe déjà
+AUTH_INVALID_CREDENTIALS  401   Email ou mot de passe incorrect
+AUTH_EMAIL_NOT_VERIFIED   403   Veuillez confirmer votre email avant de vous connecter
+AUTH_ACCOUNT_DISABLED     403   Votre compte a été désactivé
+AUTH_ACCOUNT_LOCKED       429   Compte temporairement bloqué, réessayez dans {minutes} min
+AUTH_TOKEN_EXPIRED        410   Ce lien a expiré
+AUTH_TOKEN_USED           409   Ce lien a déjà été utilisé
+AUTH_WEAK_PASSWORD        400   Le mot de passe ne respecte pas les critères de sécurité
+
+PROFILE_NOT_FOUND         404   Profil introuvable
+PROFILE_WRONG_PASSWORD    400   Mot de passe actuel incorrect
+PROFILE_SAME_PASSWORD     400   Le nouveau mot de passe doit être différent de l'actuel
+
+ORG_NAME_EXISTS           409   Une organisation avec ce nom existe déjà
+ORG_NOT_FOUND             404   Organisation introuvable
+ORG_NOT_ACTIVE            400   Cette organisation n'est pas encore active
+ORG_NOT_ADMIN             403   Vous n'êtes pas administrateur de cette organisation
+ORG_EMAIL_NOT_VERIFIED    403   Confirmez votre email avant de créer une organisation
+ORG_REJECTION_TOO_SHORT   400   Le motif de rejet doit contenir au moins 20 caractères
+
+MEM_ALREADY_MEMBER        409   Vous êtes déjà membre de cette organisation
+MEM_ALREADY_PENDING       409   Vous avez déjà une demande en cours
+MEM_COOLDOWN              400   Vous pourrez re-postuler après le {date}
+MEM_LAST_ADMIN            400   Vous êtes le dernier administrateur, transférez le rôle d'abord
+MEM_CANNOT_EXCLUDE_ADMIN  400   Impossible d'exclure un administrateur, rétrograder d'abord
+MEM_NOT_FOUND             404   Adhésion introuvable
+
+EVT_NOT_FOUND             404   Événement introuvable
+EVT_ORG_NOT_ACTIVE        400   L'organisation doit être active pour publier un événement
+EVT_INVALID_DATES         400   La date de fin doit être après la date de début
+EVT_INVALID_DEADLINE      400   La date limite d'inscription doit précéder la date de début
+EVT_REGISTRATION_CLOSED   400   Les inscriptions sont closes
+EVT_ALREADY_SIGNED_UP     409   Vous êtes déjà inscrit à cet événement
+EVT_NOT_SIGNED_UP         400   Vous n'êtes pas inscrit à cet événement
+EVT_ALREADY_PASSED        400   Cet événement est déjà passé
+EVT_CANCEL_REASON_SHORT   400   Le motif d'annulation doit contenir au moins 10 caractères
+EVT_TOO_YOUNG             400   Âge minimum requis : {minAge} ans
+EVT_CANNOT_MODIFY_DATES   400   Les dates ne sont pas modifiables après publication
+
+FEEDBACK_ALREADY_EXISTS   409   Vous avez déjà donné votre avis sur cet événement
+FEEDBACK_NOT_ATTENDED     403   Vous devez avoir participé à l'événement pour laisser un avis
+
+FILE_TOO_LARGE            400   Le fichier dépasse la taille maximale de {maxSize} Mo
+FILE_TYPE_NOT_ALLOWED     400   Type de fichier non autorisé
+FILE_NOT_FOUND            404   Fichier introuvable
+
+VALIDATION_ERROR          400   Erreur de validation (voir details)
+RATE_LIMITED              429   Trop de requêtes, réessayez plus tard
+INTERNAL_ERROR            500   Erreur interne du serveur
+
+================================================================================
+9. TEMPLATES EMAIL
+================================================================================
+
+Tous les emails utilisent des templates Thymeleaf (HTML responsive).
+Expéditeur : noreply@ummati.org
+Nom : Ummati
+
+ID                        Sujet                                    Déclencheur
+────────────────────────  ───────────────────────────────────────  ─────────────────
+EMAIL_WELCOME             Bienvenue sur Ummati !                  Inscription
+EMAIL_VERIFY              Confirmez votre email                   Inscription / renvoi
+EMAIL_PASSWORD_RESET      Réinitialisez votre mot de passe        Forgot password
+EMAIL_PASSWORD_CHANGED    Votre mot de passe a été modifié        Changement mdp
+EMAIL_ONG_SUBMITTED       Votre ONG a été soumise                 Création ONG
+EMAIL_ONG_VALIDATED       Votre ONG a été validée 🎉              Validation par admin
+EMAIL_ONG_REJECTED        Votre ONG n'a pas été validée           Rejet par admin
+EMAIL_MEMBERSHIP_REQUEST  Nouvelle demande d'adhésion             Demande membership
+EMAIL_MEMBERSHIP_ACCEPTED Votre adhésion a été acceptée 🎉        Approbation membership
+EMAIL_MEMBERSHIP_REJECTED Votre demande d'adhésion a été refusée  Rejet membership
+EMAIL_EVENT_PUBLISHED     Nouvel événement : {title}              Publication événement
+EMAIL_SIGNUP_CONFIRMED    Inscription confirmée : {title}         Inscription événement
+EMAIL_SIGNUP_WAITLISTED   Liste d'attente : {title}               Inscription waitlist
+EMAIL_SIGNUP_PROMOTED     Place disponible : {title} 🎉           Promotion waitlist
+EMAIL_EVENT_CANCELLED     Événement annulé : {title}              Annulation événement
+EMAIL_EVENT_REMINDER_7D   Rappel J-7 : {title}                    7 jours avant
+EMAIL_EVENT_REMINDER_1D   Rappel J-1 : {title}                    1 jour avant
+EMAIL_FEEDBACK_REQUEST    Donnez votre avis sur {title}           Post-événement
+EMAIL_ACCOUNT_DELETED     Votre compte a été supprimé             Suppression compte
+
+Contenu commun :
+  • Header avec logo Ummati
+  • Footer : lien désinscription notifications, mentions légales, contact
+  • Bouton d'action principal (CTA) dans chaque email
+  • Version texte brut en fallback
+
+================================================================================
+10. INTERFACE UTILISATEUR & PARCOURS
+================================================================================
+
+10.1. Principes de design
+─────────────────────────
+  • Mobile-first responsive (breakpoints : 640 / 768 / 1024 / 1280 px)
+  • Accessibilité WCAG 2.1 AA
+  • Langue Phase 1 : Français uniquement
+  • Design system cohérent : composants réutilisables
+  • Feedback immédiat : spinners, toasts, états de chargement
+  • Empty states : illustrations + appels à l'action quand une liste est vide
+
+  DIRECTIVE DESIGN — Style épuré & beau design
+  ─────────────────────────────────────────────
+  Le front-end Ummati doit avoir un style épuré, moderne et professionnel.
+  Principes clés :
+    • UI minimaliste : espaces blancs généreux, hiérarchie visuelle claire,
+      pas de surcharge d'éléments. Chaque écran respire.
+    • Typographie soignée : tailles, graisses et interlignes bien calibrés.
+      Titres impactants, texte courant lisible.
+    • Palette de couleurs restreinte : une couleur primaire (bleu Ummati),
+      une couleur d'accent, des gris neutres. Pas plus de 3-4 couleurs.
+    • Composants Material Design personnalisés : ne pas utiliser les composants
+      Angular Material "bruts". Ajuster les bordures, ombres, paddings pour
+      un rendu premium et distinctif.
+    • Micro-interactions : transitions douces (200-300ms), hover states subtils,
+      animations de chargement élégantes (pas de flash ni de saut).
+    • Illustrations & icônes : icônes Material cohérentes, illustrations SVG
+      légères pour les empty states et la landing page.
+    • Cards soignées : coins arrondis (8-12px), ombres légères, espacement
+      intérieur confortable. Effet hover discret.
+    • Formulaires agréables : champs bien espacés, labels clairs, messages
+      d'erreur inline doux (pas agressifs), indicateur de progression.
+    • Cohérence totale : chaque page doit sembler appartenir à la même app.
+      Un utilisateur ne doit jamais sentir de rupture de design entre
+      deux écrans.
+
+10.2. Pages & routes
+────────────────────
+
+── Pages publiques ──
+  /                                Accueil / Landing page
+  /login                           Connexion
+  /register                        Inscription
+  /forgot-password                 Mot de passe oublié
+  /reset-password?token=xxx        Nouveau mot de passe
+  /confirm-email?token=xxx         Confirmation email
+  /organizations                   Liste des ONG
+  /organizations/:slug             Page détail ONG
+  /events                          Liste des événements
+  /events/:id                      Page détail événement
+
+── Pages authentifiées ──
+  /onboarding                      Onboarding guidé (si onboardingDone=false)
+  /dashboard                       Tableau de bord
+  /profile                         Mon profil
+  /profile/edit                    Modifier mon profil
+  /profile/settings                Paramètres (mdp, email, suppression)
+  /my-organizations                Mes ONG
+  /my-events                       Mes inscriptions
+  /notifications                   Centre de notifications
+
+── Pages admin ONG ──
+  /organizations/:slug/manage               Dashboard ONG
+  /organizations/:slug/manage/members       Gestion des membres
+  /organizations/:slug/manage/events        Gestion des événements
+  /organizations/:slug/manage/events/new    Créer un événement
+  /organizations/:slug/manage/events/:id    Modifier un événement
+  /organizations/:slug/manage/documents     Documents
+  /organizations/new                        Créer une ONG
+
+── Pages platform admin ──
+  /admin                           Dashboard admin
+  /admin/organizations             Gestion des ONG
+  /admin/organizations/:id         Détail ONG (validation)
+  /admin/users                     Gestion des utilisateurs
+
+10.3. Parcours utilisateur clé : de l'inscription à la première participation
+─────────────────────────────────────────────────────────────────────────────
+  1. Landing page → CTA "Rejoindre Ummati"
+  2. Formulaire inscription → email + mdp + nom
+  3. Page "Vérifiez votre email" (avec option renvoi)
+  4. Clic lien email → "Email confirmé !" → redirection login
+  5. Connexion → redirection /onboarding (car onboardingDone=false)
+  6. Onboarding 4 étapes → profil complété → /dashboard
+  7. Dashboard → Widget "Événements suggérés" → clic sur un événement
+  8. Page détail événement → "S'inscrire" → confirmation
+  9. Dashboard → Widget "Mes prochains événements" → l'événement apparaît
+  10. J-7 : email de rappel
+  11. J-1 : email de rappel
+  12. Jour J : participation
+  13. Post-événement : notification "Donnez votre avis" → feedback
+
+10.4. Composants UI principaux
+──────────────────────────────
+  • NavBar       : logo, liens, avatar, notifications (badge), menu responsive
+  • Card         : ONG card, Event card, Member card (photo, info, actions)
+  • Badge        : domaine (couleur), statut (couleur), rôle
+  • Pagination   : numéros + prev/next
+  • EmptyState   : illustration + texte + CTA
+  • Modal        : confirmation (supprimer, quitter), détail rapide
+  • Toast        : succès (vert), erreur (rouge), info (bleu), warning (orange)
+  • FormField    : label, input, validation inline, aide contextuelle
+  • Stepper      : onboarding, création événement multi-étapes
+  • Skeleton     : placeholders pendant le chargement
+  • Avatar       : photo ou initiales avec couleur de fond aléatoire
+  • StarRating   : composant 1-5 étoiles (feedback)
+  • ProgressBar  : places événement (vert → orange → rouge)
+
+================================================================================
+11. EXIGENCES NON FONCTIONNELLES
+================================================================================
+
+11.1. Performance
+  • Temps de réponse API : p50 < 100ms, p95 < 500ms, p99 < 2s
+  • Capacité Phase 1 : 1 000 utilisateurs simultanés
+  • Upload : max 10 Mo/fichier, timeout 30s
+  • Requêtes BDD : aucune requête N+1 (EntityGraph ou JOIN FETCH)
+
+11.2. Disponibilité
+  • SLA Phase 1 : 99.5%
+  • Maintenance planifiée : dimanche 03:00-05:00 UTC
+  • Health check : GET /actuator/health
+
+11.3. Scalabilité
+  • Monolithe modulaire stateless (Phase 1)
+  • JWT : pas de session serveur
+  • Connection pool : HikariCP (max 20 connexions)
+  • Cache : Caffeine pour les référentiels (skills, stats ONG)
+
+11.4. Tests
+  • Couverture unitaire > 80% (mesurée par JaCoCo)
+  • Tests d'intégration par endpoint (Testcontainers + PostgreSQL)
+  • Tests E2E : parcours critique (inscription → inscription événement)
+  • Tests de charge : Gatling ou k6 avant mise en production
+
+  DIRECTIVE MÉTHODOLOGIE — Approche TDD (pragmatique)
+  ───────────────────────────────────────────────────
+  Tout développement (back ET front) suit une approche TDD raisonnable :
+
+  Back-end (Java / Spring Boot) :
+    1. Écrire d'abord le test unitaire du service (cas nominal + cas d'erreur
+       principaux) AVANT d'implémenter la logique métier.
+    2. Faire passer les tests (implémentation minimale).
+    3. Refactorer si nécessaire.
+    4. Ajouter un test d'intégration du controller (MockMvc ou RestAssured)
+       pour valider le contrat API.
+    • On ne cherche PAS le 100% de couverture : on teste la logique métier,
+      les règles de validation et les cas limites. On ne teste pas les
+      getters/setters, les DTOs records, ni le boilerplate JPA.
+    • Chaque règle métier (RM-xx) doit avoir au moins un test associé.
+
+  Front-end (Angular) :
+    1. Pour chaque service ou composant avec de la logique significative,
+       écrire un test unitaire (Vitest) qui vérifie le comportement attendu
+       AVANT ou EN MÊME TEMPS que l'implémentation.
+    2. On teste : les services HTTP (mock des appels), les guards, les
+       composants avec logique (formulaires, validations, états).
+    • On ne teste PAS : les composants purement visuels sans logique,
+      les templates statiques, les wrappers Material sans customisation.
+    • Un composant de formulaire = au minimum un test qui vérifie que
+      la soumission avec données valides appelle le bon service, et un
+      test avec données invalides qui vérifie que le formulaire bloque.
+
+  Principe général :
+    • Le TDD est un outil, pas un dogme. On l'applique là où il apporte
+      de la valeur (logique métier, cas limites, régressions connues).
+    • Quand on implémente un ticket, les tests font PARTIE du ticket,
+      pas un ticket séparé reporté à plus tard.
+    • Si un bug est trouvé, on écrit d'abord un test qui le reproduit
+      avant de le corriger (test de non-régression).
+
+11.5. Observabilité
+  • Logs structurés JSON (Logback + Logstash encoder)
+  • Métriques : Micrometer → Prometheus (Phase 2)
+  • Tracing : pas en Phase 1
+  • Alertes : health check failure → notification (Phase 2)
+
+================================================================================
+12. SÉCURITÉ & CONFORMITÉ RGPD
+================================================================================
+
+12.1. Authentification
+  • JWT signé HS256 (secret ≥ 256 bits, en variable d'environnement)
+  • Access token : 15 min, en mémoire côté client
+  • Refresh token : 7 jours, HttpOnly + Secure + SameSite=Strict cookie
+  • Bcrypt cost factor 12
+
+12.2. Autorisation
+  • Spring Security avec @PreAuthorize basé sur le rôle User + rôle Membership
+  • Vérification ownership systématique (un admin ONG ne voit QUE ses ONG)
+  • Pas d'IDOR : vérifier que l'utilisateur a accès à la ressource demandée
+
+12.3. Protection applicative
+  • Validation entrées : Jakarta Bean Validation sur tous les DTOs
+  • SQL injection : JPA/Hibernate (requêtes paramétrées uniquement)
+  • XSS : pas de HTML dans les réponses JSON, échappement en frontend
+  • CORS : whitelist stricte des origines autorisées
+  • CSRF : protection via SameSite cookie
+  • Rate limiting : Bucket4j ou Spring Cloud Gateway
+  • Headers : X-Content-Type-Options, X-Frame-Options: DENY, CSP
+  • File upload : validation MIME réelle (pas seulement l'extension)
+
+12.4. RGPD
+  • Consentement explicite (checkbox CGU + politique confidentialité)
+  • Droit d'accès : GET /api/v1/profile retourne TOUTES les données
+  • Droit de portabilité : GET /api/v1/profile/export → JSON complet
+  • Droit à l'oubli : DELETE /api/v1/profile → anonymisation + purge 30j
+  • Droit de rectification : PUT /api/v1/profile
+  • Minimisation : seuls email, prénom, nom sont obligatoires
+  • Conservation : comptes inactifs > 24 mois → email d'avertissement → suppression 30j après
+  • Registre de traitement : document séparé (annexe)
+  • DPO : à désigner avant mise en production
+
+12.5. Secrets & configuration
+  • Aucun secret dans le code source ou les fichiers versionnés
+  • Variables d'environnement : DB_URL, DB_USER, DB_PASSWORD, JWT_SECRET, MAIL_*
+  • application.yaml : uniquement les valeurs par défaut non sensibles
+  • .env.example commité (sans valeurs réelles) pour documenter les variables requises
+
+================================================================================
+13. ARCHITECTURE TECHNIQUE
+================================================================================
+
+13.1. Structure des packages
+────────────────────────────
+
+  orga.takwa.ummati/
+  ├── UmmatiApplication.java
+  ├── config/
+  │   ├── SecurityConfig.java
+  │   ├── WebConfig.java
+  │   ├── JpaAuditingConfig.java
+  │   ├── CacheConfig.java
+  │   ├── MailConfig.java
+  │   └── OpenApiConfig.java
+  ├── common/
+  │   ├── dto/
+  │   │   ├── PageResponse.java        // enveloppe paginée générique
+  │   │   └── ErrorResponse.java       // enveloppe erreur
+  │   ├── exception/
+  │   │   ├── GlobalExceptionHandler.java
+  │   │   ├── ResourceNotFoundException.java
+  │   │   ├── ConflictException.java
+  │   │   ├── ForbiddenException.java
+  │   │   └── BusinessRuleException.java
+  │   ├── security/
+  │   │   ├── JwtTokenProvider.java
+  │   │   ├── JwtAuthenticationFilter.java
+  │   │   └── CurrentUser.java         // annotation custom @CurrentUser
+  │   └── util/
+  │       ├── SlugUtil.java
+  │       └── FileStorageUtil.java
+  ├── auth/
+  │   ├── controller/AuthController.java
+  │   ├── service/AuthService.java
+  │   ├── dto/
+  │   │   ├── RegisterRequest.java
+  │   │   ├── LoginRequest.java
+  │   │   ├── LoginResponse.java
+  │   │   ├── ForgotPasswordRequest.java
+  │   │   └── ResetPasswordRequest.java
+  │   └── entity/VerificationToken.java
+  ├── user/
+  │   ├── controller/ProfileController.java
+  │   ├── service/UserService.java
+  │   ├── repository/UserRepository.java
+  │   ├── dto/
+  │   │   ├── ProfileResponse.java
+  │   │   ├── UpdateProfileRequest.java
+  │   │   └── OnboardingRequest.java
+  │   └── entity/User.java
+  ├── skill/
+  │   ├── controller/SkillController.java
+  │   ├── service/SkillService.java
+  │   ├── repository/SkillRepository.java
+  │   ├── dto/SkillResponse.java
+  │   └── entity/Skill.java
+  ├── organization/
+  │   ├── controller/OrganizationController.java
+  │   ├── service/OrganizationService.java
+  │   ├── repository/OrganizationRepository.java
+  │   ├── dto/
+  │   │   ├── CreateOrganizationRequest.java
+  │   │   ├── UpdateOrganizationRequest.java
+  │   │   ├── OrganizationResponse.java
+  │   │   ├── OrganizationSummaryResponse.java
+  │   │   └── OrganizationStatusRequest.java
+  │   └── entity/Organization.java
+  ├── membership/
+  │   ├── controller/MembershipController.java
+  │   ├── service/MembershipService.java
+  │   ├── repository/MembershipRepository.java
+  │   ├── dto/
+  │   │   ├── MembershipRequest.java
+  │   │   ├── MembershipResponse.java
+  │   │   └── MembershipActionRequest.java
+  │   └── entity/Membership.java
+  ├── event/
+  │   ├── controller/EventController.java
+  │   ├── controller/EventSignupController.java
+  │   ├── controller/EventFeedbackController.java
+  │   ├── service/EventService.java
+  │   ├── service/EventSignupService.java
+  │   ├── service/EventFeedbackService.java
+  │   ├── repository/EventRepository.java
+  │   ├── repository/EventSignupRepository.java
+  │   ├── repository/EventFeedbackRepository.java
+  │   ├── dto/
+  │   │   ├── CreateEventRequest.java
+  │   │   ├── UpdateEventRequest.java
+  │   │   ├── EventResponse.java
+  │   │   ├── EventSummaryResponse.java
+  │   │   ├── SignupResponse.java
+  │   │   ├── AttendanceRequest.java
+  │   │   ├── FeedbackRequest.java
+  │   │   └── FeedbackResponse.java
+  │   └── entity/
+  │       ├── Event.java
+  │       ├── EventSignup.java
+  │       └── EventFeedback.java
+  ├── notification/
+  │   ├── controller/NotificationController.java
+  │   ├── service/NotificationService.java
+  │   ├── service/EmailService.java
+  │   ├── repository/NotificationRepository.java
+  │   ├── dto/NotificationResponse.java
+  │   └── entity/Notification.java
+  ├── document/
+  │   ├── controller/DocumentController.java
+  │   ├── service/DocumentService.java
+  │   ├── repository/DocumentRepository.java
+  │   ├── dto/DocumentResponse.java
+  │   └── entity/Document.java
+  ├── admin/
+  │   ├── controller/AdminController.java
+  │   ├── service/AdminService.java
+  │   └── dto/PlatformStatsResponse.java
+  └── audit/
+      ├── service/AuditService.java
+      ├── repository/AuditLogRepository.java
+      └── entity/AuditLog.java
+
+13.2. Conventions de code
+─────────────────────────
+  • Controller : @RestController, retourne ResponseEntity<>
+  • Service : @Service @Transactional
+  • Repository : extends JpaRepository<Entity, UUID>
+  • DTO : records Java (immutables)
+  • Entités : classes avec @Entity, @Table, JPA Auditing
+  • Nommage BDD : snake_case (spring.jpa.naming.physical-strategy)
+  • Pas de Lombok (Java 21 records suffisent pour les DTOs)
+  • Mapping Entity↔DTO : méthodes statiques ou constructeur dans le DTO
+
+13.3. Fichiers de configuration
+───────────────────────────────
+  application.yaml          Config commune
+  application-dev.yaml      Dev (H2 ou PostgreSQL local, logs DEBUG)
+  application-test.yaml     Tests (Testcontainers)
+  application-prod.yaml     Production (variables d'env)
+
+13.4. Migrations Flyway
+────────────────────────
+  src/main/resources/db/migration/
+    V1__create_users.sql
+    V2__create_skills_and_user_skills.sql
+    V3__create_organizations.sql
+    V4__create_memberships.sql
+    V5__create_events_and_signups.sql
+    V6__create_event_feedbacks.sql
+    V7__create_documents.sql
+    V8__create_notifications.sql
+    V9__create_verification_tokens.sql
+    V10__create_audit_logs.sql
+    V11__seed_skills.sql
+    V12__seed_platform_admin.sql
+
+13.5. Seed data initial
+───────────────────────
+  • Table skills : ~30 compétences prédéfinies (voir section 3.2 skills)
+  • Utilisateur PLATFORM_ADMIN :
+      email    : admin@ummati.org
+      password : (défini via variable d'environnement ADMIN_PASSWORD)
+      role     : PLATFORM_ADMIN
+      email_verified : true
+
+13.6. Jobs planifiés
+────────────────────
+  • EventCompletionJob (quotidien 03:00 UTC) :
+    Met à jour en COMPLETED les événements PUBLISHED dont end_date < now
+  • AccountPurgeJob (quotidien 04:00 UTC) :
+    Purge les comptes supprimés dont la date d'anonymisation > 30 jours
+  • InactiveAccountJob (hebdomadaire dimanche 05:00 UTC) :
+    Envoie un email d'avertissement aux comptes inactifs > 22 mois
+    Supprime les comptes inactifs > 24 mois (avertis il y a > 2 mois)
+
+================================================================================
+14. STRATÉGIE DE TESTS
+================================================================================
+
+14.1. Tests unitaires
+  • Cible : Services (logique métier)
+  • Outil : JUnit 5 + Mockito
+  • Couverture : > 80% (JaCoCo)
+  • Exemples critiques :
+    - AuthService : inscription doublon, brute-force, token expiré
+    - MembershipService : dernier admin, cooldown 30j, promotion waitlist
+    - EventSignupService : max participants, waitlist FIFO, deadline
+
+14.2. Tests d'intégration
+  • Cible : Repositories + Controllers
+  • Outil : @SpringBootTest + Testcontainers (PostgreSQL)
+  • Chaque endpoint API testé avec RestAssured ou MockMvc
+  • Cas testés : succès, erreurs de validation, permissions, doublons
+
+14.3. Tests E2E (Phase 1 — manuels, Phase 2 — automatisés)
+  • Parcours critique :
+    1. Inscription → Confirmation email → Login → Onboarding
+    2. Créer ONG → Validation admin → Créer événement → Publier
+    3. S'inscrire → Se désinscrire → Vérifier promotion waitlist
+    4. Marquer présence → Laisser feedback
+
+14.4. Données de test
+  • Fixtures reproductibles via Flyway (profil test)
+  • Factories ou builders pour créer des entités dans les tests
+  • Pas de données de test en production
+
+================================================================================
+15. ROADMAP & PRIORISATION
+================================================================================
+
+PHASE 1 — MVP (3 mois)
+───────────────────────
+  Mois 1 : Fondations
+    • Setup projet, CI/CD, BDD, migrations Flyway
+    • Auth complète (register, login, confirm, reset, logout)
+    • Modèle User + Skills + Seed data
+    • Tests unitaires auth
+
+  Mois 2 : Cœur métier
+    • Organizations CRUD + validation
+    • Memberships (demande, validation, quitter, exclure)
+    • Events CRUD + inscription + waitlist
+    • Notifications in-app + emails
+    • Tests d'intégration
+
+  Mois 3 : Expérience utilisateur
+    • Interface web responsive (toutes les pages)
+    • Onboarding guidé
+    • Dashboard par rôle
+    • Feedback événements
+    • Présence / complétion événements
+    • Admin plateforme
+    • Tests E2E manuels + corrections
+    • Documentation API OpenAPI
+    • Déploiement staging
+
+PHASE 2 — Enrichissement (3 mois) ▸ SHOULD HAVE
+  ○ Chat temps réel (WebSocket + STOMP)
+  ○ Notifications push navigateur (Web Push API)
+  ○ Multilingue Français / Arabe (i18n)
+  ○ Rappels automatiques J-7, J-1 (Spring Scheduler)
+  ○ QR code pour validation de présence
+  ○ Module comptable basique (dépenses/recettes par événement)
+  ○ Export PDF (rapports ONG)
+  ○ Migration stockage fichiers vers S3 (MinIO)
+  ○ Monitoring Prometheus + Grafana
+  ○ Mode sombre
+
+PHASE 3 — Expansion (4 mois) ▸ COULD HAVE
+  ○ Application mobile (Flutter)
+  ○ Recherche avancée (Elasticsearch)
+  ○ Intégration calendriers (iCal, Google Calendar)
+  ○ Gamification (badges, points, classement)
+  ○ Matching IA bénévoles ↔ missions (compétences + localisation)
+  ○ API publique documentée pour intégrateurs tiers
+
+HORS SCOPE
+  ✗ Paiements en ligne
+  ✗ Gestion de dons
+  ✗ CRM complet
+  ✗ Marketplace de services
+
+================================================================================
+16. RISQUES & MITIGATION
+================================================================================
+
+  #  Risque                      Prob.    Impact    Mitigation
+  ── ────────────────────────── ──────── ──────── ──────────────────────────────
+  1  Surcharge serveur           Moyenne  Fort     Pagination, cache, rate limit,
+                                                   monitoring Actuator
+  2  Failles de sécurité         Moyenne  Critique OWASP Top 10 checklist, scan
+                                                   dépendances, headers sécurité
+  3  Faible adoption             Moyenne  Fort     UX soignée, onboarding guidé,
+                                                   contenu de démo, ONG pilotes
+  4  Scope creep MVP             Élevée   Fort     MoSCoW strict, sprints 2 sem,
+                                                   Product Owner responsable
+  5  Données personnelles RGPD   Faible   Critique Privacy by design, DPO, audit,
+                                                   anonymisation, logs d'audit
+  6  Indisponibilité BDD         Faible   Fort     Backups quotidiens automatiques,
+                                                   Flyway pour restauration schema
+  7  Complexité multi-rôle       Moyenne  Moyen    Tests de permissions exhaustifs,
+                                                   matrice RBAC documentée
+  8  Performance N+1 queries     Élevée   Moyen    EntityGraph, JOIN FETCH, tests
+                                                   de perf, monitoring queries
+
+================================================================================
+17. KPIs & MÉTRIQUES
+================================================================================
+
+── Adoption ──
+  Métrique                              Cible (M+6)     Source
+  ────────────────────────────────────  ──────────────  ─────────
+  Utilisateurs inscrits                 1 000+          BDD
+  ONG actives                           50+             BDD
+  Événements créés                      100+            BDD
+  Taux inscription → email vérifié      > 80%           BDD
+
+── Engagement ──
+  Rétention mensuelle                   > 60%           Analytics
+  Taux de participation événements      > 70%           BDD (ATTENDED/REGISTERED)
+  Feedbacks laissés / événements        > 50%           BDD
+  Taux d'adhésion acceptée              > 70%           BDD
+
+── Technique ──
+  Temps de réponse API p95              < 500ms         Actuator
+  Disponibilité                         > 99.5%         Monitoring
+  Couverture tests                      > 80%           JaCoCo
+  Temps de validation ONG               < 72h médian    BDD
+
+── Satisfaction ──
+  Note moyenne feedbacks événements     > 3.5 / 5       BDD
+  NPS (Net Promoter Score)              > 40            Sondage
+
+================================================================================
+18. ANNEXES
+================================================================================
+
+18.1. Références
+  • RGPD / CNIL : https://www.cnil.fr
+  • Loi 1901 : https://www.associations.gouv.fr
+  • WCAG 2.1 : https://www.w3.org/WAI/
+  • Spring Boot : https://spring.io/projects/spring-boot
+  • OWASP Top 10 : https://owasp.org/www-project-top-ten/
+  • OpenAPI 3.1 : https://swagger.io/specification/
+
+18.2. Variables d'environnement requises (.env.example)
+  DB_URL=jdbc:postgresql://localhost:5432/ummati
+  DB_USERNAME=ummati
+  DB_PASSWORD=
+  JWT_SECRET=
+  MAIL_HOST=smtp.example.com
+  MAIL_PORT=587
+  MAIL_USERNAME=
+  MAIL_PASSWORD=
+  MAIL_FROM=noreply@ummati.org
+  ADMIN_EMAIL=admin@ummati.org
+  ADMIN_PASSWORD=
+  UPLOAD_DIR=./uploads
+  APP_BASE_URL=http://localhost:8080
+
+18.3. Historique du document
+  Version  Date        Changements
+  1.0      2026-04-18  Version initiale (specs générales)
+  2.0      2026-04-18  Refonte : modèle de données, user stories, API, workflows
+  3.0      2026-04-18  Refonte majeure :
+                        • Correction modèle de rôles (ONG_ADMIN → Membership.role)
+                        • Ajout entités : Skill, EventFeedback, VerificationToken,
+                          AuditLog, user_skills, event_required_skills
+                        • Ajout onboarding guidé
+                        • Ajout feedback post-événement
+                        • Ajout événements en ligne (is_online)
+                        • Dashboards détaillés par rôle
+                        • Exemples JSON pour chaque endpoint
+                        • Catalogue d'erreurs complet
+                        • Templates email listés
+                        • Stratégie de tests détaillée
+                        • Planning Phase 1 mois par mois
+                        • Seed data & jobs planifiés
+                        • Variables d'environnement documentées
+                        • Conventions de code explicites
+  3.1      2026-04-18  Ajouts :
+                        • Directive design : style épuré, UI minimaliste,
+                          composants Material personnalisés, micro-interactions
+                        • Directive TDD pragmatique : tests avant/avec le code
+                          (back et front), pas de dogmatisme
+
+================================================================================
+  FIN DU DOCUMENT — Ummati v3.0
+================================================================================
+
