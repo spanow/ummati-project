@@ -219,6 +219,15 @@ export class EventDetailComponent implements OnInit {
     this.eventId = this.route.snapshot.paramMap.get('id')!;
     this.loadEvent();
     this.loadFeedbacks();
+    if (this.authService.isLoggedIn()) {
+      this.eventService.getMySignup(this.eventId).subscribe({
+        next: res => {
+          const active = ['REGISTERED', 'WAITLISTED'];
+          this.isSignedUp.set(active.includes(res.data.status));
+        },
+        error: () => {} // 404 = pas inscrit
+      });
+    }
   }
 
   loadEvent() {

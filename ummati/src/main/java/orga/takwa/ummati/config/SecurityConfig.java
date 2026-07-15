@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/memberships/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/organizations/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/events/*/signups/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/skills/**").permitAll()
                         // Swagger / Actuator

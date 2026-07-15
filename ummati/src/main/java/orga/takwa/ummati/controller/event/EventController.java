@@ -93,6 +93,15 @@ public class EventController {
         return ResponseEntity.ok(ApiResponse.ok(eventService.getEvent(id)));
     }
 
+    // Get current user's signup status for an event
+    @GetMapping("/events/{id}/signups/me")
+    public ResponseEntity<ApiResponse<SignupResponse>> getMySignup(
+            @CurrentUser UUID userId, @PathVariable UUID id) {
+        return eventService.getMySignup(userId, id)
+                .map(s -> ResponseEntity.ok(ApiResponse.ok(s)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // T-075: Signup for event
     @PostMapping("/events/{id}/signups")
     public ResponseEntity<ApiResponse<SignupResponse>> signup(
