@@ -6,13 +6,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DecimalPipe } from '@angular/common';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
+import { MembershipService } from '../../../core/services/membership.service';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, DecimalPipe],
+  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, MatSnackBarModule, DecimalPipe],
   template: `
     @if (loading()) {
       <div class="loading"><mat-spinner diameter="40" /></div>
@@ -51,7 +53,15 @@ import { OrganizationService, OrganizationDetail } from '../../../core/services/
               <span class="stat-value">{{ org()!.stats.averageRating ? (org()!.stats.averageRating | number:'1.1-1') : '—' }}</span>
               <span class="stat-label">Note moyenne</span>
             </div>
-            <button mat-flat-button class="join-btn">Rejoindre</button>
+            @if (membershipStatus() === 'PENDING') {
+              <button mat-stroked-button class="join-btn" disabled>En attente</button>
+            } @else if (membershipStatus() === 'APPROVED') {
+              <button mat-stroked-button class="join-btn" disabled>Membre</button>
+            } @else {
+              <button mat-flat-button class="join-btn" [disabled]="joining()" (click)="joinOrg()">
+                {{ joining() ? 'Envoi…' : 'Rejoindre' }}
+              </button>
+            }
           </div>
 
           <mat-tab-group>
@@ -110,14 +120,38 @@ import { OrganizationService, OrganizationDetail } from '../../../core/services/
 export class OrganizationDetailComponent implements OnInit {
   org = signal<OrganizationDetail | null>(null);
   loading = signal(true);
+  joining = signal(false);
+  membershipStatus = signal<string | null>(null);
 
-  constructor(private route: ActivatedRoute, private orgService: OrganizationService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private orgService: OrganizationService,
+    private membershipService: MembershipService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     const slug = this.route.snapshot.paramMap.get('slug')!;
     this.orgService.getBySlug(slug).subscribe({
       next: res => { this.org.set(res.data); this.loading.set(false); },
       error: () => this.loading.set(false),
+    });
+  }
+
+  joinOrg() {
+    const orgId = this.org()!.id;
+    this.joining.set(true);
+    this.membershipService.requestMembership(orgId).subscribe({
+      next: res => {
+        this.joining.set(false);
+        this.membershipStatus.set(res.data.status);
+        this.snackBar.open('Demande d\'adhésion envoyée, en attente de validation.', 'Fermer', { duration: 4000 });
+      },
+      error: err => {
+        this.joining.set(false);
+        const msg = err?.error?.message ?? 'Une erreur est survenue. Veuillez réessayer.';
+        this.snackBar.open(msg, 'Fermer', { duration: 4000 });
+      },
     });
   }
 }
