@@ -70,6 +70,10 @@ export class EventService {
     return this.http.get<ApiResponse<EventDetail>>(`${this.apiUrl}/events/${id}`);
   }
 
+  getMySignup(eventId: string): Observable<ApiResponse<SignupResponse>> {
+    return this.http.get<ApiResponse<SignupResponse>>(`${this.apiUrl}/events/${eventId}/signups/me`);
+  }
+
   listOrgEvents(orgId: string, page = 0, size = 50): Observable<ApiResponse<PageResponse<EventSummary>>> {
     return this.http.get<ApiResponse<PageResponse<EventSummary>>>(
       `${this.apiUrl}/organizations/${orgId}/events`,

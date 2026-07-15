@@ -280,6 +280,11 @@ public class EventService {
         return toSignupResponse(signup);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Optional<SignupResponse> getMySignup(UUID userId, UUID eventId) {
+        return eventSignupRepository.findByEventIdAndUserId(eventId, userId).map(this::toSignupResponse);
+    }
+
     // T-076: Cancel signup
     @Transactional
     public void cancelSignup(UUID userId, UUID eventId) {
