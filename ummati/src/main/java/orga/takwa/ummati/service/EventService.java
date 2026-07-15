@@ -207,6 +207,13 @@ public class EventService {
         return page.map(this::toSummary);
     }
 
+    // List all events of an org (all statuses) — org admin only
+    @Transactional(readOnly = true)
+    public Page<EventSummary> listOrgEvents(UUID userId, UUID orgId, Pageable pageable) {
+        organizationService.verifyAdmin(userId, orgId);
+        return eventRepository.findByOrganizationId(orgId, pageable).map(this::toSummary);
+    }
+
     // T-074: Get event detail
     @Transactional(readOnly = true)
     public EventDetail getEvent(UUID eventId) {

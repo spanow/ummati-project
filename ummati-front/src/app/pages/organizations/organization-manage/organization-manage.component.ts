@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatBadgeModule } from '@angular/material/badge';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MembershipService, MembershipResponse } from '../../../core/services/membership.service';
 
 @Component({
@@ -20,13 +21,24 @@ import { MembershipService, MembershipResponse } from '../../../core/services/me
   imports: [
     MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatChipsModule, MatMenuModule, MatProgressSpinnerModule, MatSnackBarModule,
-    MatDialogModule, MatBadgeModule, DatePipe,
+    MatDialogModule, MatBadgeModule, DatePipe, RouterLink,
   ],
   template: `
     <div class="page-container">
       <header class="page-header">
-        <h1>Gestion des membres</h1>
-        <p class="subtitle">{{ orgSlug }}</p>
+        <div>
+          <h1>Gestion de l'organisation</h1>
+          <p class="subtitle">{{ orgSlug }}</p>
+        </div>
+        <div class="header-actions">
+          <a mat-flat-button color="primary"
+             [routerLink]="['/organizations', orgId, 'events', 'new']">
+            <mat-icon>add</mat-icon> Créer un événement
+          </a>
+          <a mat-stroked-button [routerLink]="['/organizations', orgId, 'events', 'manage']">
+            <mat-icon>event</mat-icon> Événements
+          </a>
+        </div>
       </header>
 
       <mat-tab-group>
@@ -137,8 +149,9 @@ import { MembershipService, MembershipResponse } from '../../../core/services/me
   `,
   styles: [`
     .page-container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
-    .page-header { margin-bottom: 24px; }
+    .page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
     .page-header h1 { font-size: 1.8rem; font-weight: 600; margin: 0; }
+    .header-actions { display: flex; gap: 8px; }
     .subtitle { color: #666; margin-top: 4px; }
     .loading { display: flex; justify-content: center; padding: 48px; }
     .empty-state { text-align: center; padding: 48px 24px; color: #999; }
