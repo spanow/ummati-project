@@ -30,6 +30,17 @@ public class EventController {
         this.eventService = eventService;
     }
 
+    // List all events of an org (all statuses) — org admin only
+    @GetMapping("/organizations/{orgId}/events")
+    public ResponseEntity<ApiResponse<PageResponse<EventSummary>>> listOrgEvents(
+            @CurrentUser UUID userId, @PathVariable UUID orgId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startDate"));
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(
+                eventService.listOrgEvents(userId, orgId, pageable))));
+    }
+
     // T-070: Create event
     @PostMapping("/organizations/{orgId}/events")
     public ResponseEntity<ApiResponse<EventDetail>> createEvent(

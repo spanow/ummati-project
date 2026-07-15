@@ -310,6 +310,39 @@ class EventServiceTest {
                 .hasMessageContaining("déjà laissé");
     }
 
+    // --- listOrgEvents: tous statuts ---
+
+    @Test
+    void listOrgEvents_shouldReturnAllStatuses_forOrgAdmin() {
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+
+        draftEvent.setStatus(EventStatus.DRAFT);
+        publishedEvent.setStatus(EventStatus.PUBLISHED);
+
+        org.springframework.data.domain.Page<Event> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(draftEvent, publishedEvent));
+        when(eventRepository.findByOrganizationId(eq(orgId), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(page);
+        when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
+
+        var result = eventService.listOrgEvents(userId, orgId,
+                org.springframework.data.domain.PageRequest.of(0, 50));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent()).extracting(s -> s.status())
+                .containsExactlyInAnyOrder("DRAFT", "PUBLISHED");
+    }
+
+    @Test
+    void listOrgEvents_shouldRejectNonAdmin() {
+        org.mockito.Mockito.doThrow(new orga.takwa.ummati.exception.ForbiddenException("Accès refusé"))
+                .when(organizationService).verifyAdmin(userId, orgId);
+
+        assertThatThrownBy(() -> eventService.listOrgEvents(userId, orgId,
+                org.springframework.data.domain.PageRequest.of(0, 50)))
+                .isInstanceOf(orga.takwa.ummati.exception.ForbiddenException.class);
+    }
+
     // --- T-071: Update restrictions ---
 
     @Test

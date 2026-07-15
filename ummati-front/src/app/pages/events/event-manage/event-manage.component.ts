@@ -183,7 +183,7 @@ export class EventManageComponent implements OnInit {
 
   loadEvents() {
     this.loading.set(true);
-    this.eventService.listEvents({ orgId: this.orgId, size: 50 }).subscribe({
+    this.eventService.listOrgEvents(this.orgId).subscribe({
       next: res => { this.events.set(res.data.content); this.loading.set(false); },
       error: () => this.loading.set(false),
     });

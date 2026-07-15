@@ -54,7 +54,19 @@ import { AuthService } from '../../../core/services/auth.service';
               <span class="stat-value">{{ org()!.stats.averageRating ? (org()!.stats.averageRating | number:'1.1-1') : '—' }}</span>
               <span class="stat-label">Note moyenne</span>
             </div>
-            @if (membershipStatus() === 'ACTIVE') {
+            @if (membershipRole() === 'ADMIN') {
+              <div class="admin-actions">
+                <a mat-flat-button color="primary"
+                   [routerLink]="['/organizations', org()!.id, 'events', 'new']">
+                  <mat-icon>add</mat-icon> Créer un événement
+                </a>
+                <a mat-stroked-button
+                   [routerLink]="['/organizations', org()!.slug, 'manage']"
+                   [queryParams]="{ orgId: org()!.id }">
+                  <mat-icon>settings</mat-icon> Gérer
+                </a>
+              </div>
+            } @else if (membershipStatus() === 'ACTIVE') {
               <button mat-stroked-button class="join-btn" disabled>Membre</button>
             } @else if (membershipStatus() === 'PENDING') {
               <button mat-stroked-button class="join-btn" disabled>En attente</button>
@@ -85,7 +97,18 @@ import { AuthService } from '../../../core/services/auth.service';
             </mat-tab>
             <mat-tab label="Événements">
               <div class="tab-content">
-                <p class="placeholder-text">Événements à venir — disponible prochainement.</p>
+                @if (membershipRole() === 'ADMIN') {
+                  <div class="events-admin-bar">
+                    <a mat-flat-button color="primary"
+                       [routerLink]="['/organizations', org()!.id, 'events', 'new']">
+                      <mat-icon>add</mat-icon> Créer un événement
+                    </a>
+                    <a mat-stroked-button [routerLink]="['/organizations', org()!.id, 'events', 'manage']">
+                      <mat-icon>list</mat-icon> Gérer les événements
+                    </a>
+                  </div>
+                }
+                <p class="placeholder-text">Les événements publiés apparaîtront ici.</p>
               </div>
             </mat-tab>
           </mat-tab-group>
@@ -111,6 +134,8 @@ import { AuthService } from '../../../core/services/auth.service';
     .stat-value { font-size: 1.5rem; font-weight: 700; color: #1976d2; }
     .stat-label { font-size: 0.8rem; color: #888; margin-top: 2px; }
     .join-btn { margin-left: auto; height: 44px; padding: 0 32px; }
+    .admin-actions { margin-left: auto; display: flex; gap: 8px; }
+    .events-admin-bar { display: flex; gap: 8px; margin-bottom: 24px; }
     .tab-content { padding: 24px 0; }
     .tab-content h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 12px; }
     .description { line-height: 1.7; color: #444; white-space: pre-line; }
@@ -125,6 +150,7 @@ export class OrganizationDetailComponent implements OnInit {
   loading = signal(true);
   joining = signal(false);
   membershipStatus = signal<string | null>(null);
+  membershipRole = signal<string | null>(null);
 
   private authService = inject(AuthService);
   protected isLoggedIn = this.authService.isLoggedIn;
@@ -144,7 +170,10 @@ export class OrganizationDetailComponent implements OnInit {
         this.loading.set(false);
         if (this.isLoggedIn()) {
           this.membershipService.getMyMembership(res.data.id).subscribe({
-            next: m => this.membershipStatus.set(m.data.status),
+            next: m => {
+              this.membershipStatus.set(m.data.status);
+              this.membershipRole.set(m.data.role);
+            },
             error: () => {} // 404 = pas membre, on laisse null
           });
         }
