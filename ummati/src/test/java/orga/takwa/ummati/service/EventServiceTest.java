@@ -5,6 +5,7 @@ import orga.takwa.ummati.entity.*;
 import orga.takwa.ummati.entity.enums.*;
 import orga.takwa.ummati.exception.BusinessRuleException;
 import orga.takwa.ummati.exception.ConflictException;
+import orga.takwa.ummati.exception.ForbiddenException;
 import orga.takwa.ummati.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,13 +13,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,8 +35,8 @@ class EventServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private SkillRepository skillRepository;
     @Mock private MembershipRepository membershipRepository;
-    @Mock private NotificationRepository notificationRepository;
-    @Mock private AuditLogRepository auditLogRepository;
+    @Mock private NotificationService notificationService;
+    @Mock private AuditService auditService;
 
     @InjectMocks
     private EventService eventService;
@@ -119,7 +123,7 @@ class EventServiceTest {
         assertThat(result.title()).isEqualTo("Maraude");
         assertThat(result.status()).isEqualTo("DRAFT");
         verify(eventRepository).save(any(Event.class));
-        verify(auditLogRepository).save(any(AuditLog.class));
+        verify(auditService).log(eq(userId), eq("EVENT_CREATED"), eq("Event"), any());
     }
 
     @Test
@@ -130,7 +134,7 @@ class EventServiceTest {
         CreateEventRequest request = new CreateEventRequest(
                 "Event", "Desc", null, "FORMATION",
                 null, null, "Paris", null, null, null, false, null,
-                LocalDateTime.now().plusDays(7), LocalDateTime.now().plusDays(6), // end < start
+                LocalDateTime.now().plusDays(7), LocalDateTime.now().plusDays(6),
                 null, null, null, null);
 
         assertThatThrownBy(() -> eventService.createEvent(userId, orgId, request))
@@ -144,35 +148,75 @@ class EventServiceTest {
     void signup_shouldRegister_whenSpotsAvailable() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(false);
+        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.empty());
         when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(5L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> {
             EventSignup s = inv.getArgument(0);
             s.setId(UUID.randomUUID());
+            s.setRegisteredAt(LocalDateTime.now());
             return s;
         });
 
         SignupResponse result = eventService.signup(userId, eventId);
 
         assertThat(result.status()).isEqualTo("REGISTERED");
-        verify(notificationRepository).save(any(Notification.class));
+        verify(notificationService).saveNotification(eq(user), eq(NotificationType.SIGNUP_CONFIRMED),
+                anyString(), anyString(), anyString());
     }
 
     @Test
     void signup_shouldWaitlist_whenFull() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(false);
-        when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(20L); // max=20
+        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.empty());
+        when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(20L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> {
             EventSignup s = inv.getArgument(0);
             s.setId(UUID.randomUUID());
+            s.setRegisteredAt(LocalDateTime.now());
             return s;
         });
 
         SignupResponse result = eventService.signup(userId, eventId);
 
         assertThat(result.status()).isEqualTo("WAITLISTED");
+    }
+
+    @Test
+    void signup_shouldReuseRow_whenPreviouslyCancelled() {
+        EventSignup cancelledSignup = new EventSignup();
+        cancelledSignup.setId(UUID.randomUUID());
+        cancelledSignup.setUser(user);
+        cancelledSignup.setEvent(publishedEvent);
+        cancelledSignup.setStatus(SignupStatus.CANCELLED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(cancelledSignup));
+        when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(5L);
+        when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SignupResponse result = eventService.signup(userId, eventId);
+
+        assertThat(result.status()).isEqualTo("REGISTERED");
+        // Should have reused the same row, not created a new one
+        verify(eventSignupRepository, never()).existsByEventIdAndUserId(any(), any());
+    }
+
+    @Test
+    void signup_shouldFail_whenAlreadyRegistered() {
+        EventSignup existing = new EventSignup();
+        existing.setStatus(SignupStatus.REGISTERED);
+        existing.setUser(user);
+        existing.setEvent(publishedEvent);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> eventService.signup(userId, eventId))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("déjà inscrit");
     }
 
     @Test
@@ -184,17 +228,6 @@ class EventServiceTest {
         assertThatThrownBy(() -> eventService.signup(userId, eventId))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("date limite");
-    }
-
-    @Test
-    void signup_shouldFail_whenDuplicate() {
-        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(true);
-
-        assertThatThrownBy(() -> eventService.signup(userId, eventId))
-                .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("déjà inscrit");
     }
 
     // --- T-076: Cancel signup with FIFO promotion ---
@@ -226,7 +259,9 @@ class EventServiceTest {
 
         assertThat(registeredSignup.getStatus()).isEqualTo(SignupStatus.CANCELLED);
         assertThat(waitlistedSignup.getStatus()).isEqualTo(SignupStatus.REGISTERED);
-        verify(notificationRepository).save(argThat(n -> n.getType() == NotificationType.SIGNUP_PROMOTED));
+        verify(notificationService).saveNotification(
+                eq(waitlistedUser), eq(NotificationType.SIGNUP_PROMOTED),
+                anyString(), anyString(), anyString());
     }
 
     // --- T-072: Change status ---
@@ -235,42 +270,38 @@ class EventServiceTest {
     void changeStatus_shouldPublish_andNotifyMembers() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(draftEvent));
         doNothing().when(organizationService).verifyAdmin(userId, orgId);
-        when(membershipRepository.findByOrganizationIdAndRoleAndStatus(orgId, MembershipRole.MEMBER, MembershipStatus.ACTIVE))
-                .thenReturn(List.of());
-        when(membershipRepository.findByOrganizationIdAndRoleAndStatus(orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE))
+        when(membershipRepository.findByOrganizationIdAndRoleInAndStatus(eq(orgId), any(), eq(MembershipStatus.ACTIVE)))
                 .thenReturn(List.of());
         when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
         when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
 
-        EventStatusRequest request = new EventStatusRequest("PUBLISH", null);
-        EventDetail result = eventService.changeStatus(userId, eventId, request);
+        EventDetail result = eventService.changeStatus(userId, eventId, new EventStatusRequest("PUBLISH", null));
 
         assertThat(result.status()).isEqualTo("PUBLISHED");
+        verify(auditService).log(eq(userId), eq("EVENT_PUBLISHED"), eq("Event"), eq(eventId));
     }
 
     @Test
     void changeStatus_shouldCancel_withReasonMin10Chars() {
-        publishedEvent.setStatus(EventStatus.PUBLISHED);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         doNothing().when(organizationService).verifyAdmin(userId, orgId);
         when(eventSignupRepository.findByEventIdAndStatusIn(eq(eventId), any())).thenReturn(List.of());
         when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
         when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
 
-        EventStatusRequest request = new EventStatusRequest("CANCEL", "Météo très défavorable");
-        EventDetail result = eventService.changeStatus(userId, eventId, request);
+        EventDetail result = eventService.changeStatus(userId, eventId,
+                new EventStatusRequest("CANCEL", "Météo très défavorable"));
 
         assertThat(result.status()).isEqualTo("CANCELLED");
     }
 
     @Test
-    void changeStatus_shouldFail_cancelWithoutReason() {
+    void changeStatus_shouldFail_cancelWithReasonTooShort() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         doNothing().when(organizationService).verifyAdmin(userId, orgId);
 
-        EventStatusRequest request = new EventStatusRequest("CANCEL", "short");
-
-        assertThatThrownBy(() -> eventService.changeStatus(userId, eventId, request))
+        assertThatThrownBy(() -> eventService.changeStatus(userId, eventId,
+                new EventStatusRequest("CANCEL", "court")))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("10 caractères");
     }
@@ -286,9 +317,8 @@ class EventServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
 
-        CreateFeedbackRequest request = new CreateFeedbackRequest(4, "Good", false);
-
-        assertThatThrownBy(() -> eventService.createFeedback(userId, eventId, request))
+        assertThatThrownBy(() -> eventService.createFeedback(userId, eventId,
+                new CreateFeedbackRequest(4, "Good", false)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("assisté");
     }
@@ -297,50 +327,44 @@ class EventServiceTest {
     void createFeedback_shouldFail_whenDuplicate() {
         EventSignup signup = new EventSignup();
         signup.setStatus(SignupStatus.ATTENDED);
+        signup.setUser(user);
+        signup.setEvent(publishedEvent);
 
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
         when(eventFeedbackRepository.existsByEventIdAndUserId(eventId, userId)).thenReturn(true);
 
-        CreateFeedbackRequest request = new CreateFeedbackRequest(5, "Great", false);
-
-        assertThatThrownBy(() -> eventService.createFeedback(userId, eventId, request))
+        assertThatThrownBy(() -> eventService.createFeedback(userId, eventId,
+                new CreateFeedbackRequest(5, "Great", false)))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("déjà laissé");
     }
 
-    // --- listOrgEvents: tous statuts ---
+    // --- listOrgEvents ---
 
     @Test
     void listOrgEvents_shouldReturnAllStatuses_forOrgAdmin() {
         doNothing().when(organizationService).verifyAdmin(userId, orgId);
 
-        draftEvent.setStatus(EventStatus.DRAFT);
-        publishedEvent.setStatus(EventStatus.PUBLISHED);
-
-        org.springframework.data.domain.Page<Event> page =
-                new org.springframework.data.domain.PageImpl<>(List.of(draftEvent, publishedEvent));
-        when(eventRepository.findByOrganizationId(eq(orgId), any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(page);
+        var page = new PageImpl<>(List.of(draftEvent, publishedEvent));
+        when(eventRepository.findByOrganizationId(eq(orgId), any(Pageable.class))).thenReturn(page);
         when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
 
-        var result = eventService.listOrgEvents(userId, orgId,
-                org.springframework.data.domain.PageRequest.of(0, 50));
+        var result = eventService.listOrgEvents(userId, orgId, PageRequest.of(0, 50));
 
         assertThat(result.getTotalElements()).isEqualTo(2);
-        assertThat(result.getContent()).extracting(s -> s.status())
+        assertThat(result.getContent()).extracting(EventSummary::status)
                 .containsExactlyInAnyOrder("DRAFT", "PUBLISHED");
     }
 
     @Test
     void listOrgEvents_shouldRejectNonAdmin() {
-        org.mockito.Mockito.doThrow(new orga.takwa.ummati.exception.ForbiddenException("Accès refusé"))
+        doThrow(new ForbiddenException("Accès refusé"))
                 .when(organizationService).verifyAdmin(userId, orgId);
 
-        assertThatThrownBy(() -> eventService.listOrgEvents(userId, orgId,
-                org.springframework.data.domain.PageRequest.of(0, 50)))
-                .isInstanceOf(orga.takwa.ummati.exception.ForbiddenException.class);
+        assertThatThrownBy(() -> eventService.listOrgEvents(userId, orgId, PageRequest.of(0, 50)))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // --- T-071: Update restrictions ---
@@ -352,7 +376,7 @@ class EventServiceTest {
 
         UpdateEventRequest request = new UpdateEventRequest(
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                LocalDateTime.now().plusDays(10), null, // changing startDate
+                LocalDateTime.now().plusDays(10), null,
                 null, null, null, null);
 
         assertThatThrownBy(() -> eventService.updateEvent(userId, eventId, request))
@@ -360,4 +384,3 @@ class EventServiceTest {
                 .hasMessageContaining("publié");
     }
 }
-

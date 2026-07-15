@@ -19,12 +19,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,8 +35,8 @@ class OrganizationServiceTest {
     @Mock private OrganizationRepository organizationRepository;
     @Mock private UserRepository userRepository;
     @Mock private MembershipRepository membershipRepository;
-    @Mock private NotificationRepository notificationRepository;
-    @Mock private AuditLogRepository auditLogRepository;
+    @Mock private NotificationService notificationService;
+    @Mock private AuditService auditService;
     @Mock private EventRepository eventRepository;
 
     @InjectMocks
@@ -99,7 +101,7 @@ class OrganizationServiceTest {
     }
 
     private void stubToDetail(UUID orgId) {
-        when(membershipRepository.countByOrganizationIdAndRoleAndStatus(any(), any(), any())).thenReturn(0L);
+        when(membershipRepository.countByOrganizationIdAndStatus(any(), any())).thenReturn(0L);
         when(eventRepository.findByOrganizationId(any(), any())).thenReturn(Page.empty());
     }
 
@@ -115,6 +117,7 @@ class OrganizationServiceTest {
             return o;
         });
         when(membershipRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findAll()).thenReturn(List.of());
         when(eventRepository.findByOrganizationId(any(), any()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
 
@@ -145,7 +148,7 @@ class OrganizationServiceTest {
         var result = organizationService.changeStatus(adminId, orgId, new OrganizationStatusRequest("ACTIVE", null));
 
         assertThat(result.status()).isEqualTo("ACTIVE");
-        verify(notificationRepository).save(any());
+        verify(notificationService).saveNotification(any(), any(), anyString(), anyString(), anyString());
     }
 
     // T-050: Reject avec motif valide → status REJECTED, motif persisté, notification envoyée
@@ -163,7 +166,7 @@ class OrganizationServiceTest {
 
         assertThat(result.status()).isEqualTo("REJECTED");
         assertThat(result.rejectionReason()).isEqualTo(reason);
-        verify(notificationRepository).save(any());
+        verify(notificationService).saveNotification(any(), any(), anyString(), anyString(), anyString());
     }
 
     // T-050: Reject sans motif → BusinessRuleException

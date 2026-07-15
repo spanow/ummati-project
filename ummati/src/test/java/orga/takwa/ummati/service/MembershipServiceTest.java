@@ -32,8 +32,9 @@ class MembershipServiceTest {
     @Mock private MembershipRepository membershipRepository;
     @Mock private OrganizationRepository organizationRepository;
     @Mock private UserRepository userRepository;
-    @Mock private NotificationRepository notificationRepository;
-    @Mock private AuditLogRepository auditLogRepository;
+    @Mock private NotificationService notificationService;
+    @Mock private AuditService auditService;
+    @Mock private OrganizationService organizationService;
 
     @InjectMocks
     private MembershipService membershipService;
@@ -187,14 +188,8 @@ class MembershipServiceTest {
         m.setRole(MembershipRole.ADMIN);
         m.setStatus(MembershipStatus.ACTIVE);
 
-        // Actor is admin
-        Membership actorMembership = new Membership();
-        actorMembership.setRole(MembershipRole.ADMIN);
-        actorMembership.setStatus(MembershipStatus.ACTIVE);
-
         when(membershipRepository.findById(membershipId)).thenReturn(Optional.of(m));
-        when(membershipRepository.findByUserIdAndOrganizationId(adminUserId, orgId))
-                .thenReturn(Optional.of(actorMembership));
+        // organizationService.verifyAdmin is mocked → no-op; the service then checks the target's role directly
 
         assertThatThrownBy(() -> membershipService.removeMembership(adminUserId, membershipId))
                 .isInstanceOf(BusinessRuleException.class)
