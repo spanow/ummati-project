@@ -8,18 +8,8 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-
-interface Membership {
-  id: string; organizationId: string; organizationName?: string;
-  role: string; status: string; joinedAt: string;
-}
-
-interface Signup {
-  id: string; eventId: string; eventTitle?: string;
-  status: string; registeredAt: string;
-}
+import { MembershipService, MembershipResponse } from '../../core/services/membership.service';
+import { EventService, SignupResponse } from '../../core/services/event.service';
 
 @Component({
   selector: 'app-my-activities',
@@ -49,7 +39,7 @@ interface Signup {
                     <div class="card-row">
                       <mat-icon>business</mat-icon>
                       <div class="info">
-                        <strong>{{ m.organizationId }}</strong>
+                        <strong>{{ m.organizationName }}</strong>
                         <span class="meta">Membre depuis {{ m.joinedAt | date:'d MMM yyyy' }}</span>
                       </div>
                       <mat-chip [class]="'role-' + m.role.toLowerCase()">{{ m.role }}</mat-chip>
@@ -80,7 +70,7 @@ interface Signup {
                     <div class="card-row">
                       <mat-icon>event</mat-icon>
                       <div class="info">
-                        <strong>{{ s.eventId }}</strong>
+                        <strong>{{ s.eventTitle }}</strong>
                         <span class="meta">Inscrit le {{ s.registeredAt | date:'d MMM yyyy' }}</span>
                       </div>
                       <mat-chip [class]="'status-' + s.status.toLowerCase()">{{ s.status }}</mat-chip>
@@ -118,20 +108,20 @@ interface Signup {
   `],
 })
 export class MyActivitiesComponent implements OnInit {
-  memberships = signal<Membership[]>([]);
+  memberships = signal<MembershipResponse[]>([]);
   membershipsLoading = signal(true);
   membershipTotal = signal(0);
-  signups = signal<Signup[]>([]);
+  signups = signal<SignupResponse[]>([]);
   signupsLoading = signal(true);
   signupTotal = signal(0);
 
-  constructor(private http: HttpClient) {}
+  constructor(private membershipService: MembershipService, private eventService: EventService) {}
 
   ngOnInit() { this.loadMemberships(); this.loadSignups(); }
 
   loadMemberships(page = 0) {
     this.membershipsLoading.set(true);
-    this.http.get<any>(`${environment.apiUrl}/profile/memberships`, { params: { page, size: 10 } }).subscribe({
+    this.membershipService.listByUser('ACTIVE', page).subscribe({
       next: res => {
         this.memberships.set(res.data.content);
         this.membershipTotal.set(res.data.totalElements);
@@ -143,7 +133,7 @@ export class MyActivitiesComponent implements OnInit {
 
   loadSignups(page = 0) {
     this.signupsLoading.set(true);
-    this.http.get<any>(`${environment.apiUrl}/profile/signups`, { params: { page, size: 10 } }).subscribe({
+    this.eventService.listUserSignups(page).subscribe({
       next: res => {
         this.signups.set(res.data.content);
         this.signupTotal.set(res.data.totalElements);

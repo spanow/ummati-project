@@ -6,6 +6,7 @@ import java.util.UUID;
 public record SignupResponse(
         UUID id,
         UUID eventId,
+        String eventTitle,
         UUID userId,
         String userFirstName,
         String userLastName,

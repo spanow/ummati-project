@@ -36,11 +36,11 @@ public class AuthController {
         try {
             authService.confirmEmail(token);
             HttpHeaders headers = new HttpHeaders();
-            headers.add("Location", "http://localhost:4200/login?emailConfirmed=true");
+            headers.add("Location", appBaseUrl + "/login?emailConfirmed=true");
             return ResponseEntity.status(HttpStatus.FOUND).headers(headers).build();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             HttpHeaders headers = new HttpHeaders();
-            headers.add("Location", "http://localhost:4200/login?emailError=true");
+            headers.add("Location", appBaseUrl + "/login?emailError=true");
             return ResponseEntity.status(HttpStatus.FOUND).headers(headers).build();
         }
     }
@@ -53,7 +53,7 @@ public class AuthController {
     }
 
     @PostMapping("/resend-confirmation")
-    public ResponseEntity<ApiResponse<Void>> resendConfirmation(@RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> resendConfirmation(@RequestBody ResendConfirmationRequest request) {
         authService.resendConfirmation(request.email());
         return ResponseEntity.ok(ApiResponse.ok("Si ce compte existe, un email a été envoyé", null));
     }

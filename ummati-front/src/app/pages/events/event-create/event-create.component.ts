@@ -15,6 +15,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EventService } from '../../../core/services/event.service';
 import { SkillService } from '../../../core/services/skill.service';
+import { EVENT_TYPES } from '../../../core/constants/event-types';
 
 @Component({
   selector: 'app-event-create',
@@ -155,16 +156,7 @@ export class EventCreateComponent implements OnInit {
   private orgId = '';
   private eventId = '';
 
-  eventTypes = [
-    { value: 'MISSION_TERRAIN', label: 'Mission terrain' },
-    { value: 'FORMATION', label: 'Formation' },
-    { value: 'COLLECTE', label: 'Collecte' },
-    { value: 'REUNION', label: 'Réunion' },
-    { value: 'SENSIBILISATION', label: 'Sensibilisation' },
-    { value: 'MARAUDE', label: 'Maraude' },
-    { value: 'DISTRIBUTION', label: 'Distribution' },
-    { value: 'AUTRE', label: 'Autre' },
-  ];
+  readonly eventTypes = EVENT_TYPES;
 
   constructor(
     private fb: FormBuilder,

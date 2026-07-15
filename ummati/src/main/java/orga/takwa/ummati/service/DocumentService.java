@@ -86,11 +86,7 @@ public class DocumentService {
     // T-110: List documents for an organization (members only)
     @Transactional(readOnly = true)
     public List<DocumentResponse> list(UUID userId, UUID orgId) {
-        boolean isMember = membershipRepository.findByUserIdAndOrganizationId(userId, orgId)
-                .map(m -> m.getStatus() == MembershipStatus.ACTIVE)
-                .orElse(false);
-        if (!isMember) throw new ForbiddenException("Vous devez être membre de cette organisation");
-
+        requireActiveMembership(userId, orgId, "Vous devez être membre de cette organisation");
         return documentRepository.findByOwnerTypeAndOwnerId(DocumentOwnerType.ORGANIZATION, orgId)
                 .stream().map(this::toResponse).toList();
     }
@@ -101,12 +97,8 @@ public class DocumentService {
         Document doc = documentRepository.findById(docId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document non trouvé"));
 
-        // Verify access: must be member of the org
         if (doc.getOwnerType() == DocumentOwnerType.ORGANIZATION) {
-            boolean isMember = membershipRepository.findByUserIdAndOrganizationId(userId, doc.getOwnerId())
-                    .map(m -> m.getStatus() == MembershipStatus.ACTIVE)
-                    .orElse(false);
-            if (!isMember) throw new ForbiddenException("Accès non autorisé");
+            requireActiveMembership(userId, doc.getOwnerId(), "Accès non autorisé");
         }
 
         Path path = Paths.get(doc.getFilePath());
@@ -128,6 +120,13 @@ public class DocumentService {
         Path path = Paths.get(doc.getFilePath());
         Files.deleteIfExists(path);
         documentRepository.delete(doc);
+    }
+
+    private void requireActiveMembership(UUID userId, UUID orgId, String errorMessage) {
+        boolean isMember = membershipRepository.findByUserIdAndOrganizationId(userId, orgId)
+                .map(m -> m.getStatus() == MembershipStatus.ACTIVE)
+                .orElse(false);
+        if (!isMember) throw new ForbiddenException(errorMessage);
     }
 
     private void validateFile(MultipartFile file) {

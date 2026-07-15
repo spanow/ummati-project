@@ -177,7 +177,7 @@ export class EventManageComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.orgId = this.route.snapshot.paramMap.get('orgId') || this.route.snapshot.paramMap.get('slug') || '';
+    this.orgId = this.route.snapshot.paramMap.get('orgId') || '';
     this.loadEvents();
   }
 

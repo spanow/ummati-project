@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse } from './organization.service';
+import { ApiResponse } from '../models/api.models';
 
 export interface DocumentItem {
   id: string; name: string; fileType: string; fileSize: number;

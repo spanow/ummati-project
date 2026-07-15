@@ -26,14 +26,14 @@ public class EventService {
     private final UserRepository userRepository;
     private final SkillRepository skillRepository;
     private final MembershipRepository membershipRepository;
-    private final NotificationRepository notificationRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
 
     public EventService(EventRepository eventRepository, EventSignupRepository eventSignupRepository,
                         EventFeedbackRepository eventFeedbackRepository, OrganizationService organizationService,
                         UserRepository userRepository, SkillRepository skillRepository,
-                        MembershipRepository membershipRepository, NotificationRepository notificationRepository,
-                        AuditLogRepository auditLogRepository) {
+                        MembershipRepository membershipRepository, NotificationService notificationService,
+                        AuditService auditService) {
         this.eventRepository = eventRepository;
         this.eventSignupRepository = eventSignupRepository;
         this.eventFeedbackRepository = eventFeedbackRepository;
@@ -41,8 +41,8 @@ public class EventService {
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
         this.membershipRepository = membershipRepository;
-        this.notificationRepository = notificationRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
     }
 
     // T-070: Create event
@@ -85,7 +85,7 @@ public class EventService {
         }
 
         event = eventRepository.save(event);
-        audit(userId, "EVENT_CREATED", "Event", event.getId());
+        auditService.log(userId, "EVENT_CREATED", "Event", event.getId());
         return toDetail(event, userId);
     }
 
@@ -128,7 +128,7 @@ public class EventService {
         }
 
         event = eventRepository.save(event);
-        audit(userId, "EVENT_UPDATED", "Event", eventId);
+        auditService.log(userId, "EVENT_UPDATED", "Event", eventId);
         return toDetail(event, userId);
     }
 
@@ -147,18 +147,16 @@ public class EventService {
                 }
                 event.setStatus(EventStatus.PUBLISHED);
                 // Notify all active members of the org
-                List<Membership> activeMembers = membershipRepository.findByOrganizationIdAndRoleAndStatus(
-                        event.getOrganization().getId(), MembershipRole.MEMBER, MembershipStatus.ACTIVE);
-                List<Membership> activeAdmins = membershipRepository.findByOrganizationIdAndRoleAndStatus(
-                        event.getOrganization().getId(), MembershipRole.ADMIN, MembershipStatus.ACTIVE);
-                var allMembers = new ArrayList<>(activeMembers);
-                allMembers.addAll(activeAdmins);
-                for (Membership m : allMembers) {
-                    createNotification(m.getUser(), NotificationType.EVENT_PUBLISHED,
-                            "Nouvel événement", "'" + event.getTitle() + "' par " + event.getOrganization().getName(),
-                            "/events/" + event.getId());
-                }
-                audit(userId, "EVENT_PUBLISHED", "Event", eventId);
+                String publishTitle = event.getTitle();
+                String publishOrgName = event.getOrganization().getName();
+                membershipRepository.findByOrganizationIdAndRoleInAndStatus(
+                        event.getOrganization().getId(),
+                        List.of(MembershipRole.MEMBER, MembershipRole.ADMIN),
+                        MembershipStatus.ACTIVE)
+                        .forEach(m -> notificationService.saveNotification(m.getUser(), NotificationType.EVENT_PUBLISHED,
+                                "Nouvel événement", "'" + publishTitle + "' par " + publishOrgName,
+                                "/events/" + eventId));
+                auditService.log(userId, "EVENT_PUBLISHED", "Event", eventId);
             }
             case "CANCEL" -> {
                 if (request.reason() == null || request.reason().length() < 10) {
@@ -172,19 +170,19 @@ public class EventService {
                 for (EventSignup s : signups) {
                     s.setStatus(SignupStatus.CANCELLED);
                     s.setCancelledAt(LocalDateTime.now());
-                    createNotification(s.getUser(), NotificationType.EVENT_CANCELLED,
+                    notificationService.saveNotification(s.getUser(), NotificationType.EVENT_CANCELLED,
                             "Événement annulé", "'" + event.getTitle() + "' a été annulé. Motif : " + request.reason(),
                             "/events/" + event.getId());
                 }
                 eventSignupRepository.saveAll(signups);
-                audit(userId, "EVENT_CANCELLED", "Event", eventId);
+                auditService.log(userId, "EVENT_CANCELLED", "Event", eventId);
             }
             case "COMPLETE" -> {
                 if (event.getStatus() != EventStatus.PUBLISHED) {
                     throw new BusinessRuleException("Seul un événement publié peut être marqué comme terminé");
                 }
                 event.setStatus(EventStatus.COMPLETED);
-                audit(userId, "EVENT_COMPLETED", "Event", eventId);
+                auditService.log(userId, "EVENT_COMPLETED", "Event", eventId);
             }
             default -> throw new BusinessRuleException("Action invalide. Utilisez PUBLISH, CANCEL ou COMPLETE.");
         }
@@ -285,9 +283,9 @@ public class EventService {
         String msg = status == SignupStatus.REGISTERED
                 ? "Vous êtes inscrit à '" + event.getTitle() + "'"
                 : "Vous êtes sur la liste d'attente pour '" + event.getTitle() + "'";
-        createNotification(user, notifType, "Inscription événement", msg, "/events/" + eventId);
+        notificationService.saveNotification(user, notifType, "Inscription événement", msg, "/events/" + eventId);
 
-        audit(userId, "EVENT_SIGNUP", "EventSignup", signup.getId());
+        auditService.log(userId, "EVENT_SIGNUP", "EventSignup", signup.getId());
         return toSignupResponse(signup);
     }
 
@@ -319,14 +317,14 @@ public class EventService {
                         eventId, SignupStatus.WAITLISTED).ifPresent(waitlisted -> {
                     waitlisted.setStatus(SignupStatus.REGISTERED);
                     eventSignupRepository.save(waitlisted);
-                    createNotification(waitlisted.getUser(), NotificationType.SIGNUP_PROMOTED,
+                    notificationService.saveNotification(waitlisted.getUser(), NotificationType.SIGNUP_PROMOTED,
                             "Place libérée !", "Une place s'est libérée pour '" + event.getTitle() + "'. Vous êtes désormais inscrit !",
                             "/events/" + eventId);
                 });
             }
         }
 
-        audit(userId, "EVENT_SIGNUP_CANCELLED", "EventSignup", signup.getId());
+        auditService.log(userId, "EVENT_SIGNUP_CANCELLED", "EventSignup", signup.getId());
     }
 
     // T-077: List signups
@@ -365,14 +363,14 @@ public class EventService {
                     signup.setStatus(SignupStatus.ATTENDED);
                     signup.setAttendedAt(LocalDateTime.now());
                     eventSignupRepository.save(signup);
-                    createNotification(signup.getUser(), NotificationType.FEEDBACK_REQUESTED,
+                    notificationService.saveNotification(signup.getUser(), NotificationType.FEEDBACK_REQUESTED,
                             "Donnez votre avis", "Comment s'est passé '" + event.getTitle() + "' ? Laissez un feedback !",
                             "/events/" + eventId);
                 }
             });
         }
 
-        audit(userId, "EVENT_ATTENDANCE_MARKED", "Event", eventId);
+        auditService.log(userId, "EVENT_ATTENDANCE_MARKED", "Event", eventId);
     }
 
     // T-080: Create feedback
@@ -474,11 +472,7 @@ public class EventService {
                 event.getCreatedAt(), currentUserSignupStatus);
     }
 
-    EventSummary toSummaryPublic(Event event) {
-        return toSummary(event);
-    }
-
-    private EventSummary toSummary(Event event) {
+    EventSummary toSummary(Event event) {
         long registeredCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.REGISTERED);
         Organization org = event.getOrganization();
         return new EventSummary(event.getId(), event.getTitle(), event.getType().name(),
@@ -489,8 +483,8 @@ public class EventService {
 
     SignupResponse toSignupResponse(EventSignup signup) {
         User user = signup.getUser();
-        return new SignupResponse(signup.getId(), signup.getEvent().getId(), user.getId(),
-                user.getFirstName(), user.getLastName(), user.getEmail(),
+        return new SignupResponse(signup.getId(), signup.getEvent().getId(), signup.getEvent().getTitle(),
+                user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(),
                 signup.getStatus().name(), signup.getRegisteredAt(), signup.getAttendedAt());
     }
 
@@ -502,23 +496,5 @@ public class EventService {
                 feedback.getCreatedAt());
     }
 
-    private void createNotification(User user, NotificationType type, String title, String message, String link) {
-        Notification notif = new Notification();
-        notif.setUser(user);
-        notif.setType(type);
-        notif.setTitle(title);
-        notif.setMessage(message);
-        notif.setLink(link);
-        notificationRepository.save(notif);
-    }
-
-    private void audit(UUID actorId, String action, String entityType, UUID entityId) {
-        AuditLog log = new AuditLog();
-        log.setActorId(actorId);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        auditLogRepository.save(log);
-    }
 }
 

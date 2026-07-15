@@ -13,7 +13,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { AdminApiService, AdminStats, UserSummary } from '../../core/services/dashboard.service';
+import { AdminService, AdminStats, AdminUserSummary } from '../../core/services/admin.service';
 
 @Component({
   selector: 'app-admin',
@@ -148,7 +148,7 @@ import { AdminApiService, AdminStats, UserSummary } from '../../core/services/da
 })
 export class AdminComponent implements OnInit {
   stats = signal<AdminStats | null>(null);
-  users = signal<UserSummary[]>([]);
+  users = signal<AdminUserSummary[]>([]);
   usersLoading = signal(false);
   usersTotal = signal(0);
   userSearch = '';
@@ -157,7 +157,7 @@ export class AdminComponent implements OnInit {
   orgsTotal = signal(0);
   orgStatus = 'PENDING';
 
-  constructor(private adminService: AdminApiService, private snackBar: MatSnackBar) {}
+  constructor(private adminService: AdminService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.adminService.getStats().subscribe(res => this.stats.set(res.data));
@@ -167,7 +167,7 @@ export class AdminComponent implements OnInit {
 
   loadUsers(page = 0) {
     this.usersLoading.set(true);
-    this.adminService.listUsers({ page, search: this.userSearch || undefined }).subscribe({
+    this.adminService.listUsers(this.userSearch || '', undefined, page).subscribe({
       next: res => { this.users.set(res.data.content); this.usersTotal.set(res.data.totalElements); this.usersLoading.set(false); },
       error: () => this.usersLoading.set(false),
     });
@@ -175,13 +175,13 @@ export class AdminComponent implements OnInit {
 
   loadOrgs(page = 0) {
     this.orgsLoading.set(true);
-    this.adminService.listOrganizations({ page, status: this.orgStatus || undefined }).subscribe({
+    this.adminService.listOrganizations(this.orgStatus || undefined, page).subscribe({
       next: res => { this.orgs.set(res.data.content); this.orgsTotal.set(res.data.totalElements); this.orgsLoading.set(false); },
       error: () => this.orgsLoading.set(false),
     });
   }
 
-  toggleUser(user: UserSummary) {
+  toggleUser(user: AdminUserSummary) {
     this.adminService.changeUserStatus(user.id, !user.enabled).subscribe({
       next: res => {
         this.snackBar.open(res.data.enabled ? 'Utilisateur activé' : 'Utilisateur désactivé', 'OK', { duration: 3000 });

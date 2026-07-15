@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { AdminApiService } from '../../core/services/dashboard.service';
+import { AdminService } from '../../core/services/admin.service';
 
 interface PlatformStat { icon: string; value: string; label: string; }
 interface Feature { icon: string; title: string; description: string; }
@@ -223,7 +223,7 @@ interface Feature { icon: string; title: string; description: string; }
   `],
 })
 export class HomeComponent implements OnInit {
-  private adminService = inject(AdminApiService);
+  private adminService = inject(AdminService);
   stats = signal<PlatformStat[]>([
     { icon: 'people', value: '500+', label: 'Bénévoles inscrits' },
     { icon: 'business', value: '50+', label: 'Associations actives' },

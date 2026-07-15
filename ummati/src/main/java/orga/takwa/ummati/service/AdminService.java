@@ -14,7 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -25,16 +24,16 @@ public class AdminService {
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
     private final EventRepository eventRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final AuditService auditService;
     private final OrganizationService organizationService;
 
     public AdminService(UserRepository userRepository, OrganizationRepository organizationRepository,
-                        EventRepository eventRepository, AuditLogRepository auditLogRepository,
+                        EventRepository eventRepository, AuditService auditService,
                         OrganizationService organizationService) {
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
         this.eventRepository = eventRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.auditService = auditService;
         this.organizationService = organizationService;
     }
 
@@ -69,7 +68,7 @@ public class AdminService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
         user.setEnabled(request.enabled());
         user = userRepository.save(user);
-        audit(adminId, request.enabled() ? "USER_ENABLED" : "USER_DISABLED", "User", userId);
+        auditService.log(adminId, request.enabled() ? "USER_ENABLED" : "USER_DISABLED", "User", userId);
         return new UserSummary(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
                 user.getRole().name(), user.isEmailVerified(), user.isEnabled(), user.getCreatedAt());
     }
@@ -83,13 +82,5 @@ public class AdminService {
         return page.map(organizationService::toSummary);
     }
 
-    private void audit(UUID actorId, String action, String entityType, UUID entityId) {
-        var log = new orga.takwa.ummati.entity.AuditLog();
-        log.setActorId(actorId);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        auditLogRepository.save(log);
-    }
 }
 

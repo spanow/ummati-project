@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ApiResponse } from '../models/api.models';
 
 export interface ProfileResponse {
   id: string; email: string; firstName: string; lastName: string;
@@ -11,8 +12,6 @@ export interface ProfileResponse {
   stats: { organizationCount: number; eventsAttended: number; volunteerHours: number };
   onboardingDone: boolean; emailVerified: boolean; createdAt: string;
 }
-
-export interface ApiResponse<T> { success: boolean; message: string | null; data: T; }
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {

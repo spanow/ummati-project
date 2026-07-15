@@ -2,18 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ApiResponse, PageResponse } from '../models/api.models';
 
 export interface MembershipResponse {
-  id: string; userId: string; organizationId: string;
+  id: string; userId: string; organizationId: string; organizationName: string;
   firstName: string; lastName: string; photoUrl: string | null;
   role: string; status: string; motivation: string | null;
   joinedAt: string | null; createdAt: string;
-}
-
-export interface ApiResponse<T> { success: boolean; message: string | null; data: T; }
-export interface PageResponse<T> {
-  content: T[]; page: number; size: number;
-  totalElements: number; totalPages: number; last: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -56,6 +51,11 @@ export class MembershipService {
 
   remove(membershipId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/memberships/${membershipId}`);
+  }
+
+  listByUser(status = 'ACTIVE', page = 0, size = 10): Observable<ApiResponse<PageResponse<MembershipResponse>>> {
+    return this.http.get<ApiResponse<PageResponse<MembershipResponse>>>(
+      `${this.apiUrl}/profile/memberships`, { params: { status, page, size } });
   }
 }
 

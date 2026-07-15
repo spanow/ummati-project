@@ -29,6 +29,17 @@ public class NotificationService {
         this.emailService = emailService;
     }
 
+    // Save notification to DB only (no email) — used internally by domain services
+    public void saveNotification(User user, NotificationType type, String title, String message, String link) {
+        Notification notif = new Notification();
+        notif.setUser(user);
+        notif.setType(type);
+        notif.setTitle(title);
+        notif.setMessage(message);
+        notif.setLink(link);
+        notificationRepository.save(notif);
+    }
+
     // T-100: Create notification in-app + async email
     public void notify(User user, NotificationType type, String title, String message, String link) {
         Notification notif = new Notification();

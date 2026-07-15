@@ -13,6 +13,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { EventService, EventSummary } from '../../../core/services/event.service';
+import { EVENT_TYPES } from '../../../core/constants/event-types';
 
 @Component({
   selector: 'app-event-list',
@@ -142,16 +143,7 @@ export class EventListComponent implements OnInit {
   typeFilter: string | null = null;
   onlineOnly = false;
 
-  eventTypes = [
-    { value: 'MISSION_TERRAIN', label: 'Mission terrain' },
-    { value: 'FORMATION', label: 'Formation' },
-    { value: 'COLLECTE', label: 'Collecte' },
-    { value: 'REUNION', label: 'Réunion' },
-    { value: 'SENSIBILISATION', label: 'Sensibilisation' },
-    { value: 'MARAUDE', label: 'Maraude' },
-    { value: 'DISTRIBUTION', label: 'Distribution' },
-    { value: 'AUTRE', label: 'Autre' },
-  ];
+  readonly eventTypes = EVENT_TYPES;
 
   constructor(private eventService: EventService) {}
 

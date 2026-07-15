@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,5 +22,6 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
     long countByOrganizationIdAndStatus(UUID orgId, MembershipStatus status);
     long countByUserIdAndStatus(UUID userId, MembershipStatus status);
     List<Membership> findByOrganizationIdAndRoleAndStatus(UUID orgId, MembershipRole role, MembershipStatus status);
+    List<Membership> findByOrganizationIdAndRoleInAndStatus(UUID orgId, Collection<MembershipRole> roles, MembershipStatus status);
 }
 

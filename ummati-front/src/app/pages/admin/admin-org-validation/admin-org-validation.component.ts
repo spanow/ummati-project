@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -20,7 +20,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
   selector: 'app-admin-org-validation',
   standalone: true,
   imports: [
-    CommonModule, RouterLink, ReactiveFormsModule,
+    DatePipe, RouterLink, ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
     MatDividerModule, MatChipsModule, MatDialogModule,
@@ -253,7 +253,7 @@ export class AdminOrgValidationComponent implements OnInit {
   });
 
   ngOnInit() {
-    const slug = this.route.snapshot.paramMap.get('slug') ?? this.route.snapshot.paramMap.get('id') ?? '';
+    const slug = this.route.snapshot.paramMap.get('slug') ?? '';
     this.orgService.getBySlug(slug).subscribe({
       next: (res) => { this.org.set(res.data); this.loading.set(false); },
       error: () => this.loading.set(false)

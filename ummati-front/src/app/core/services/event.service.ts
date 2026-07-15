@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse, PageResponse } from './organization.service';
+import { ApiResponse, PageResponse } from '../models/api.models';
 
 export interface EventSummary {
   id: string; title: string; type: string; locationCity: string;
@@ -28,7 +28,7 @@ export interface EventDetail {
 }
 
 export interface SignupResponse {
-  id: string; eventId: string; userId: string;
+  id: string; eventId: string; eventTitle: string; userId: string;
   userFirstName: string; userLastName: string; userEmail: string;
   status: string; registeredAt: string; attendedAt: string | null;
 }
@@ -122,6 +122,11 @@ export class EventService {
   listFeedbacks(eventId: string, page = 0, size = 10): Observable<ApiResponse<FeedbackListResponse>> {
     const params = new HttpParams().set('page', page).set('size', size);
     return this.http.get<ApiResponse<FeedbackListResponse>>(`${this.apiUrl}/events/${eventId}/feedbacks`, { params });
+  }
+
+  listUserSignups(page = 0, size = 10): Observable<ApiResponse<PageResponse<SignupResponse>>> {
+    return this.http.get<ApiResponse<PageResponse<SignupResponse>>>(
+      `${this.apiUrl}/profile/signups`, { params: new HttpParams().set('page', page).set('size', size) });
   }
 }
 

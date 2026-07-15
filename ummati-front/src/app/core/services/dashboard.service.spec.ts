@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { DashboardService, AdminApiService } from './dashboard.service';
+import { DashboardService } from './dashboard.service';
+import { AdminService } from './admin.service';
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -34,15 +35,15 @@ describe('DashboardService', () => {
   });
 });
 
-describe('AdminApiService', () => {
-  let service: AdminApiService;
+describe('AdminService', () => {
+  let service: AdminService;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), AdminApiService],
+      providers: [provideHttpClient(), provideHttpClientTesting(), AdminService],
     });
-    service = TestBed.inject(AdminApiService);
+    service = TestBed.inject(AdminService);
     httpMock = TestBed.inject(HttpTestingController);
   });
 
@@ -58,7 +59,7 @@ describe('AdminApiService', () => {
   });
 
   it('listUsers() should call GET /admin/users with search param', () => {
-    service.listUsers({ search: 'test', page: 0 }).subscribe();
+    service.listUsers('test', undefined, 0).subscribe();
     const req = httpMock.expectOne(r => r.url.includes('/admin/users'));
     expect(req.request.params.get('search')).toBe('test');
     req.flush({ success: true, data: { content: [], totalElements: 0 } });
@@ -73,10 +74,9 @@ describe('AdminApiService', () => {
   });
 
   it('listOrganizations() should filter by status', () => {
-    service.listOrganizations({ status: 'PENDING' }).subscribe();
+    service.listOrganizations('PENDING', 0).subscribe();
     const req = httpMock.expectOne(r => r.url.includes('/admin/organizations'));
     expect(req.request.params.get('status')).toBe('PENDING');
     req.flush({ success: true, data: { content: [], totalElements: 0 } });
   });
 });
-

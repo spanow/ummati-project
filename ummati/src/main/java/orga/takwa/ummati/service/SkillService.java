@@ -18,21 +18,19 @@ public class SkillService {
     }
 
     @Cacheable("skills")
-    public List<SkillResponse> getAllSkills() {
+    public List<SkillResponse> getSkills(String category, String search) {
+        if (category != null) {
+            SkillCategory cat = SkillCategory.valueOf(category.toUpperCase());
+            return skillRepository.findByCategory(cat).stream()
+                    .map(s -> new SkillResponse(s.getId(), s.getName(), s.getCategory().name()))
+                    .toList();
+        }
+        if (search != null) {
+            return skillRepository.findByNameContainingIgnoreCase(search).stream()
+                    .map(s -> new SkillResponse(s.getId(), s.getName(), s.getCategory().name()))
+                    .toList();
+        }
         return skillRepository.findAll().stream()
-                .map(s -> new SkillResponse(s.getId(), s.getName(), s.getCategory().name()))
-                .toList();
-    }
-
-    public List<SkillResponse> getByCategory(String category) {
-        SkillCategory cat = SkillCategory.valueOf(category.toUpperCase());
-        return skillRepository.findByCategory(cat).stream()
-                .map(s -> new SkillResponse(s.getId(), s.getName(), s.getCategory().name()))
-                .toList();
-    }
-
-    public List<SkillResponse> search(String query) {
-        return skillRepository.findByNameContainingIgnoreCase(query).stream()
                 .map(s -> new SkillResponse(s.getId(), s.getName(), s.getCategory().name()))
                 .toList();
     }
