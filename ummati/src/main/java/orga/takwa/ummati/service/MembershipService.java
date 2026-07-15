@@ -19,17 +19,20 @@ public class MembershipService {
     private final MembershipRepository membershipRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
-    private final NotificationRepository notificationRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
+    private final OrganizationService organizationService;
 
     public MembershipService(MembershipRepository membershipRepository,
                              OrganizationRepository organizationRepository, UserRepository userRepository,
-                             NotificationRepository notificationRepository, AuditLogRepository auditLogRepository) {
+                             NotificationService notificationService, AuditService auditService,
+                             OrganizationService organizationService) {
         this.membershipRepository = membershipRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
-        this.notificationRepository = notificationRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
+        this.organizationService = organizationService;
     }
 
     // T-051: Request membership
@@ -74,7 +77,7 @@ public class MembershipService {
         membership = membershipRepository.save(membership);
 
         notifyAdmins(org, userId);
-        audit(userId, "MEMBERSHIP_REQUESTED", "Membership", membership.getId());
+        auditService.log(userId, "MEMBERSHIP_REQUESTED", "Membership", membership.getId());
 
         return toResponse(membership);
     }
@@ -83,7 +86,7 @@ public class MembershipService {
     @Transactional
     public MembershipResponse handleAction(UUID adminUserId, UUID membershipId, MembershipActionRequest request) {
         Membership m = findMembership(membershipId);
-        verifyOrgAdmin(adminUserId, m.getOrganization().getId());
+        organizationService.verifyAdmin(adminUserId, m.getOrganization().getId());
 
         if (m.getStatus() != MembershipStatus.PENDING) {
             throw new BusinessRuleException("Cette demande n'est pas en attente");
@@ -93,17 +96,17 @@ public class MembershipService {
         if ("APPROVE".equals(action)) {
             m.setStatus(MembershipStatus.ACTIVE);
             m.setJoinedAt(LocalDateTime.now());
-            createNotification(m.getUser(), NotificationType.MEMBERSHIP_ACCEPTED,
+            notificationService.saveNotification(m.getUser(), NotificationType.MEMBERSHIP_ACCEPTED,
                     "Adhésion acceptée !", "Votre demande d'adhésion à '" + m.getOrganization().getName() + "' a été acceptée.",
                     "/organizations/" + m.getOrganization().getSlug());
-            audit(adminUserId, "MEMBERSHIP_APPROVED", "Membership", membershipId);
+            auditService.log(adminUserId, "MEMBERSHIP_APPROVED", "Membership", membershipId);
         } else if ("REJECT".equals(action)) {
             m.setStatus(MembershipStatus.REJECTED);
             m.setRejectedAt(LocalDateTime.now());
-            createNotification(m.getUser(), NotificationType.MEMBERSHIP_REJECTED,
+            notificationService.saveNotification(m.getUser(), NotificationType.MEMBERSHIP_REJECTED,
                     "Adhésion refusée", "Votre demande d'adhésion à '" + m.getOrganization().getName() + "' a été refusée.",
                     "/organizations/" + m.getOrganization().getSlug());
-            audit(adminUserId, "MEMBERSHIP_REJECTED", "Membership", membershipId);
+            auditService.log(adminUserId, "MEMBERSHIP_REJECTED", "Membership", membershipId);
         } else {
             throw new BusinessRuleException("Action invalide. Utilisez APPROVE ou REJECT.");
         }
@@ -120,14 +123,12 @@ public class MembershipService {
         boolean isSelf = m.getUser().getId().equals(actorUserId);
 
         if (!isSelf) {
-            verifyOrgAdmin(actorUserId, orgId);
-            // Admin can't exclude another admin
+            organizationService.verifyAdmin(actorUserId, orgId);
             if (m.getRole() == MembershipRole.ADMIN) {
                 throw new BusinessRuleException("Impossible d'exclure un admin. Rétrograder d'abord.");
             }
         }
 
-        // Check last admin
         if (m.getRole() == MembershipRole.ADMIN) {
             long adminCount = membershipRepository.countByOrganizationIdAndRoleAndStatus(
                     orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE);
@@ -138,18 +139,17 @@ public class MembershipService {
 
         m.setStatus(MembershipStatus.LEFT);
         membershipRepository.save(m);
-        audit(actorUserId, isSelf ? "MEMBERSHIP_LEFT" : "MEMBERSHIP_EXCLUDED", "Membership", membershipId);
+        auditService.log(actorUserId, isSelf ? "MEMBERSHIP_LEFT" : "MEMBERSHIP_EXCLUDED", "Membership", membershipId);
     }
 
     // T-054: Change role
     @Transactional
     public MembershipResponse changeRole(UUID adminUserId, UUID membershipId, MembershipRoleRequest request) {
         Membership m = findMembership(membershipId);
-        verifyOrgAdmin(adminUserId, m.getOrganization().getId());
+        organizationService.verifyAdmin(adminUserId, m.getOrganization().getId());
 
         MembershipRole newRole = MembershipRole.valueOf(request.role().toUpperCase());
 
-        // Check last admin if demoting
         if (m.getRole() == MembershipRole.ADMIN && newRole != MembershipRole.ADMIN) {
             long adminCount = membershipRepository.countByOrganizationIdAndRoleAndStatus(
                     m.getOrganization().getId(), MembershipRole.ADMIN, MembershipStatus.ACTIVE);
@@ -160,7 +160,7 @@ public class MembershipService {
 
         m.setRole(newRole);
         m = membershipRepository.save(m);
-        audit(adminUserId, "MEMBERSHIP_ROLE_CHANGED", "Membership", membershipId);
+        auditService.log(adminUserId, "MEMBERSHIP_ROLE_CHANGED", "Membership", membershipId);
         return toResponse(m);
     }
 
@@ -192,20 +192,12 @@ public class MembershipService {
                 .map(this::toResponse);
     }
 
-    private void verifyOrgAdmin(UUID userId, UUID orgId) {
-        Membership m = membershipRepository.findByUserIdAndOrganizationId(userId, orgId)
-                .orElseThrow(() -> new ForbiddenException("Non membre"));
-        if (m.getRole() != MembershipRole.ADMIN || m.getStatus() != MembershipStatus.ACTIVE) {
-            throw new ForbiddenException("Non admin de cette organisation");
-        }
-    }
-
     private void notifyAdmins(Organization org, UUID applicantUserId) {
         var admins = membershipRepository.findByOrganizationIdAndRoleAndStatus(
                 org.getId(), MembershipRole.ADMIN, MembershipStatus.ACTIVE);
         User applicant = userRepository.getReferenceById(applicantUserId);
         for (Membership admin : admins) {
-            createNotification(admin.getUser(), NotificationType.MEMBERSHIP_REQUESTED,
+            notificationService.saveNotification(admin.getUser(), NotificationType.MEMBERSHIP_REQUESTED,
                     "Nouvelle demande d'adhésion",
                     applicant.getFirstName() + " " + applicant.getLastName() + " souhaite rejoindre " + org.getName(),
                     "/organizations/" + org.getSlug() + "/manage/members");
@@ -215,28 +207,9 @@ public class MembershipService {
     private MembershipResponse toResponse(Membership m) {
         User user = m.getUser();
         return new MembershipResponse(m.getId(), user.getId(), m.getOrganization().getId(),
+                m.getOrganization().getName(),
                 user.getFirstName(), user.getLastName(), user.getPhotoUrl(),
                 m.getRole().name(), m.getStatus().name(), m.getMotivation(),
                 m.getJoinedAt(), m.getCreatedAt());
     }
-
-    private void createNotification(User user, NotificationType type, String title, String message, String link) {
-        Notification notif = new Notification();
-        notif.setUser(user);
-        notif.setType(type);
-        notif.setTitle(title);
-        notif.setMessage(message);
-        notif.setLink(link);
-        notificationRepository.save(notif);
-    }
-
-    private void audit(UUID actorId, String action, String entityType, UUID entityId) {
-        AuditLog log = new AuditLog();
-        log.setActorId(actorId);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        auditLogRepository.save(log);
-    }
 }
-

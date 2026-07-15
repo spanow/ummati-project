@@ -20,18 +20,18 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final MembershipRepository membershipRepository;
-    private final NotificationRepository notificationRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
     private final EventRepository eventRepository;
 
     public OrganizationService(OrganizationRepository organizationRepository, UserRepository userRepository,
-                               MembershipRepository membershipRepository, NotificationRepository notificationRepository,
-                               AuditLogRepository auditLogRepository, EventRepository eventRepository) {
+                               MembershipRepository membershipRepository, NotificationService notificationService,
+                               AuditService auditService, EventRepository eventRepository) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.membershipRepository = membershipRepository;
-        this.notificationRepository = notificationRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
         this.eventRepository = eventRepository;
     }
 
@@ -48,7 +48,6 @@ public class OrganizationService {
         }
 
         String slug = SlugUtil.toSlug(request.name());
-        // Ensure unique slug
         String baseSlug = slug;
         int suffix = 1;
         while (organizationRepository.existsBySlug(slug)) {
@@ -81,19 +80,17 @@ public class OrganizationService {
         membership.setJoinedAt(LocalDateTime.now());
         membershipRepository.save(membership);
 
-        // Notification ONG_SUBMITTED
-        createNotification(user, NotificationType.ONG_SUBMITTED,
+        notificationService.saveNotification(user, NotificationType.ONG_SUBMITTED,
                 "ONG soumise", "Votre organisation '" + savedOrg.getName() + "' est en attente de validation.",
                 "/organizations/" + savedOrg.getSlug());
 
-        // Notify platform admins
         userRepository.findAll().stream()
                 .filter(u -> u.getRole() == UserRole.PLATFORM_ADMIN)
-                .forEach(admin -> createNotification(admin, NotificationType.ONG_SUBMITTED,
+                .forEach(admin -> notificationService.saveNotification(admin, NotificationType.ONG_SUBMITTED,
                         "Nouvelle ONG en attente", "L'organisation '" + savedOrg.getName() + "' attend validation.",
                         "/admin/organizations/" + savedOrg.getSlug() + "/validate"));
 
-        audit(userId, "ONG_CREATED", "Organization", savedOrg.getId());
+        auditService.log(userId, "ONG_CREATED", "Organization", savedOrg.getId());
 
         return toDetail(savedOrg);
     }
@@ -132,7 +129,7 @@ public class OrganizationService {
         if (request.website() != null) org.setWebsite(request.website());
 
         org = organizationRepository.save(org);
-        audit(userId, "ONG_UPDATED", "Organization", orgId);
+        auditService.log(userId, "ONG_UPDATED", "Organization", orgId);
         return toDetail(org);
     }
 
@@ -146,10 +143,10 @@ public class OrganizationService {
             org.setStatus(OrganizationStatus.ACTIVE);
             org.setValidatedBy(userRepository.getReferenceById(adminId));
             org.setValidatedAt(LocalDateTime.now());
-            createNotification(org.getCreatedBy(), NotificationType.ONG_VALIDATED,
+            notificationService.saveNotification(org.getCreatedBy(), NotificationType.ONG_VALIDATED,
                     "ONG validée !", "Votre organisation '" + org.getName() + "' a été validée.",
                     "/organizations/" + org.getSlug());
-            audit(adminId, "ONG_VALIDATED", "Organization", orgId);
+            auditService.log(adminId, "ONG_VALIDATED", "Organization", orgId);
         } else if (newStatus == OrganizationStatus.REJECTED
                 || newStatus == OrganizationStatus.SUSPENDED
                 || newStatus == OrganizationStatus.ARCHIVED) {
@@ -163,9 +160,9 @@ public class OrganizationService {
                 case SUSPENDED -> "ONG suspendue";
                 default -> "ONG archivée";
             };
-            createNotification(org.getCreatedBy(), NotificationType.ONG_REJECTED,
+            notificationService.saveNotification(org.getCreatedBy(), NotificationType.ONG_REJECTED,
                     notifTitle, "Motif : " + request.reason(), "/organizations/" + org.getSlug());
-            audit(adminId, "ONG_" + newStatus.name(), "Organization", orgId);
+            auditService.log(adminId, "ONG_" + newStatus.name(), "Organization", orgId);
         }
 
         org = organizationRepository.save(org);
@@ -188,10 +185,8 @@ public class OrganizationService {
     }
 
     OrganizationSummary toSummary(Organization organization) {
-        long memberCount = membershipRepository.countByOrganizationIdAndRoleAndStatus(
-                organization.getId(), MembershipRole.MEMBER, MembershipStatus.ACTIVE)
-                + membershipRepository.countByOrganizationIdAndRoleAndStatus(
-                organization.getId(), MembershipRole.ADMIN, MembershipStatus.ACTIVE);
+        long memberCount = membershipRepository.countByOrganizationIdAndStatus(
+                organization.getId(), MembershipStatus.ACTIVE);
         String excerpt = organization.getDescription().length() > 150
                 ? organization.getDescription().substring(0, 150) + "..."
                 : organization.getDescription();
@@ -201,10 +196,8 @@ public class OrganizationService {
     }
 
     OrganizationDetail toDetail(Organization organization) {
-        long memberCount = membershipRepository.countByOrganizationIdAndRoleAndStatus(
-                organization.getId(), MembershipRole.MEMBER, MembershipStatus.ACTIVE)
-                + membershipRepository.countByOrganizationIdAndRoleAndStatus(
-                organization.getId(), MembershipRole.ADMIN, MembershipStatus.ACTIVE);
+        long memberCount = membershipRepository.countByOrganizationIdAndStatus(
+                organization.getId(), MembershipStatus.ACTIVE);
         long eventCount = eventRepository.findByOrganizationId(organization.getId(),
                 Pageable.unpaged()).getTotalElements();
 
@@ -217,28 +210,4 @@ public class OrganizationService {
                 new OrganizationDetail.StatsDto(memberCount, eventCount, null),
                 organization.getCreatedAt());
     }
-
-    private void createNotification(User user, NotificationType type, String title, String message, String link) {
-        Notification notif = new Notification();
-        notif.setUser(user);
-        notif.setType(type);
-        notif.setTitle(title);
-        notif.setMessage(message);
-        notif.setLink(link);
-        notificationRepository.save(notif);
-    }
-
-    private void audit(UUID actorId, String action, String entityType, UUID entityId) {
-        AuditLog log = new AuditLog();
-        log.setActorId(actorId);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        auditLogRepository.save(log);
-    }
 }
-
-
-
-
-

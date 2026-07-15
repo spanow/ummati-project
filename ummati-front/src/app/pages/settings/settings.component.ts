@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,7 +24,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
   selector: 'app-settings',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule,
+    ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
     MatDividerModule, MatDialogModule, MatTabsModule

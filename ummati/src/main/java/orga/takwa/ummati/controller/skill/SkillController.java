@@ -22,15 +22,7 @@ public class SkillController {
     public ResponseEntity<ApiResponse<List<SkillResponse>>> getSkills(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String search) {
-        List<SkillResponse> skills;
-        if (category != null) {
-            skills = skillService.getByCategory(category);
-        } else if (search != null) {
-            skills = skillService.search(search);
-        } else {
-            skills = skillService.getAllSkills();
-        }
-        return ResponseEntity.ok(ApiResponse.ok(skills));
+        return ResponseEntity.ok(ApiResponse.ok(skillService.getSkills(category, search)));
     }
 }
 

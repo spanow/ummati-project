@@ -60,7 +60,7 @@ public class DashboardService {
         List<EventSummary> upcomingEvents = mySignups.getContent().stream()
                 .filter(s -> s.getStatus() == SignupStatus.REGISTERED || s.getStatus() == SignupStatus.WAITLISTED)
                 .filter(s -> s.getEvent().getStartDate().isAfter(LocalDateTime.now()))
-                .map(s -> eventService.toSummaryPublic(s.getEvent()))
+                .map(s -> eventService.toSummary(s.getEvent()))
                 .limit(5)
                 .toList();
 
@@ -71,7 +71,7 @@ public class DashboardService {
                         null, user.getAddressCity(), null, null, null, null, null),
                 pageable);
         List<EventSummary> suggestedEvents = suggested.getContent().stream()
-                .map(eventService::toSummaryPublic)
+                .map(eventService::toSummary)
                 .toList();
 
         // Stats — count queries directes, pas de chargement en mémoire
@@ -89,8 +89,7 @@ public class DashboardService {
         organizationService.verifyAdmin(userId, orgId);
         Organization org = organizationService.findOrg(orgId);
 
-        long activeMembers = membershipRepository.countByOrganizationIdAndRoleAndStatus(orgId, MembershipRole.MEMBER, MembershipStatus.ACTIVE)
-                + membershipRepository.countByOrganizationIdAndRoleAndStatus(orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE);
+        long activeMembers = membershipRepository.countByOrganizationIdAndStatus(orgId, MembershipStatus.ACTIVE);
         long pendingRequests = membershipRepository.countByOrganizationIdAndStatus(orgId, MembershipStatus.PENDING);
 
         LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0);

@@ -2,8 +2,6 @@ package orga.takwa.ummati.service;
 
 import orga.takwa.ummati.config.security.JwtTokenProvider;
 import orga.takwa.ummati.dto.auth.*;
-import orga.takwa.ummati.entity.AuditLog;
-import orga.takwa.ummati.entity.Notification;
 import orga.takwa.ummati.entity.User;
 import orga.takwa.ummati.entity.VerificationToken;
 import orga.takwa.ummati.entity.enums.NotificationType;
@@ -13,8 +11,6 @@ import orga.takwa.ummati.exception.BusinessRuleException;
 import orga.takwa.ummati.exception.ConflictException;
 import orga.takwa.ummati.exception.ForbiddenException;
 import orga.takwa.ummati.exception.ResourceNotFoundException;
-import orga.takwa.ummati.repository.AuditLogRepository;
-import orga.takwa.ummati.repository.NotificationRepository;
 import orga.takwa.ummati.repository.UserRepository;
 import orga.takwa.ummati.repository.VerificationTokenRepository;
 import org.slf4j.Logger;
@@ -35,20 +31,20 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final VerificationTokenRepository tokenRepository;
-    private final NotificationRepository notificationRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final NotificationService notificationService;
+    private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
 
     public AuthService(UserRepository userRepository, VerificationTokenRepository tokenRepository,
-                       NotificationRepository notificationRepository, AuditLogRepository auditLogRepository,
+                       NotificationService notificationService, AuditService auditService,
                        PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider,
                        EmailService emailService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
-        this.notificationRepository = notificationRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.notificationService = notificationService;
+        this.auditService = auditService;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.emailService = emailService;
@@ -73,17 +69,10 @@ public class AuthService {
         // Verification token (24h)
         String token = createVerificationToken(user, TokenType.EMAIL_VERIFICATION, 24);
 
-        // Welcome notification
-        Notification notif = new Notification();
-        notif.setUser(user);
-        notif.setType(NotificationType.WELCOME);
-        notif.setTitle("Bienvenue sur Ummati !");
-        notif.setMessage("Votre compte a été créé. Confirmez votre email pour commencer.");
-        notif.setLink("/profile");
-        notificationRepository.save(notif);
+        notificationService.saveNotification(user, NotificationType.WELCOME,
+                "Bienvenue sur Ummati !", "Votre compte a été créé. Confirmez votre email pour commencer.", "/profile");
 
-        // Audit log
-        saveAuditLog(user.getId(), "USER_REGISTERED", "User", user.getId(), null);
+        auditService.log(user.getId(), "USER_REGISTERED", "User", user.getId());
 
         // Send verification email
         emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), token);
@@ -118,7 +107,7 @@ public class AuthService {
         user.setEmailVerified(true);
         userRepository.save(user);
 
-        saveAuditLog(user.getId(), "EMAIL_VERIFIED", "User", user.getId(), null);
+        auditService.log(user.getId(), "EMAIL_VERIFIED", "User", user.getId());
     }
 
     // ===== RESEND CONFIRMATION (T-025) =====
@@ -172,7 +161,7 @@ public class AuthService {
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
 
-        saveAuditLog(user.getId(), "LOGIN_SUCCESS", "User", user.getId(), ipAddress);
+        auditService.log(user.getId(), "LOGIN_SUCCESS", "User", user.getId(), ipAddress);
 
         return new AuthResponse(
                 accessToken, refreshToken,
@@ -248,7 +237,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
 
-        saveAuditLog(user.getId(), "PASSWORD_RESET", "User", user.getId(), null);
+        auditService.log(user.getId(), "PASSWORD_RESET", "User", user.getId());
         emailService.sendPasswordChangedEmail(user.getEmail(), user.getFirstName());
     }
 
@@ -264,7 +253,7 @@ public class AuthService {
         }
 
         userRepository.save(user);
-        saveAuditLog(user.getId(), "LOGIN_FAILED", "User", user.getId(), ipAddress);
+        auditService.log(user.getId(), "LOGIN_FAILED", "User", user.getId(), ipAddress);
     }
 
     private String createVerificationToken(User user, TokenType type, int expirationHours) {
@@ -277,14 +266,5 @@ public class AuthService {
         return vt.getToken();
     }
 
-    private void saveAuditLog(UUID actorId, String action, String entityType, UUID entityId, String ipAddress) {
-        AuditLog log = new AuditLog();
-        log.setActorId(actorId);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        log.setIpAddress(ipAddress);
-        auditLogRepository.save(log);
-    }
 }
 

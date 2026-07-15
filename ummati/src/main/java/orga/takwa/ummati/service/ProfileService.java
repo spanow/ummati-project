@@ -3,6 +3,7 @@ package orga.takwa.ummati.service;
 import orga.takwa.ummati.dto.profile.*;
 import orga.takwa.ummati.entity.Skill;
 import orga.takwa.ummati.entity.User;
+import orga.takwa.ummati.entity.enums.MembershipRole;
 import orga.takwa.ummati.entity.enums.MembershipStatus;
 import orga.takwa.ummati.entity.enums.SkillCategory;
 import orga.takwa.ummati.entity.enums.SignupStatus;
@@ -113,12 +114,12 @@ public class ProfileService {
 
         // Check if last admin of any org
         var activeMemberships = membershipRepository.findByUserIdAndStatus(
-                userId, MembershipStatus.ACTIVE, org.springframework.data.domain.Pageable.unpaged());
+                userId, MembershipStatus.ACTIVE, Pageable.unpaged());
         for (var m : activeMemberships) {
-            if (m.getRole() == orga.takwa.ummati.entity.enums.MembershipRole.ADMIN) {
+            if (m.getRole() == MembershipRole.ADMIN) {
                 long adminCount = membershipRepository.countByOrganizationIdAndRoleAndStatus(
                         m.getOrganization().getId(),
-                        orga.takwa.ummati.entity.enums.MembershipRole.ADMIN,
+                        MembershipRole.ADMIN,
                         MembershipStatus.ACTIVE);
                 if (adminCount <= 1) {
                     throw new BusinessRuleException(
@@ -255,7 +256,8 @@ public class ProfileService {
                 new ProfileResponse.AddressDto(user.getAddressStreet(), user.getAddressCity(),
                         user.getAddressZip(), user.getAddressCountry()),
                 skills,
-                new ProfileResponse.StatsDto(orgCount, 0, 0),
+                new ProfileResponse.StatsDto(orgCount,
+                        eventSignupRepository.countByUserIdAndStatus(user.getId(), SignupStatus.ATTENDED), 0),
                 user.isOnboardingDone(), user.isEmailVerified(), user.getCreatedAt()
         );
     }

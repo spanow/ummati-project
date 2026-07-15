@@ -2,13 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse, PageResponse } from './organization.service';
+import { ApiResponse, PageResponse } from '../models/api.models';
 
 export interface AdminStats {
-  totalUsers: number; totalOrgs: number; totalEvents: number;
-  pendingOrgs: number; registrationsThisWeek: number; eventsThisMonth: number;
+  totalUsers: number; totalOrganizations: number; totalEvents: number;
+  pendingOrganizations: number; registrationsThisWeek: number; eventsThisMonth: number;
 }
-export interface UserSummary {
+export interface AdminUserSummary {
   id: string; email: string; firstName: string; lastName: string;
   role: string; emailVerified: boolean; enabled: boolean; createdAt: string;
 }
@@ -22,15 +22,15 @@ export class AdminService {
     return this.http.get<ApiResponse<AdminStats>>(`${this.apiUrl}/stats`);
   }
 
-  listUsers(search = '', enabled?: boolean, page = 0, size = 20): Observable<ApiResponse<PageResponse<UserSummary>>> {
+  listUsers(search = '', enabled?: boolean, page = 0, size = 20): Observable<ApiResponse<PageResponse<AdminUserSummary>>> {
     let params = new HttpParams().set('page', page).set('size', size);
     if (search) params = params.set('search', search);
     if (enabled !== undefined) params = params.set('enabled', enabled);
-    return this.http.get<ApiResponse<PageResponse<UserSummary>>>(`${this.apiUrl}/users`, { params });
+    return this.http.get<ApiResponse<PageResponse<AdminUserSummary>>>(`${this.apiUrl}/users`, { params });
   }
 
-  changeUserStatus(userId: string, enabled: boolean): Observable<ApiResponse<UserSummary>> {
-    return this.http.patch<ApiResponse<UserSummary>>(`${this.apiUrl}/users/${userId}/status`, { enabled });
+  changeUserStatus(userId: string, enabled: boolean): Observable<ApiResponse<AdminUserSummary>> {
+    return this.http.patch<ApiResponse<AdminUserSummary>>(`${this.apiUrl}/users/${userId}/status`, { enabled });
   }
 
   listOrganizations(status?: string, page = 0, size = 20): Observable<ApiResponse<any>> {

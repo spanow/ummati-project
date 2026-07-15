@@ -2,10 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ApiResponse } from '../models/api.models';
 
 export interface Skill { id: string; name: string; category: string; }
-export interface ApiResponse<T> { success: boolean; message: string | null; data: T; }
-
 @Injectable({ providedIn: 'root' })
 export class SkillService {
   private readonly apiUrl = environment.apiUrl + '/skills';

@@ -109,7 +109,7 @@ export class NotificationsComponent implements OnInit {
     const navigate = () => { if (n.link) this.router.navigateByUrl(n.link); };
     if (!n.read) {
       this.notifService.markAsRead(n.id).subscribe(() => {
-        n.read = true;
+        this.notifications.update(list => list.map(item => item.id === n.id ? { ...item, read: true } : item));
         this.unreadCount.update(c => Math.max(0, c - 1));
         navigate();
       });

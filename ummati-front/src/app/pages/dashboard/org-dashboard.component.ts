@@ -127,7 +127,7 @@ export class OrgDashboardComponent implements OnInit {
   constructor(private route: ActivatedRoute, private dashboardService: DashboardService) {}
 
   ngOnInit() {
-    this.orgId = this.route.snapshot.paramMap.get('orgId') || this.route.snapshot.paramMap.get('slug') || '';
+    this.orgId = this.route.snapshot.paramMap.get('orgId') || '';
     this.dashboardService.getOrgAdminDashboard(this.orgId).subscribe({
       next: res => { this.dashboard.set(res.data); this.loading.set(false); },
       error: () => this.loading.set(false),

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, BehaviorSubject } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ApiResponse } from '../models/api.models';
 
 export interface UserSummary {
   id: string;
@@ -19,12 +20,6 @@ export interface AuthResponse {
   expiresIn: number;
   tokenType: string;
   user: UserSummary;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string | null;
-  data: T;
 }
 
 @Injectable({ providedIn: 'root' })

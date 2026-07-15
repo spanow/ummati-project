@@ -206,7 +206,7 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit() {
     this.profileService.get().subscribe({
-      next: (res: any) => {
+      next: res => {
         this.profile.set(res.data);
         this.infoForm.patchValue({
           firstName: res.data.firstName,
@@ -231,7 +231,7 @@ export class ProfileComponent implements OnInit {
       firstName: v.firstName, lastName: v.lastName, phone: v.phone, bio: v.bio,
       address: { city: v.city, zip: v.zip },
     }).subscribe({
-      next: (res: any) => {
+      next: res => {
         this.profile.set(res.data);
         this.savingInfo.set(false);
         this.snackBar.open('Profil mis à jour !', '', { duration: 3000 });
@@ -266,7 +266,7 @@ export class ProfileComponent implements OnInit {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     this.profileService.uploadPhoto(file).subscribe({
-      next: (res: any) => {
+      next: res => {
         this.profile.update(p => p ? { ...p, photoUrl: res.data.photoUrl } : p);
         this.snackBar.open('Photo mise à jour !', '', { duration: 3000 });
       },
