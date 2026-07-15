@@ -117,6 +117,60 @@ class MembershipServiceTest {
                 .hasMessageContaining("dernier admin");
     }
 
+    // --- Helpers ---
+
+    private Membership buildMembership(UUID membershipId, User owner, Organization org,
+                                       MembershipRole role, MembershipStatus status) {
+        Membership m = new Membership();
+        m.setId(membershipId);
+        m.setUser(owner);
+        m.setOrganization(org);
+        m.setRole(role);
+        m.setStatus(status);
+        return m;
+    }
+
+    // --- getMyMembership ---
+
+    // Utilisateur membre → Optional avec le bon statut et rôle
+    @Test
+    void getMyMembership_shouldReturnResponse_whenUserIsMember() {
+        Membership m = buildMembership(UUID.randomUUID(), user, activeOrg, MembershipRole.ADMIN, MembershipStatus.ACTIVE);
+        when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
+                .thenReturn(Optional.of(m));
+
+        var result = membershipService.getMyMembership(user.getId(), orgId);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().status()).isEqualTo("ACTIVE");
+        assertThat(result.get().role()).isEqualTo("ADMIN");
+        assertThat(result.get().userId()).isEqualTo(user.getId());
+    }
+
+    // Utilisateur non membre → Optional vide
+    @Test
+    void getMyMembership_shouldReturnEmpty_whenUserIsNotMember() {
+        when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
+                .thenReturn(Optional.empty());
+
+        var result = membershipService.getMyMembership(user.getId(), orgId);
+
+        assertThat(result).isEmpty();
+    }
+
+    // Utilisateur avec demande en attente → Optional avec statut PENDING
+    @Test
+    void getMyMembership_shouldReturnPending_whenRequestIsPending() {
+        Membership m = buildMembership(UUID.randomUUID(), user, activeOrg, MembershipRole.MEMBER, MembershipStatus.PENDING);
+        when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
+                .thenReturn(Optional.of(m));
+
+        var result = membershipService.getMyMembership(user.getId(), orgId);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().status()).isEqualTo("PENDING");
+    }
+
     // RM-23: Cannot exclude another admin
     @Test
     void removeMembership_shouldReject_whenExcludingAdmin() {

@@ -35,6 +35,14 @@ public class MembershipController {
                         request != null ? request : new MembershipRequest(null))));
     }
 
+    @GetMapping("/organizations/{orgId}/memberships/me")
+    public ResponseEntity<ApiResponse<MembershipResponse>> getMyMembership(
+            @CurrentUser UUID userId, @PathVariable UUID orgId) {
+        return membershipService.getMyMembership(userId, orgId)
+                .map(m -> ResponseEntity.ok(ApiResponse.ok(m)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/organizations/{orgId}/memberships")
     public ResponseEntity<ApiResponse<PageResponse<MembershipResponse>>> listMembers(
             @PathVariable UUID orgId,

@@ -29,6 +29,11 @@ export class MembershipService {
       `${this.apiUrl}/organizations/${orgId}/memberships`, { params });
   }
 
+  getMyMembership(orgId: string): Observable<ApiResponse<MembershipResponse>> {
+    return this.http.get<ApiResponse<MembershipResponse>>(
+      `${this.apiUrl}/organizations/${orgId}/memberships/me`);
+  }
+
   requestMembership(orgId: string, motivation?: string): Observable<ApiResponse<MembershipResponse>> {
     return this.http.post<ApiResponse<MembershipResponse>>(
       `${this.apiUrl}/organizations/${orgId}/memberships`, { motivation });
