@@ -19,6 +19,7 @@ public enum NotificationType {
     SIGNUP_PROMOTED,
     FEEDBACK_REQUESTED,
     EVENT_ANNOUNCEMENT,
+    ORG_ANNOUNCEMENT,
     GENERAL
 }
 

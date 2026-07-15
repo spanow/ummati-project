@@ -11,9 +11,14 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatBadgeModule } from '@angular/material/badge';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { MembershipService, MembershipResponse } from '../../../core/services/membership.service';
+import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
 
 @Component({
   selector: 'app-organization-manage',
@@ -21,7 +26,8 @@ import { MembershipService, MembershipResponse } from '../../../core/services/me
   imports: [
     MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatChipsModule, MatMenuModule, MatProgressSpinnerModule, MatSnackBarModule,
-    MatDialogModule, MatBadgeModule, DatePipe, RouterLink,
+    MatDialogModule, MatBadgeModule, MatFormFieldModule, MatInputModule, MatCheckboxModule,
+    DatePipe, RouterLink, FormsModule,
   ],
   template: `
     <div class="page-container">
@@ -144,6 +150,63 @@ import { MembershipService, MembershipResponse } from '../../../core/services/me
             </div>
           }
         </mat-tab>
+
+        <!-- Announcements tab -->
+        <mat-tab>
+          <ng-template matTabLabel>
+            <mat-icon>campaign</mat-icon>
+            Annonces ({{ orgAnnouncements().length }})
+          </ng-template>
+
+          <div class="tab-section">
+            <div class="announce-form">
+              <h3>Nouvelle annonce</h3>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Titre</mat-label>
+                <input matInput [(ngModel)]="newTitle" placeholder="Réunion mensuelle…" maxlength="200" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Contenu</mat-label>
+                <textarea matInput [(ngModel)]="newContent" rows="4"
+                          placeholder="Message pour tous les membres…" maxlength="2000"></textarea>
+              </mat-form-field>
+              <div class="announce-footer">
+                <mat-checkbox [(ngModel)]="newPinned">Épingler cette annonce</mat-checkbox>
+                <button mat-flat-button color="primary" [disabled]="posting() || !newTitle.trim() || !newContent.trim()"
+                        (click)="postAnnouncement()">
+                  <mat-icon>send</mat-icon> {{ posting() ? 'Envoi…' : 'Publier' }}
+                </button>
+              </div>
+            </div>
+
+            @if (loadingAnnouncements()) {
+              <div class="loading"><mat-spinner diameter="28" /></div>
+            } @else if (orgAnnouncements().length === 0) {
+              <div class="empty-state">
+                <mat-icon>campaign</mat-icon>
+                <p>Aucune annonce publiée</p>
+              </div>
+            } @else {
+              <div class="announce-list">
+                @for (a of orgAnnouncements(); track a.id) {
+                  <div class="announce-card" [class.pinned]="a.pinned">
+                    @if (a.pinned) {
+                      <span class="pin-badge"><mat-icon>push_pin</mat-icon> Épinglé</span>
+                    }
+                    <div class="announce-header">
+                      <strong>{{ a.title }}</strong>
+                      <button mat-icon-button class="delete-btn" (click)="deleteAnnouncement(a)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                    <p class="announce-body">{{ a.content }}</p>
+                    <span class="announce-date">{{ a.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -178,6 +241,22 @@ import { MembershipService, MembershipResponse } from '../../../core/services/me
     .role-member { --mdc-chip-label-text-color: #2e7d32; background: #e8f5e9; }
     .role-accountant { --mdc-chip-label-text-color: #f57f17; background: #fff8e1; }
     .danger-item { color: #d32f2f; }
+    .tab-section { padding: 24px 0; }
+    .announce-form { background: #fafafa; border: 1px solid #eeeeee; border-radius: 12px;
+      padding: 20px 24px; margin-bottom: 28px; }
+    .announce-form h3 { margin: 0 0 16px; font-size: 1rem; font-weight: 600; color: #333; }
+    .full-width { width: 100%; }
+    .announce-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+    .announce-list { display: flex; flex-direction: column; gap: 14px; }
+    .announce-card { padding: 18px 20px; border-radius: 10px; border: 1px solid #e0e0e0; background: white; }
+    .announce-card.pinned { border-left: 4px solid #1976d2; background: #f5f9ff; }
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #1976d2; font-weight: 600; margin-bottom: 6px; }
+    .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    .announce-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .announce-header strong { font-size: 0.95rem; }
+    .delete-btn { color: #d32f2f; }
+    .announce-body { margin: 0 0 10px; color: #444; line-height: 1.6; white-space: pre-line; font-size: 0.9rem; }
+    .announce-date { font-size: 0.78rem; color: #aaa; }
   `],
 })
 export class OrganizationManageComponent implements OnInit {
@@ -186,17 +265,27 @@ export class OrganizationManageComponent implements OnInit {
   pendingMembers = signal<MembershipResponse[]>([]);
   activeMembers = signal<MembershipResponse[]>([]);
   loading = signal(true);
+  orgAnnouncements = signal<OrgAnnouncementResponse[]>([]);
+  loadingAnnouncements = signal(false);
+  posting = signal(false);
+  newTitle = '';
+  newContent = '';
+  newPinned = false;
 
   constructor(
     private route: ActivatedRoute,
     private membershipService: MembershipService,
+    private announcementService: OrgAnnouncementService,
     private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit() {
     this.orgSlug = this.route.snapshot.paramMap.get('slug') ?? '';
     this.orgId = this.route.snapshot.queryParamMap.get('orgId') ?? '';
-    if (this.orgId) this.loadMembers();
+    if (this.orgId) {
+      this.loadMembers();
+      this.loadAnnouncements();
+    }
   }
 
   loadMembers() {
@@ -209,6 +298,51 @@ export class OrganizationManageComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  loadAnnouncements() {
+    this.loadingAnnouncements.set(true);
+    this.announcementService.list(this.orgId).subscribe({
+      next: res => {
+        this.orgAnnouncements.set(res.data);
+        this.loadingAnnouncements.set(false);
+      },
+      error: () => this.loadingAnnouncements.set(false),
+    });
+  }
+
+  postAnnouncement() {
+    if (!this.newTitle.trim() || !this.newContent.trim()) return;
+    this.posting.set(true);
+    this.announcementService.create(this.orgId, {
+      title: this.newTitle.trim(),
+      content: this.newContent.trim(),
+      pinned: this.newPinned,
+    }).subscribe({
+      next: () => {
+        this.snackBar.open('Annonce publiée !', '', { duration: 3000 });
+        this.newTitle = '';
+        this.newContent = '';
+        this.newPinned = false;
+        this.posting.set(false);
+        this.loadAnnouncements();
+      },
+      error: err => {
+        this.posting.set(false);
+        this.snackBar.open(err.error?.message ?? 'Erreur lors de la publication', '', { duration: 4000 });
+      },
+    });
+  }
+
+  deleteAnnouncement(a: OrgAnnouncementResponse) {
+    if (!confirm(`Supprimer l'annonce "${a.title}" ?`)) return;
+    this.announcementService.delete(this.orgId, a.id).subscribe({
+      next: () => {
+        this.snackBar.open('Annonce supprimée.', '', { duration: 3000 });
+        this.orgAnnouncements.update(list => list.filter(x => x.id !== a.id));
+      },
+      error: err => this.snackBar.open(err.error?.message ?? 'Erreur', '', { duration: 4000 }),
     });
   }
 
@@ -245,4 +379,3 @@ export class OrganizationManageComponent implements OnInit {
     return { ADMIN: 'Admin', MEMBER: 'Membre', ACCOUNTANT: 'Comptable' }[role] ?? role;
   }
 }
-
