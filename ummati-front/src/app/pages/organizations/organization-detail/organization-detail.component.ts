@@ -197,18 +197,19 @@ export class OrganizationDetailComponent implements OnInit {
   announcements = signal<OrgAnnouncementResponse[]>([]);
   loadingAnnouncements = signal(false);
 
-  private route = inject(ActivatedRoute);
-  private orgService = inject(OrganizationService);
-  private membershipService = inject(MembershipService);
-  private announcementService = inject(OrgAnnouncementService);
-  private snackBar = inject(MatSnackBar);
   private authService = inject(AuthService);
   protected isLoggedIn = this.authService.isLoggedIn;
 
-  constructor() {
-    // afterNextRender must be in an injection context (constructor/field initializer).
-    // It fires only in the browser after hydration — the SSR path where isLoggedIn()
-    // was false and the inline check was skipped.
+  constructor(
+    private route: ActivatedRoute,
+    private orgService: OrganizationService,
+    private membershipService: MembershipService,
+    private announcementService: OrgAnnouncementService,
+    private snackBar: MatSnackBar,
+  ) {
+    // afterNextRender must be in an injection context (constructor, not ngOnInit).
+    // It fires only in the browser after hydration — handles the SSR case where
+    // isLoggedIn() was false server-side and the inline check was skipped.
     afterNextRender(() => {
       const o = this.org();
       if (o && this.isLoggedIn() && this.membershipRole() === null && this.membershipStatus() === null) {
