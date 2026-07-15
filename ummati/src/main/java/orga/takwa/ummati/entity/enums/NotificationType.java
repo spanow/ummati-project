@@ -18,6 +18,7 @@ public enum NotificationType {
     SIGNUP_WAITLISTED,
     SIGNUP_PROMOTED,
     FEEDBACK_REQUESTED,
+    EVENT_ANNOUNCEMENT,
     GENERAL
 }
 

@@ -8,15 +8,21 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { FormsModule } from '@angular/forms';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { EventService, EventDetail, FeedbackResponse } from '../../../core/services/event.service';
+import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
+import { EventCommentService, CommentResponse } from '../../../core/services/event-comment.service';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-event-detail',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
-    MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, RouterLink, DatePipe, DecimalPipe],
+    MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, MatFormFieldModule, MatInputModule,
+    FormsModule, RouterLink, DatePipe, DecimalPipe],
   template: `
     <div class="page-container">
       @if (loading()) {
@@ -59,6 +65,64 @@ import { AuthService } from '../../../core/services/auth.service';
                 </mat-card-content>
               </mat-card>
             }
+
+            @if (announcements().length > 0) {
+              <mat-card class="announcements-card">
+                <mat-card-content>
+                  <h3>📢 Annonces de l'organisateur</h3>
+                  @for (ann of announcements(); track ann.id) {
+                    <div class="announcement-item" [class.pinned]="ann.pinned">
+                      @if (ann.pinned) { <span class="pin-badge">📌 Épinglée</span> }
+                      <p class="ann-content">{{ ann.content }}</p>
+                      <span class="ann-meta">{{ ann.authorFirstName }} {{ ann.authorLastName }} · {{ ann.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
+                    </div>
+                  }
+                </mat-card-content>
+              </mat-card>
+            }
+
+            <mat-card class="comments-card">
+              <mat-card-content>
+                <h3>💬 Discussion ({{ totalComments() }})</h3>
+
+                @if (isLoggedIn() && isParticipant()) {
+                  <div class="comment-form">
+                    <mat-form-field appearance="outline" class="comment-input">
+                      <mat-label>Votre commentaire</mat-label>
+                      <textarea matInput [(ngModel)]="newComment" rows="2" maxlength="500"
+                        placeholder="Partagez vos questions ou infos pratiques..."></textarea>
+                    </mat-form-field>
+                    <button mat-flat-button color="primary" (click)="postComment()"
+                        [disabled]="newComment.trim().length < 2 || postingComment()">
+                      Publier
+                    </button>
+                  </div>
+                } @else if (isLoggedIn() && !isParticipant()) {
+                  <p class="comment-hint">Inscrivez-vous à l'événement pour commenter.</p>
+                } @else {
+                  <p class="comment-hint"><a routerLink="/login">Connectez-vous</a> et inscrivez-vous pour commenter.</p>
+                }
+
+                @for (c of comments(); track c.id) {
+                  <div class="comment-item">
+                    <div class="comment-header">
+                      <span class="comment-author">{{ c.authorFirstName }} {{ c.authorLastName }}</span>
+                      <span class="comment-date">{{ c.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
+                      @if (canDeleteComment(c)) {
+                        <button mat-icon-button class="delete-btn" (click)="deleteComment(c.id)" title="Supprimer">
+                          <mat-icon>delete_outline</mat-icon>
+                        </button>
+                      }
+                    </div>
+                    <p class="comment-content">{{ c.content }}</p>
+                  </div>
+                }
+
+                @if (comments().length === 0 && !loadingComments()) {
+                  <p class="no-comments">Soyez le premier à commenter !</p>
+                }
+              </mat-card-content>
+            </mat-card>
 
             @if (feedbacks().length > 0) {
               <mat-card>
@@ -196,6 +260,27 @@ import { AuthService } from '../../../core/services/auth.service';
     .fb-author { font-weight: 500; }
     .fb-date { color: #999; margin-left: auto; }
     .fb-comment { margin: 8px 0 0; color: #555; line-height: 1.5; }
+    .announcements-card { border-left: 4px solid #1976d2; }
+    .announcement-item { padding: 12px 0; border-bottom: 1px solid #eee; }
+    .announcement-item:last-child { border-bottom: none; }
+    .announcement-item.pinned { background: #f3f8ff; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+    .pin-badge { font-size: 0.75rem; color: #1976d2; font-weight: 600; display: block; margin-bottom: 4px; }
+    .ann-content { margin: 4px 0; white-space: pre-line; line-height: 1.6; }
+    .ann-meta { font-size: 0.8rem; color: #999; }
+    .comments-card { }
+    .comment-form { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 20px; }
+    .comment-input { flex: 1; }
+    .comment-hint { font-size: 0.9rem; color: #888; margin-bottom: 16px; }
+    .comment-hint a { color: #1976d2; }
+    .comment-item { padding: 12px 0; border-bottom: 1px solid #eee; }
+    .comment-item:last-child { border-bottom: none; }
+    .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .comment-author { font-weight: 600; font-size: 0.9rem; }
+    .comment-date { color: #999; font-size: 0.8rem; }
+    .delete-btn { margin-left: auto; color: #bbb; width: 32px; height: 32px; line-height: 32px; }
+    .delete-btn mat-icon { font-size: 18px; }
+    .comment-content { margin: 0; line-height: 1.6; white-space: pre-line; color: #444; }
+    .no-comments { color: #aaa; font-style: italic; text-align: center; padding: 24px 0; }
   `],
 })
 export class EventDetailComponent implements OnInit {
@@ -205,27 +290,45 @@ export class EventDetailComponent implements OnInit {
   signingUp = signal(false);
   feedbacks = signal<FeedbackResponse[]>([]);
   avgRating = signal<number | null>(null);
+  announcements = signal<AnnouncementResponse[]>([]);
+  comments = signal<CommentResponse[]>([]);
+  totalComments = signal(0);
+  loadingComments = signal(false);
+  isParticipant = signal(false);
+  newComment = '';
+  postingComment = signal(false);
+
+  get isLoggedIn() { return this.authService.isLoggedIn; }
 
   private eventId = '';
+  private currentUserId = signal<string | null>(null);
 
   constructor(
     private route: ActivatedRoute,
     private eventService: EventService,
+    private announcementService: EventAnnouncementService,
+    private commentService: EventCommentService,
     private authService: AuthService,
     private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit() {
     this.eventId = this.route.snapshot.paramMap.get('id')!;
+    const user = this.authService.user();
+    this.currentUserId.set(user?.id ?? null);
     this.loadEvent();
     this.loadFeedbacks();
+    this.loadAnnouncements();
+    this.loadComments();
     if (this.authService.isLoggedIn()) {
       this.eventService.getMySignup(this.eventId).subscribe({
         next: res => {
-          const active = ['REGISTERED', 'WAITLISTED'];
-          this.isSignedUp.set(active.includes(res.data.status));
+          const active = ['REGISTERED', 'WAITLISTED', 'ATTENDED'];
+          const isActive = active.includes(res.data.status);
+          this.isSignedUp.set(res.data.status === 'REGISTERED' || res.data.status === 'WAITLISTED');
+          this.isParticipant.set(isActive);
         },
-        error: () => {} // 404 = pas inscrit
+        error: () => {}
       });
     }
   }
@@ -241,6 +344,59 @@ export class EventDetailComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  loadAnnouncements() {
+    this.announcementService.list(this.eventId).subscribe({
+      next: res => this.announcements.set(res.data),
+      error: () => {},
+    });
+  }
+
+  loadComments() {
+    this.loadingComments.set(true);
+    this.commentService.list(this.eventId).subscribe({
+      next: res => {
+        this.comments.set(res.data.content);
+        this.totalComments.set(res.data.totalElements);
+        this.loadingComments.set(false);
+      },
+      error: () => this.loadingComments.set(false),
+    });
+  }
+
+  postComment() {
+    const content = this.newComment.trim();
+    if (content.length < 2) return;
+    this.postingComment.set(true);
+    this.commentService.create(this.eventId, content).subscribe({
+      next: res => {
+        this.comments.update(list => [...list, res.data]);
+        this.totalComments.update(n => n + 1);
+        this.newComment = '';
+        this.postingComment.set(false);
+      },
+      error: err => {
+        this.postingComment.set(false);
+        this.snackBar.open(err?.error?.message || 'Erreur lors de la publication', 'OK', { duration: 3000 });
+      },
+    });
+  }
+
+  deleteComment(commentId: string) {
+    this.commentService.delete(this.eventId, commentId).subscribe({
+      next: () => {
+        this.comments.update(list => list.filter(c => c.id !== commentId));
+        this.totalComments.update(n => n - 1);
+      },
+      error: () => this.snackBar.open('Impossible de supprimer ce commentaire', 'OK', { duration: 3000 }),
+    });
+  }
+
+  canDeleteComment(comment: CommentResponse): boolean {
+    const uid = this.currentUserId();
+    if (!uid) return false;
+    return comment.authorId === uid;
   }
 
   loadFeedbacks() {

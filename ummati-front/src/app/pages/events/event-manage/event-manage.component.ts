@@ -13,7 +13,11 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { EventService, EventSummary, SignupResponse } from '../../../core/services/event.service';
+import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { OrganizationService } from '../../../core/services/organization.service';
 
 @Component({
@@ -21,7 +25,8 @@ import { OrganizationService } from '../../../core/services/organization.service
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
-    MatSnackBarModule, MatDialogModule, RouterLink, DatePipe, FormsModule],
+    MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
+    RouterLink, DatePipe, FormsModule],
   template: `
     <div class="page-container">
       <header class="page-header">
@@ -80,6 +85,48 @@ import { OrganizationService } from '../../../core/services/organization.service
                   </mat-card-content>
                 </mat-card>
               }
+            }
+          </mat-tab>
+
+          <mat-tab label="📢 Annonces" [disabled]="!selectedEvent()">
+            @if (selectedEvent()) {
+              <div class="ann-section">
+                <h2>Annonces — {{ selectedEvent()!.title }}</h2>
+                @if (selectedEvent()!.status === 'PUBLISHED') {
+                  <div class="ann-form">
+                    <mat-form-field appearance="outline" class="ann-input">
+                      <mat-label>Nouvelle annonce</mat-label>
+                      <textarea matInput [(ngModel)]="newAnnContent" rows="3" maxlength="1000"
+                        placeholder="Ex: Rendez-vous à 18h30 devant la gare — 3 voitures disponibles"></textarea>
+                    </mat-form-field>
+                    <div class="ann-form-actions">
+                      <label class="pin-toggle">
+                        <input type="checkbox" [(ngModel)]="newAnnPinned" /> Épingler
+                      </label>
+                      <button mat-flat-button color="primary" (click)="postAnnouncement()"
+                          [disabled]="newAnnContent.trim().length < 5">
+                        <mat-icon>campaign</mat-icon> Publier l'annonce
+                      </button>
+                    </div>
+                  </div>
+                }
+                <div class="ann-list">
+                  @for (ann of announcements(); track ann.id) {
+                    <div class="ann-item" [class.pinned]="ann.pinned">
+                      <div class="ann-item-header">
+                        @if (ann.pinned) { <span class="pin-tag">📌 Épinglée</span> }
+                        <span class="ann-date">{{ ann.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
+                        <button mat-icon-button color="warn" (click)="deleteAnnouncement(ann.id)" title="Supprimer">
+                          <mat-icon>delete_outline</mat-icon>
+                        </button>
+                      </div>
+                      <p class="ann-content">{{ ann.content }}</p>
+                    </div>
+                  } @empty {
+                    <p class="empty-ann">Aucune annonce pour cet événement.</p>
+                  }
+                </div>
+              </div>
             }
           </mat-tab>
 
@@ -157,6 +204,20 @@ import { OrganizationService } from '../../../core/services/organization.service
     .signups-table { width: 100%; border-collapse: collapse; }
     .signups-table th, .signups-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
     .signups-table th { font-size: 0.8rem; color: #888; text-transform: uppercase; }
+    .ann-section { padding: 16px 0; }
+    .ann-section h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 16px; }
+    .ann-form { background: #f9f9f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .ann-input { width: 100%; }
+    .ann-form-actions { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+    .pin-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; }
+    .ann-list { display: flex; flex-direction: column; gap: 12px; }
+    .ann-item { border: 1px solid #eee; border-radius: 8px; padding: 12px 16px; }
+    .ann-item.pinned { border-color: #1976d2; background: #f3f8ff; }
+    .ann-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .pin-tag { font-size: 0.8rem; font-weight: 600; color: #1976d2; }
+    .ann-date { font-size: 0.8rem; color: #999; margin-left: auto; }
+    .ann-content { margin: 0; white-space: pre-line; line-height: 1.6; }
+    .empty-ann { color: #aaa; text-align: center; padding: 24px; }
   `],
 })
 export class EventManageComponent implements OnInit {
@@ -169,10 +230,14 @@ export class EventManageComponent implements OnInit {
   signupTotal = signal(0);
   selectedUserIds: string[] = [];
   cancelReason = '';
+  announcements = signal<AnnouncementResponse[]>([]);
+  newAnnContent = '';
+  newAnnPinned = false;
 
   constructor(
     private route: ActivatedRoute,
     private eventService: EventService,
+    private announcementService: EventAnnouncementService,
     private snackBar: MatSnackBar,
   ) {}
 
@@ -208,6 +273,44 @@ export class EventManageComponent implements OnInit {
   viewSignups(event: EventSummary) {
     this.selectedEvent.set(event);
     this.loadSignups(0);
+    this.loadAnnouncements(event.id);
+  }
+
+  loadAnnouncements(eventId: string) {
+    this.announcementService.list(eventId).subscribe({
+      next: res => this.announcements.set(res.data),
+      error: () => {},
+    });
+  }
+
+  postAnnouncement() {
+    const eventId = this.selectedEvent()?.id;
+    if (!eventId || this.newAnnContent.trim().length < 5) return;
+    this.announcementService.create(eventId, { content: this.newAnnContent.trim(), pinned: this.newAnnPinned })
+      .subscribe({
+        next: res => {
+          this.announcements.update(list => {
+            const updated = [...list, res.data];
+            return updated.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+          });
+          this.newAnnContent = '';
+          this.newAnnPinned = false;
+          this.snackBar.open('Annonce publiée — inscrits notifiés !', 'OK', { duration: 3000 });
+        },
+        error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+      });
+  }
+
+  deleteAnnouncement(annId: string) {
+    const eventId = this.selectedEvent()?.id;
+    if (!eventId) return;
+    this.announcementService.delete(eventId, annId).subscribe({
+      next: () => {
+        this.announcements.update(list => list.filter(a => a.id !== annId));
+        this.snackBar.open('Annonce supprimée', 'OK', { duration: 2000 });
+      },
+      error: () => this.snackBar.open('Erreur lors de la suppression', 'OK', { duration: 3000 }),
+    });
   }
 
   loadSignups(page: number) {
