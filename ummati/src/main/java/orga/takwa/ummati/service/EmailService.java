@@ -63,6 +63,18 @@ public class EmailService {
     }
 
     @Async
+    public void sendEventReminderEmail(String to, String firstName, String eventTitle,
+                                       String location, String startDate, String orgName, String eventId) {
+        sendTemplateEmail(to, "Rappel : " + eventTitle + " — demain !", "email/event-reminder",
+                Map.of("firstName", firstName,
+                       "eventTitle", eventTitle,
+                       "location", location,
+                       "startDate", startDate,
+                       "orgName", orgName,
+                       "eventUrl", baseUrl + "/events/" + eventId));
+    }
+
+    @Async
     public void sendNotificationEmail(String to, String firstName, String title, String message, String link) {
         // Generic notification email - reuses welcome template structure
         Map<String, Object> vars = new java.util.HashMap<>();
