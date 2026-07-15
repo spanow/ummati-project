@@ -197,16 +197,25 @@ export class OrganizationDetailComponent implements OnInit {
   announcements = signal<OrgAnnouncementResponse[]>([]);
   loadingAnnouncements = signal(false);
 
+  private route = inject(ActivatedRoute);
+  private orgService = inject(OrganizationService);
+  private membershipService = inject(MembershipService);
+  private announcementService = inject(OrgAnnouncementService);
+  private snackBar = inject(MatSnackBar);
   private authService = inject(AuthService);
   protected isLoggedIn = this.authService.isLoggedIn;
 
-  constructor(
-    private route: ActivatedRoute,
-    private orgService: OrganizationService,
-    private membershipService: MembershipService,
-    private announcementService: OrgAnnouncementService,
-    private snackBar: MatSnackBar,
-  ) {}
+  constructor() {
+    // afterNextRender must be in an injection context (constructor/field initializer).
+    // It fires only in the browser after hydration — the SSR path where isLoggedIn()
+    // was false and the inline check was skipped.
+    afterNextRender(() => {
+      const o = this.org();
+      if (o && this.isLoggedIn() && this.membershipRole() === null && this.membershipStatus() === null) {
+        this.checkMembership(o.id);
+      }
+    });
+  }
 
   ngOnInit() {
     const slug = this.route.snapshot.paramMap.get('slug')!;
@@ -215,22 +224,12 @@ export class OrganizationDetailComponent implements OnInit {
         this.org.set(res.data);
         this.loading.set(false);
         this.loadAnnouncements(res.data.id);
-        // Pure client-side path (no SSR or hydration): membership check inline.
+        // Pure client-side path (no SSR): check membership inline once org is loaded.
         if (this.isLoggedIn()) {
           this.checkMembership(res.data.id);
         }
       },
       error: () => this.loading.set(false),
-    });
-
-    // SSR + hydration path: afterNextRender fires only in the browser, after hydration.
-    // At this point localStorage is available, isLoggedIn() is accurate, and org() is
-    // already populated from the transfer-cached getBySlug response.
-    afterNextRender(() => {
-      const o = this.org();
-      if (o && this.isLoggedIn() && this.membershipRole() === null && this.membershipStatus() === null) {
-        this.checkMembership(o.id);
-      }
     });
   }
 
