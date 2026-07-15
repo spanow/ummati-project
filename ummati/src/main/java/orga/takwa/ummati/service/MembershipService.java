@@ -186,6 +186,12 @@ public class MembershipService {
                 .orElseThrow(() -> new ResourceNotFoundException("Adhésion non trouvée"));
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Optional<MembershipResponse> getMyMembership(UUID userId, UUID orgId) {
+        return membershipRepository.findByUserIdAndOrganizationId(userId, orgId)
+                .map(this::toResponse);
+    }
+
     private void verifyOrgAdmin(UUID userId, UUID orgId) {
         Membership m = membershipRepository.findByUserIdAndOrganizationId(userId, orgId)
                 .orElseThrow(() -> new ForbiddenException("Non membre"));

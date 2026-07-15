@@ -1,5 +1,5 @@
-import { Component, signal, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, signal, OnInit, inject } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,11 +10,12 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DecimalPipe } from '@angular/common';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { MembershipService } from '../../../core/services/membership.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, MatSnackBarModule, DecimalPipe],
+  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, MatSnackBarModule, DecimalPipe, RouterLink],
   template: `
     @if (loading()) {
       <div class="loading"><mat-spinner diameter="40" /></div>
@@ -53,10 +54,12 @@ import { MembershipService } from '../../../core/services/membership.service';
               <span class="stat-value">{{ org()!.stats.averageRating ? (org()!.stats.averageRating | number:'1.1-1') : '—' }}</span>
               <span class="stat-label">Note moyenne</span>
             </div>
-            @if (membershipStatus() === 'PENDING') {
-              <button mat-stroked-button class="join-btn" disabled>En attente</button>
-            } @else if (membershipStatus() === 'APPROVED') {
+            @if (membershipStatus() === 'ACTIVE') {
               <button mat-stroked-button class="join-btn" disabled>Membre</button>
+            } @else if (membershipStatus() === 'PENDING') {
+              <button mat-stroked-button class="join-btn" disabled>En attente</button>
+            } @else if (!isLoggedIn()) {
+              <a mat-flat-button class="join-btn" routerLink="/login">Rejoindre</a>
             } @else {
               <button mat-flat-button class="join-btn" [disabled]="joining()" (click)="joinOrg()">
                 {{ joining() ? 'Envoi…' : 'Rejoindre' }}
@@ -123,6 +126,9 @@ export class OrganizationDetailComponent implements OnInit {
   joining = signal(false);
   membershipStatus = signal<string | null>(null);
 
+  private authService = inject(AuthService);
+  protected isLoggedIn = this.authService.isLoggedIn;
+
   constructor(
     private route: ActivatedRoute,
     private orgService: OrganizationService,
@@ -133,7 +139,16 @@ export class OrganizationDetailComponent implements OnInit {
   ngOnInit() {
     const slug = this.route.snapshot.paramMap.get('slug')!;
     this.orgService.getBySlug(slug).subscribe({
-      next: res => { this.org.set(res.data); this.loading.set(false); },
+      next: res => {
+        this.org.set(res.data);
+        this.loading.set(false);
+        if (this.isLoggedIn()) {
+          this.membershipService.getMyMembership(res.data.id).subscribe({
+            next: m => this.membershipStatus.set(m.data.status),
+            error: () => {} // 404 = pas membre, on laisse null
+          });
+        }
+      },
       error: () => this.loading.set(false),
     });
   }
