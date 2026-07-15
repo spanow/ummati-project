@@ -240,7 +240,9 @@ export class OrganizationDetailComponent implements OnInit {
         this.membershipStatus.set(m.data.status);
         this.membershipRole.set(m.data.role);
       },
-      error: () => {},
+      error: (err) => {
+        console.error('[org-detail] getMyMembership failed', err?.status, err?.error);
+      },
     });
   }
 
