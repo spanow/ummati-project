@@ -24,6 +24,7 @@ export interface EventDetail {
   requiredSkills: { id: string; name: string; category: string }[];
   feedbackAvgRating: number | null;
   createdAt: string;
+  currentUserSignupStatus: string | null;
 }
 
 export interface SignupResponse {

@@ -86,7 +86,7 @@ public class EventService {
 
         event = eventRepository.save(event);
         audit(userId, "EVENT_CREATED", "Event", event.getId());
-        return toDetail(event);
+        return toDetail(event, userId);
     }
 
     // T-071: Update event
@@ -129,7 +129,7 @@ public class EventService {
 
         event = eventRepository.save(event);
         audit(userId, "EVENT_UPDATED", "Event", eventId);
-        return toDetail(event);
+        return toDetail(event, userId);
     }
 
     // T-072: Change event status
@@ -190,7 +190,7 @@ public class EventService {
         }
 
         event = eventRepository.save(event);
-        return toDetail(event);
+        return toDetail(event, userId);
     }
 
     // T-073: List events
@@ -216,9 +216,9 @@ public class EventService {
 
     // T-074: Get event detail
     @Transactional(readOnly = true)
-    public EventDetail getEvent(UUID eventId) {
+    public EventDetail getEvent(UUID eventId, UUID userId) {
         Event event = findEvent(eventId);
-        return toDetail(event);
+        return toDetail(event, userId);
     }
 
     // T-075: Signup for event
@@ -239,10 +239,16 @@ public class EventService {
             throw new BusinessRuleException("La date limite d'inscription est dépassée");
         }
 
-        // Check duplicate
-        if (eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eventId, userId,
-                List.of(SignupStatus.REGISTERED, SignupStatus.WAITLISTED))) {
-            throw new ConflictException("Vous êtes déjà inscrit à cet événement");
+        // Check existing signup row for this user
+        Optional<EventSignup> existingOpt = eventSignupRepository.findByEventIdAndUserId(eventId, userId);
+        if (existingOpt.isPresent()) {
+            SignupStatus existingStatus = existingOpt.get().getStatus();
+            if (existingStatus == SignupStatus.REGISTERED || existingStatus == SignupStatus.WAITLISTED) {
+                throw new ConflictException("Vous êtes déjà inscrit à cet événement");
+            }
+            if (existingStatus == SignupStatus.ATTENDED) {
+                throw new BusinessRuleException("Vous avez déjà participé à cet événement");
+            }
         }
 
         // Check min age
@@ -262,11 +268,16 @@ public class EventService {
             status = SignupStatus.WAITLISTED;
         }
 
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(user);
+        // Reuse CANCELLED row if it exists (unique constraint on event_id+user_id)
+        EventSignup signup = existingOpt.orElseGet(() -> {
+            EventSignup s = new EventSignup();
+            s.setEvent(event);
+            s.setUser(user);
+            return s;
+        });
         signup.setStatus(status);
         signup.setRegisteredAt(LocalDateTime.now());
+        signup.setCancelledAt(null);
         signup = eventSignupRepository.save(signup);
 
         NotificationType notifType = status == SignupStatus.REGISTERED
@@ -430,7 +441,7 @@ public class EventService {
         }
     }
 
-    EventDetail toDetail(Event event) {
+    EventDetail toDetail(Event event, UUID userId) {
         long registeredCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.REGISTERED);
         long waitlistedCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.WAITLISTED);
         Integer availableSpots = event.getMaxParticipants() != null
@@ -441,6 +452,13 @@ public class EventService {
                 .toList();
 
         Double avgRating = eventFeedbackRepository.findAverageRatingByEventId(event.getId());
+
+        String currentUserSignupStatus = null;
+        if (userId != null) {
+            currentUserSignupStatus = eventSignupRepository.findByEventIdAndUserId(event.getId(), userId)
+                    .map(s -> s.getStatus().name())
+                    .orElse(null);
+        }
 
         Organization org = event.getOrganization();
         return new EventDetail(
@@ -453,7 +471,7 @@ public class EventService {
                 event.getStatus().name(), event.getCancellationReason(),
                 org.getId(), org.getName(), org.getSlug(),
                 registeredCount, waitlistedCount, availableSpots, skills, avgRating,
-                event.getCreatedAt());
+                event.getCreatedAt(), currentUserSignupStatus);
     }
 
     EventSummary toSummaryPublic(Event event) {

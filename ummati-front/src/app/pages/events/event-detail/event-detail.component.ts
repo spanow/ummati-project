@@ -235,6 +235,8 @@ export class EventDetailComponent implements OnInit {
     this.eventService.getEvent(this.eventId).subscribe({
       next: res => {
         this.event.set(res.data);
+        const s = res.data.currentUserSignupStatus;
+        this.isSignedUp.set(s === 'REGISTERED' || s === 'WAITLISTED');
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -260,7 +262,11 @@ export class EventDetailComponent implements OnInit {
           this.snackBar.open('Désinscription effectuée', 'OK', { duration: 3000 });
           this.loadEvent();
         },
-        error: () => this.signingUp.set(false),
+        error: (err) => {
+          this.signingUp.set(false);
+          const msg = err?.error?.message || 'Erreur lors de la désinscription';
+          this.snackBar.open(msg, 'OK', { duration: 4000 });
+        },
       });
     } else {
       this.eventService.signup(this.eventId).subscribe({
@@ -272,7 +278,11 @@ export class EventDetailComponent implements OnInit {
           this.snackBar.open(msg, 'OK', { duration: 3000 });
           this.loadEvent();
         },
-        error: () => this.signingUp.set(false),
+        error: (err) => {
+          this.signingUp.set(false);
+          const msg = err?.error?.message || 'Erreur lors de l\'inscription';
+          this.snackBar.open(msg, 'OK', { duration: 4000 });
+        },
       });
     }
   }

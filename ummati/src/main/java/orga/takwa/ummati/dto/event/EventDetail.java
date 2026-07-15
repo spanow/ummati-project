@@ -34,7 +34,8 @@ public record EventDetail(
         Integer availableSpots,
         List<SkillDto> requiredSkills,
         Double feedbackAvgRating,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String currentUserSignupStatus
 ) {
     public record SkillDto(UUID id, String name, String category) {}
 }

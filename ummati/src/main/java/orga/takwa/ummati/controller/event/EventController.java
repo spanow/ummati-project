@@ -89,8 +89,9 @@ public class EventController {
 
     // T-074: Get event detail (public)
     @GetMapping("/events/{id}")
-    public ResponseEntity<ApiResponse<EventDetail>> getEvent(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok(eventService.getEvent(id)));
+    public ResponseEntity<ApiResponse<EventDetail>> getEvent(
+            @CurrentUser UUID userId, @PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(eventService.getEvent(id, userId)));
     }
 
     // Get current user's signup status for an event
