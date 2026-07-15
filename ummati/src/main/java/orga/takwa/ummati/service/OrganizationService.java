@@ -91,7 +91,7 @@ public class OrganizationService {
                 .filter(u -> u.getRole() == UserRole.PLATFORM_ADMIN)
                 .forEach(admin -> createNotification(admin, NotificationType.ONG_SUBMITTED,
                         "Nouvelle ONG en attente", "L'organisation '" + savedOrg.getName() + "' attend validation.",
-                        "/admin/organizations/" + savedOrg.getId()));
+                        "/admin/organizations/" + savedOrg.getSlug() + "/validate"));
 
         audit(userId, "ONG_CREATED", "Organization", savedOrg.getId());
 
@@ -150,18 +150,21 @@ public class OrganizationService {
                     "ONG validée !", "Votre organisation '" + org.getName() + "' a été validée.",
                     "/organizations/" + org.getSlug());
             audit(adminId, "ONG_VALIDATED", "Organization", orgId);
-        } else if (newStatus == OrganizationStatus.SUSPENDED || newStatus == OrganizationStatus.ARCHIVED) {
-            if (request.reason() == null || request.reason().length() < 20) {
+        } else if (newStatus == OrganizationStatus.REJECTED
+                || newStatus == OrganizationStatus.SUSPENDED
+                || newStatus == OrganizationStatus.ARCHIVED) {
+            if (request.reason() == null || request.reason().isBlank() || request.reason().length() < 20) {
                 throw new BusinessRuleException("Le motif doit faire au moins 20 caractères");
             }
             org.setStatus(newStatus);
             org.setRejectionReason(request.reason());
-            NotificationType notifType = newStatus == OrganizationStatus.SUSPENDED
-                    ? NotificationType.ONG_REJECTED : NotificationType.ONG_REJECTED;
-            createNotification(org.getCreatedBy(), notifType,
-                    "ONG " + (newStatus == OrganizationStatus.SUSPENDED ? "suspendue" : "rejetée"),
-                    "Motif : " + request.reason(),
-                    "/organizations/" + org.getSlug());
+            String notifTitle = switch (newStatus) {
+                case REJECTED -> "ONG rejetée";
+                case SUSPENDED -> "ONG suspendue";
+                default -> "ONG archivée";
+            };
+            createNotification(org.getCreatedBy(), NotificationType.ONG_REJECTED,
+                    notifTitle, "Motif : " + request.reason(), "/organizations/" + org.getSlug());
             audit(adminId, "ONG_" + newStatus.name(), "Organization", orgId);
         }
 
@@ -193,7 +196,8 @@ public class OrganizationService {
                 ? organization.getDescription().substring(0, 150) + "..."
                 : organization.getDescription();
         return new OrganizationSummary(organization.getId(), organization.getName(), organization.getSlug(),
-                organization.getDomain().name(), organization.getLogoUrl(), organization.getAddressCity(), memberCount, excerpt);
+                organization.getDomain().name(), organization.getLogoUrl(), organization.getAddressCity(), memberCount, excerpt,
+                organization.getStatus().name());
     }
 
     OrganizationDetail toDetail(Organization organization) {

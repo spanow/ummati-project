@@ -92,6 +92,7 @@ import { AdminApiService, AdminStats, UserSummary } from '../../core/services/da
                   <mat-option value="">Tous</mat-option>
                   <mat-option value="PENDING">En attente</mat-option>
                   <mat-option value="ACTIVE">Actives</mat-option>
+                  <mat-option value="REJECTED">Rejetées</mat-option>
                   <mat-option value="SUSPENDED">Suspendues</mat-option>
                 </mat-select>
               </mat-form-field>
@@ -154,7 +155,7 @@ export class AdminComponent implements OnInit {
   orgs = signal<any[]>([]);
   orgsLoading = signal(false);
   orgsTotal = signal(0);
-  orgStatus = '';
+  orgStatus = 'PENDING';
 
   constructor(private adminService: AdminApiService, private snackBar: MatSnackBar) {}
 

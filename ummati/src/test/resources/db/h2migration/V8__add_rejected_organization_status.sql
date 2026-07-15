@@ -1,0 +1,1 @@
+-- H2 has no CHECK constraint on organizations.status, nothing to migrate.

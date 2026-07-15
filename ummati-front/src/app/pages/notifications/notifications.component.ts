@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { NotificationService, NotificationItem } from '../../core/services/notification.service';
 
@@ -85,7 +85,7 @@ export class NotificationsComponent implements OnInit {
   currentPage = signal(0);
   unreadCount = signal(0);
 
-  constructor(private notifService: NotificationService) {}
+  constructor(private notifService: NotificationService, private router: Router) {}
 
   ngOnInit() { this.load(); this.loadUnread(); }
 
@@ -106,11 +106,15 @@ export class NotificationsComponent implements OnInit {
   }
 
   onClickNotif(n: NotificationItem) {
+    const navigate = () => { if (n.link) this.router.navigateByUrl(n.link); };
     if (!n.read) {
       this.notifService.markAsRead(n.id).subscribe(() => {
         n.read = true;
         this.unreadCount.update(c => Math.max(0, c - 1));
+        navigate();
       });
+    } else {
+      navigate();
     }
   }
 

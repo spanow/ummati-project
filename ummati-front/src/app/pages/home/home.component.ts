@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { AdminService } from '../../core/services/admin.service';
+import { AdminApiService } from '../../core/services/dashboard.service';
 
 interface PlatformStat { icon: string; value: string; label: string; }
 interface Feature { icon: string; title: string; description: string; }
@@ -223,7 +223,7 @@ interface Feature { icon: string; title: string; description: string; }
   `],
 })
 export class HomeComponent implements OnInit {
-  private adminService = inject(AdminService);
+  private adminService = inject(AdminApiService);
   stats = signal<PlatformStat[]>([
     { icon: 'people', value: '500+', label: 'Bénévoles inscrits' },
     { icon: 'business', value: '50+', label: 'Associations actives' },
@@ -251,7 +251,7 @@ export class HomeComponent implements OnInit {
         if (res?.data) {
           this.stats.set([
             { icon: 'people', value: this.fmt(res.data.totalUsers), label: 'Bénévoles inscrits' },
-            { icon: 'business', value: this.fmt(res.data.totalOrgs), label: 'Associations actives' },
+            { icon: 'business', value: this.fmt(res.data.totalOrganizations), label: 'Associations actives' },
             { icon: 'event', value: this.fmt(res.data.totalEvents), label: 'Événements organisés' },
             { icon: 'volunteer_activism', value: '1 000+', label: 'Heures de bénévolat' },
           ]);

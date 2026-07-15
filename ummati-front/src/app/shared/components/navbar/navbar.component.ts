@@ -34,6 +34,11 @@ import { NotificationService } from '../../../core/services/notification.service
         @if (authService.isLoggedIn()) {
           <a mat-button routerLink="/dashboard" routerLinkActive="active-link" aria-label="Tableau de bord">Dashboard</a>
         }
+        @if (authService.isAdmin()) {
+          <a mat-button routerLink="/admin" routerLinkActive="active-link" aria-label="Administration">
+            <mat-icon>admin_panel_settings</mat-icon> Admin
+          </a>
+        }
       </nav>
 
       <span class="spacer"></span>
@@ -97,6 +102,11 @@ import { NotificationService } from '../../../core/services/notification.service
           <a mat-button routerLink="/dashboard" (click)="mobileOpen.set(false)">
             <mat-icon>dashboard</mat-icon> Dashboard
           </a>
+          @if (authService.isAdmin()) {
+            <a mat-button routerLink="/admin" (click)="mobileOpen.set(false)">
+              <mat-icon>admin_panel_settings</mat-icon> Administration
+            </a>
+          }
           <a mat-button routerLink="/notifications" (click)="mobileOpen.set(false)">
             <mat-icon>notifications</mat-icon> Notifications
             @if (unreadCount() > 0) { <span class="mobile-badge">{{ unreadCount() }}</span> }
