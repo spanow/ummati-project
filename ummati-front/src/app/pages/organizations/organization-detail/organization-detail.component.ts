@@ -1,4 +1,4 @@
-import { Component, signal, OnInit, inject } from '@angular/core';
+import { Component, signal, OnInit, inject, afterNextRender } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -215,17 +215,32 @@ export class OrganizationDetailComponent implements OnInit {
         this.org.set(res.data);
         this.loading.set(false);
         this.loadAnnouncements(res.data.id);
+        // Pure client-side path (no SSR or hydration): membership check inline.
         if (this.isLoggedIn()) {
-          this.membershipService.getMyMembership(res.data.id).subscribe({
-            next: m => {
-              this.membershipStatus.set(m.data.status);
-              this.membershipRole.set(m.data.role);
-            },
-            error: () => {}
-          });
+          this.checkMembership(res.data.id);
         }
       },
       error: () => this.loading.set(false),
+    });
+
+    // SSR + hydration path: afterNextRender fires only in the browser, after hydration.
+    // At this point localStorage is available, isLoggedIn() is accurate, and org() is
+    // already populated from the transfer-cached getBySlug response.
+    afterNextRender(() => {
+      const o = this.org();
+      if (o && this.isLoggedIn() && this.membershipRole() === null && this.membershipStatus() === null) {
+        this.checkMembership(o.id);
+      }
+    });
+  }
+
+  private checkMembership(orgId: string) {
+    this.membershipService.getMyMembership(orgId).subscribe({
+      next: m => {
+        this.membershipStatus.set(m.data.status);
+        this.membershipRole.set(m.data.role);
+      },
+      error: () => {},
     });
   }
 
