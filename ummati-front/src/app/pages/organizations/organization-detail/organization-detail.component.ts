@@ -1,4 +1,4 @@
-import { Component, signal, OnInit, inject, afterNextRender } from '@angular/core';
+import { Component, signal, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -206,17 +206,7 @@ export class OrganizationDetailComponent implements OnInit {
     private membershipService: MembershipService,
     private announcementService: OrgAnnouncementService,
     private snackBar: MatSnackBar,
-  ) {
-    // afterNextRender must be in an injection context (constructor, not ngOnInit).
-    // It fires only in the browser after hydration — handles the SSR case where
-    // isLoggedIn() was false server-side and the inline check was skipped.
-    afterNextRender(() => {
-      const o = this.org();
-      if (o && this.isLoggedIn() && this.membershipRole() === null && this.membershipStatus() === null) {
-        this.checkMembership(o.id);
-      }
-    });
-  }
+  ) {}
 
   ngOnInit() {
     const slug = this.route.snapshot.paramMap.get('slug')!;
@@ -225,10 +215,7 @@ export class OrganizationDetailComponent implements OnInit {
         this.org.set(res.data);
         this.loading.set(false);
         this.loadAnnouncements(res.data.id);
-        // Pure client-side path (no SSR): check membership inline once org is loaded.
-        if (this.isLoggedIn()) {
-          this.checkMembership(res.data.id);
-        }
+        this.checkMembership(res.data.id);
       },
       error: () => this.loading.set(false),
     });
@@ -240,9 +227,7 @@ export class OrganizationDetailComponent implements OnInit {
         this.membershipStatus.set(m.data.status);
         this.membershipRole.set(m.data.role);
       },
-      error: (err) => {
-        console.error('[org-detail] getMyMembership failed', err?.status, err?.error);
-      },
+      error: () => {},
     });
   }
 
