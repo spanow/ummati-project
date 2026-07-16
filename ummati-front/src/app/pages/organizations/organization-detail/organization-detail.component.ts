@@ -7,15 +7,16 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { MembershipService } from '../../../core/services/membership.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, MatSnackBarModule, DecimalPipe, RouterLink],
+  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, MatSnackBarModule, DecimalPipe, DatePipe, RouterLink],
   template: `
     @if (loading()) {
       <div class="loading"><mat-spinner diameter="40" /></div>
@@ -95,6 +96,7 @@ import { AuthService } from '../../../core/services/auth.service';
                 </div>
               </div>
             </mat-tab>
+
             <mat-tab label="Événements">
               <div class="tab-content">
                 @if (membershipRole() === 'ADMIN') {
@@ -111,6 +113,37 @@ import { AuthService } from '../../../core/services/auth.service';
                 <p class="placeholder-text">Les événements publiés apparaîtront ici.</p>
               </div>
             </mat-tab>
+
+            <mat-tab>
+              <ng-template matTabLabel>
+                Annonces
+                @if (announcements().length > 0) {
+                  <span class="tab-badge">{{ announcements().length }}</span>
+                }
+              </ng-template>
+              <div class="tab-content">
+                @if (loadingAnnouncements()) {
+                  <div class="loading-inline"><mat-spinner diameter="28" /></div>
+                } @else if (announcements().length === 0) {
+                  <p class="placeholder-text">Aucune annonce pour le moment.</p>
+                } @else {
+                  <div class="announcement-list">
+                    @for (a of announcements(); track a.id) {
+                      <div class="announcement-card" [class.pinned]="a.pinned">
+                        @if (a.pinned) {
+                          <span class="pin-badge"><mat-icon>push_pin</mat-icon> Épinglé</span>
+                        }
+                        <h4 class="announcement-title">{{ a.title }}</h4>
+                        <p class="announcement-content">{{ a.content }}</p>
+                        <div class="announcement-meta">
+                          {{ a.authorFirstName }} {{ a.authorLastName }} · {{ a.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </mat-tab>
           </mat-tab-group>
         </div>
       </div>
@@ -118,6 +151,7 @@ import { AuthService } from '../../../core/services/auth.service';
   `,
   styles: [`
     .loading { display: flex; justify-content: center; padding: 120px 0; }
+    .loading-inline { display: flex; justify-content: center; padding: 32px; }
     .detail-page { max-width: 960px; margin: 0 auto; }
     .banner { height: 200px; background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%); position: relative; }
     .banner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); display: flex; align-items: flex-end; padding: 24px 32px; }
@@ -143,6 +177,15 @@ import { AuthService } from '../../../core/services/auth.service';
     .contact-info div { display: flex; align-items: center; gap: 8px; color: #555; }
     .contact-info a { color: #1976d2; text-decoration: none; }
     .placeholder-text { color: #888; font-style: italic; padding: 40px 0; text-align: center; }
+    .tab-badge { background: #1976d2; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
+    .announcement-list { display: flex; flex-direction: column; gap: 16px; }
+    .announcement-card { padding: 20px 24px; border-radius: 10px; border: 1px solid #e0e0e0; background: white; }
+    .announcement-card.pinned { border-left: 4px solid #1976d2; background: #f5f9ff; }
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #1976d2; font-weight: 600; margin-bottom: 8px; }
+    .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    .announcement-title { margin: 0 0 8px; font-size: 1rem; font-weight: 600; color: #222; }
+    .announcement-content { margin: 0 0 12px; color: #444; line-height: 1.6; white-space: pre-line; }
+    .announcement-meta { font-size: 0.8rem; color: #999; }
   `],
 })
 export class OrganizationDetailComponent implements OnInit {
@@ -151,6 +194,8 @@ export class OrganizationDetailComponent implements OnInit {
   joining = signal(false);
   membershipStatus = signal<string | null>(null);
   membershipRole = signal<string | null>(null);
+  announcements = signal<OrgAnnouncementResponse[]>([]);
+  loadingAnnouncements = signal(false);
 
   private authService = inject(AuthService);
   protected isLoggedIn = this.authService.isLoggedIn;
@@ -159,6 +204,7 @@ export class OrganizationDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private orgService: OrganizationService,
     private membershipService: MembershipService,
+    private announcementService: OrgAnnouncementService,
     private snackBar: MatSnackBar,
   ) {}
 
@@ -168,17 +214,31 @@ export class OrganizationDetailComponent implements OnInit {
       next: res => {
         this.org.set(res.data);
         this.loading.set(false);
-        if (this.isLoggedIn()) {
-          this.membershipService.getMyMembership(res.data.id).subscribe({
-            next: m => {
-              this.membershipStatus.set(m.data.status);
-              this.membershipRole.set(m.data.role);
-            },
-            error: () => {} // 404 = pas membre, on laisse null
-          });
-        }
+        this.loadAnnouncements(res.data.id);
+        this.checkMembership(res.data.id);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  private checkMembership(orgId: string) {
+    this.membershipService.getMyMembership(orgId).subscribe({
+      next: m => {
+        this.membershipStatus.set(m.data.status);
+        this.membershipRole.set(m.data.role);
+      },
+      error: () => {},
+    });
+  }
+
+  loadAnnouncements(orgId: string) {
+    this.loadingAnnouncements.set(true);
+    this.announcementService.list(orgId).subscribe({
+      next: res => {
+        this.announcements.set(res.data);
+        this.loadingAnnouncements.set(false);
+      },
+      error: () => this.loadingAnnouncements.set(false),
     });
   }
 
@@ -199,5 +259,3 @@ export class OrganizationDetailComponent implements OnInit {
     });
   }
 }
-
-
