@@ -10,28 +10,43 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { EventService, EventDetail, FeedbackResponse } from '../../../core/services/event.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { EventCommentService, CommentResponse } from '../../../core/services/event-comment.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
 
 @Component({
   selector: 'app-event-detail',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
     MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, MatFormFieldModule, MatInputModule,
-    FormsModule, RouterLink, DatePipe, DecimalPipe],
+    MatMenuModule, MatDialogModule, FormsModule, RouterLink, DatePipe, DecimalPipe],
   template: `
     <div class="page-container">
       @if (loading()) {
         <div class="loading"><mat-spinner diameter="40" /></div>
       } @else if (event()) {
         <div class="event-header">
-          <a mat-button [routerLink]="['/organizations', event()!.organizationSlug]" class="org-link">
-            <mat-icon>business</mat-icon> {{ event()!.organizationName }}
-          </a>
+          <div class="header-top">
+            <a mat-button [routerLink]="['/organizations', event()!.organizationSlug]" class="org-link">
+              <mat-icon>business</mat-icon> {{ event()!.organizationName }}
+            </a>
+            @if (isLoggedIn()) {
+              <button mat-icon-button [matMenuTriggerFor]="eventMenu" aria-label="Plus d'options">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #eventMenu="matMenu">
+                <button mat-menu-item (click)="reportEvent()">
+                  <mat-icon>flag</mat-icon> Signaler cet événement
+                </button>
+              </mat-menu>
+            }
+          </div>
           <h1>{{ event()!.title }}</h1>
           <div class="event-badges">
             <mat-chip>{{ event()!.type }}</mat-chip>
@@ -230,6 +245,7 @@ import { AuthService } from '../../../core/services/auth.service';
     .page-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
     .loading { display: flex; justify-content: center; padding: 80px 0; }
     .event-header { margin-bottom: 32px; }
+    .header-top { display: flex; align-items: center; justify-content: space-between; }
     .org-link { color: #1976d2; margin-bottom: 8px; }
     .event-header h1 { font-size: 2rem; font-weight: 700; margin: 8px 0 16px; }
     .event-badges { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -310,6 +326,7 @@ export class EventDetailComponent implements OnInit {
     private commentService: EventCommentService,
     private authService: AuthService,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit() {
@@ -405,6 +422,13 @@ export class EventDetailComponent implements OnInit {
         this.feedbacks.set(res.data.feedbacks.content);
         this.avgRating.set(res.data.averageRating);
       },
+    });
+  }
+
+  reportEvent() {
+    const e = this.event()!;
+    this.dialog.open(ReportDialogComponent, {
+      data: { targetType: 'EVENT', targetId: this.eventId, targetLabel: e.title },
     });
   }
 

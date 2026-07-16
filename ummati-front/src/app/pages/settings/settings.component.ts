@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,9 +10,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
 import { ProfileService } from '../../core/services/profile.service';
 import { AuthService } from '../../core/services/auth.service';
+import { PushNotificationService } from '../../core/services/push-notification.service';
 
 function passwordMatch(control: AbstractControl): ValidationErrors | null {
   const pwd = control.get('newPassword')?.value;
@@ -27,7 +29,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
     ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
-    MatDividerModule, MatDialogModule, MatTabsModule
+    MatDividerModule, MatDialogModule, MatTabsModule, MatSlideToggleModule
   ],
   template: `
     <div class="settings-container" role="main">
@@ -99,6 +101,31 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
                     }
                   </button>
                 </form>
+              </mat-card-content>
+            </mat-card>
+          </ng-template>
+        </mat-tab>
+
+        <!-- Tab Notifications -->
+        <mat-tab label="Notifications">
+          <ng-template matTabContent>
+            <mat-card class="settings-card">
+              <mat-card-header>
+                <mat-icon mat-card-avatar aria-hidden="true">notifications</mat-icon>
+                <mat-card-title>Notifications push</mat-card-title>
+                <mat-card-subtitle>Recevez une alerte dans votre navigateur pour les événements importants</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                @if (pushUnsupported()) {
+                  <p class="push-hint">Votre navigateur ne supporte pas les notifications push.</p>
+                } @else {
+                  <div class="push-toggle-row">
+                    <mat-slide-toggle [checked]="pushEnabled()" [disabled]="pushLoading()" (change)="togglePush($event.checked)">
+                      Activer les notifications push
+                    </mat-slide-toggle>
+                  </div>
+                  <p class="push-hint">Vous serez notifié pour les nouvelles annonces, inscriptions et mises à jour de vos événements.</p>
+                }
               </mat-card-content>
             </mat-card>
           </ng-template>
@@ -202,20 +229,26 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
     .delete-actions { display: flex; gap: 12px; margin-top: 8px; }
     button[disabled] { opacity: 0.6; }
     mat-spinner { display: inline-block; margin-right: 8px; }
+    .push-toggle-row { margin-bottom: 12px; }
+    .push-hint { color: #666; font-size: 0.9rem; margin: 0; }
   `]
 })
-export class SettingsComponent {
+export class SettingsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private profileService = inject(ProfileService);
   private authService = inject(AuthService);
   private snackBar = inject(MatSnackBar);
   private router = inject(Router);
+  private pushNotificationService = inject(PushNotificationService);
 
   showCurrentPwd = signal(false);
   showNewPwd = signal(false);
   pwdLoading = signal(false);
   deleteLoading = signal(false);
   showDeleteForm = signal(false);
+  pushEnabled = signal(false);
+  pushLoading = signal(false);
+  pushUnsupported = signal(false);
 
   passwordForm = this.fb.group({
     currentPassword: ['', Validators.required],
@@ -226,6 +259,34 @@ export class SettingsComponent {
   deleteForm = this.fb.group({
     password: ['', Validators.required],
   });
+
+  ngOnInit() {
+    if (!this.pushNotificationService.isSupported()) {
+      this.pushUnsupported.set(true);
+      return;
+    }
+    this.pushNotificationService.isSubscribed().then(subscribed => this.pushEnabled.set(subscribed));
+  }
+
+  async togglePush(enable: boolean) {
+    this.pushLoading.set(true);
+    try {
+      if (enable) {
+        await this.pushNotificationService.subscribe();
+        this.pushEnabled.set(true);
+        this.snackBar.open('Notifications push activées', 'OK', { duration: 3000 });
+      } else {
+        await this.pushNotificationService.unsubscribe();
+        this.pushEnabled.set(false);
+        this.snackBar.open('Notifications push désactivées', 'OK', { duration: 3000 });
+      }
+    } catch (err: any) {
+      this.pushEnabled.set(await this.pushNotificationService.isSubscribed());
+      this.snackBar.open(err?.message ?? 'Une erreur est survenue', 'OK', { duration: 4000 });
+    } finally {
+      this.pushLoading.set(false);
+    }
+  }
 
   changePassword() {
     if (this.passwordForm.invalid) return;

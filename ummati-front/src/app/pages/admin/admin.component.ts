@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AdminService, AdminStats, AdminUserSummary } from '../../core/services/admin.service';
+import { ReportService, ReportResponse, ReportStatus, REPORT_REASON_LABELS } from '../../core/services/report.service';
 
 @Component({
   selector: 'app-admin',
@@ -124,6 +125,66 @@ import { AdminService, AdminStats, AdminUserSummary } from '../../core/services/
             }
           </div>
         </mat-tab>
+
+        <mat-tab>
+          <ng-template matTabLabel>
+            Signalements
+            @if (reportsTotal() > 0 && reportStatus === 'PENDING') {
+              <span class="tab-badge">{{ reportsTotal() }}</span>
+            }
+          </ng-template>
+          <div class="tab-content">
+            <div class="filters">
+              <mat-form-field appearance="outline">
+                <mat-label>Statut</mat-label>
+                <mat-select [(ngModel)]="reportStatus" (selectionChange)="loadReports()">
+                  <mat-option value="">Tous</mat-option>
+                  <mat-option value="PENDING">En attente</mat-option>
+                  <mat-option value="REVIEWED">Examinés</mat-option>
+                  <mat-option value="DISMISSED">Rejetés</mat-option>
+                  <mat-option value="ACTION_TAKEN">Action prise</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+            @if (reportsLoading()) {
+              <div class="loading"><mat-spinner diameter="30" /></div>
+            } @else if (reports().length === 0) {
+              <p class="empty-hint">Aucun signalement.</p>
+            } @else {
+              <div class="report-list">
+                @for (r of reports(); track r.id) {
+                  <mat-card class="report-card">
+                    <mat-card-content>
+                      <div class="report-header">
+                        <mat-chip>{{ r.targetType }}</mat-chip>
+                        <mat-chip>{{ reasonLabels[r.reason] }}</mat-chip>
+                        <mat-chip [class]="'status-' + r.status.toLowerCase()">{{ r.status }}</mat-chip>
+                      </div>
+                      <p class="report-target"><strong>Cible :</strong> {{ r.targetLabel }}</p>
+                      <p class="report-reporter">Signalé par {{ r.reporterName }} le {{ r.createdAt | date:'d MMM yyyy, HH:mm' }}</p>
+                      @if (r.description) {
+                        <p class="report-description">{{ r.description }}</p>
+                      }
+                      @if (r.status === 'PENDING') {
+                        <div class="report-actions">
+                          <button mat-stroked-button (click)="resolveReport(r, 'DISMISSED')">Rejeter</button>
+                          <button mat-flat-button color="warn" (click)="resolveReport(r, 'ACTION_TAKEN')">Action prise</button>
+                          <button mat-button (click)="resolveReport(r, 'REVIEWED')">Marquer examiné</button>
+                        </div>
+                      } @else {
+                        <p class="report-resolution">
+                          Traité par {{ r.reviewedByName }} le {{ r.reviewedAt | date:'d MMM yyyy, HH:mm' }}
+                          @if (r.resolutionNote) { — {{ r.resolutionNote }} }
+                        </p>
+                      }
+                    </mat-card-content>
+                  </mat-card>
+                }
+              </div>
+              <mat-paginator [length]="reportsTotal()" [pageSize]="20" (page)="onReportsPage($event)" />
+            }
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -144,6 +205,20 @@ import { AdminService, AdminStats, AdminUserSummary } from '../../core/services/
     .data-table th { font-size: 0.8rem; color: #888; text-transform: uppercase; }
     .active { background: #e8f5e9 !important; color: #2e7d32 !important; }
     .disabled { background: #ffebee !important; color: #c62828 !important; }
+    .tab-badge { background: #f44336; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
+    .empty-hint { color: #888; font-style: italic; padding: 40px 0; text-align: center; }
+    .report-list { display: flex; flex-direction: column; gap: 12px; }
+    .report-card { border-radius: 10px; }
+    .report-header { display: flex; gap: 8px; margin-bottom: 8px; }
+    .status-pending { background: #fff3e0 !important; color: #e65100 !important; }
+    .status-reviewed { background: #e3f2fd !important; color: #1565c0 !important; }
+    .status-dismissed { background: #f5f5f5 !important; color: #757575 !important; }
+    .status-action_taken { background: #ffebee !important; color: #c62828 !important; }
+    .report-target { margin: 4px 0; }
+    .report-reporter { color: #888; font-size: 0.85rem; margin: 4px 0; }
+    .report-description { background: #fafafa; border-radius: 6px; padding: 10px 12px; margin: 8px 0; color: #444; }
+    .report-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .report-resolution { color: #666; font-size: 0.85rem; margin: 8px 0 0; font-style: italic; }
   `],
 })
 export class AdminComponent implements OnInit {
@@ -157,12 +232,23 @@ export class AdminComponent implements OnInit {
   orgsTotal = signal(0);
   orgStatus = 'PENDING';
 
-  constructor(private adminService: AdminService, private snackBar: MatSnackBar) {}
+  reports = signal<ReportResponse[]>([]);
+  reportsLoading = signal(false);
+  reportsTotal = signal(0);
+  reportStatus: ReportStatus | '' = 'PENDING';
+  reasonLabels = REPORT_REASON_LABELS;
+
+  constructor(
+    private adminService: AdminService,
+    private reportService: ReportService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.adminService.getStats().subscribe(res => this.stats.set(res.data));
     this.loadUsers();
     this.loadOrgs();
+    this.loadReports();
   }
 
   loadUsers(page = 0) {
@@ -192,5 +278,24 @@ export class AdminComponent implements OnInit {
 
   onUsersPage(e: PageEvent) { this.loadUsers(e.pageIndex); }
   onOrgsPage(e: PageEvent) { this.loadOrgs(e.pageIndex); }
+  onReportsPage(e: PageEvent) { this.loadReports(e.pageIndex); }
+
+  loadReports(page = 0) {
+    this.reportsLoading.set(true);
+    this.reportService.list(this.reportStatus || undefined, page).subscribe({
+      next: res => { this.reports.set(res.data.content); this.reportsTotal.set(res.data.totalElements); this.reportsLoading.set(false); },
+      error: () => this.reportsLoading.set(false),
+    });
+  }
+
+  resolveReport(report: ReportResponse, status: 'REVIEWED' | 'DISMISSED' | 'ACTION_TAKEN') {
+    this.reportService.resolve(report.id, { status }).subscribe({
+      next: () => {
+        this.snackBar.open('Signalement mis à jour', 'OK', { duration: 3000 });
+        this.loadReports();
+      },
+      error: () => this.snackBar.open('Erreur lors de la mise à jour', 'OK', { duration: 3000 }),
+    });
+  }
 }
 

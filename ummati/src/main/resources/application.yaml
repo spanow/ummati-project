@@ -86,6 +86,10 @@ app:
     password: ${ADMIN_PASSWORD:Admin123!}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+  vapid:
+    public-key: ${VAPID_PUBLIC_KEY:BPLSJxSB3QAA1XsJVFED-6HGGyJmFios6ETEo9MJ-7RmbPOXioh_0WsOUPorDEpCbP_PaEJ3wGyo0t3f93y2sU4}
+    private-key: ${VAPID_PRIVATE_KEY:AM_NeFGDjso48CY-G965jKrTatAREp-TA-1KCPcJgbJI}
+    subject: ${VAPID_SUBJECT:mailto:admin@ummati.org}
 
 # ===== ACTUATOR =====
 management:

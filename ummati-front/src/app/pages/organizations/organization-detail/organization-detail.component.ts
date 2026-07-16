@@ -5,18 +5,22 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { MembershipService } from '../../../core/services/membership.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
+import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatProgressSpinnerModule, MatSnackBarModule, DecimalPipe, DatePipe, RouterLink],
+  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
+    MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink],
   template: `
     @if (loading()) {
       <div class="loading"><mat-spinner diameter="40" /></div>
@@ -38,6 +42,16 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
                 </div>
               </div>
             </div>
+            @if (isLoggedIn()) {
+              <button mat-icon-button class="more-btn" [matMenuTriggerFor]="orgMenu" aria-label="Plus d'options">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #orgMenu="matMenu">
+                <button mat-menu-item (click)="reportOrg()">
+                  <mat-icon>flag</mat-icon> Signaler cette organisation
+                </button>
+              </mat-menu>
+            }
           </div>
         </div>
 
@@ -155,6 +169,7 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
     .detail-page { max-width: 960px; margin: 0 auto; }
     .banner { height: 200px; background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%); position: relative; }
     .banner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); display: flex; align-items: flex-end; padding: 24px 32px; }
+    .more-btn { position: absolute; top: 16px; right: 16px; color: white; }
     .org-identity { display: flex; align-items: center; gap: 20px; color: white; }
     .logo { width: 72px; height: 72px; border-radius: 14px; border: 3px solid white; object-fit: cover; }
     .logo-placeholder { width: 72px; height: 72px; border-radius: 14px; border: 3px solid white; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
@@ -206,6 +221,7 @@ export class OrganizationDetailComponent implements OnInit {
     private membershipService: MembershipService,
     private announcementService: OrgAnnouncementService,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit() {
@@ -239,6 +255,13 @@ export class OrganizationDetailComponent implements OnInit {
         this.loadingAnnouncements.set(false);
       },
       error: () => this.loadingAnnouncements.set(false),
+    });
+  }
+
+  reportOrg() {
+    const o = this.org()!;
+    this.dialog.open(ReportDialogComponent, {
+      data: { targetType: 'ORGANIZATION', targetId: o.id, targetLabel: o.name },
     });
   }
 
