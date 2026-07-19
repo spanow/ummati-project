@@ -4,8 +4,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { MembershipService, MembershipResponse } from '../../core/services/membership.service';
@@ -15,7 +17,7 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
   selector: 'app-my-activities',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatChipsModule,
-    MatPaginatorModule, MatProgressSpinnerModule, RouterLink, DatePipe],
+    MatMenuModule, MatPaginatorModule, MatProgressSpinnerModule, MatSnackBarModule, RouterLink, DatePipe],
   template: `
     <div class="page-container">
       <h1>Mes activités</h1>
@@ -34,7 +36,7 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
           } @else {
             <div class="card-list">
               @for (m of memberships(); track m.id) {
-                <mat-card class="activity-card">
+                <mat-card class="activity-card" [routerLink]="['/organizations', m.organizationSlug]">
                   <mat-card-content>
                     <div class="card-row">
                       <mat-icon>business</mat-icon>
@@ -43,6 +45,15 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
                         <span class="meta">Membre depuis {{ m.joinedAt | date:'d MMM yyyy' }}</span>
                       </div>
                       <mat-chip [class]="'role-' + m.role.toLowerCase()">{{ m.role }}</mat-chip>
+                      <button mat-icon-button [matMenuTriggerFor]="membershipMenu"
+                              (click)="$event.stopPropagation()" aria-label="Options">
+                        <mat-icon>more_vert</mat-icon>
+                      </button>
+                      <mat-menu #membershipMenu="matMenu">
+                        <button mat-menu-item class="danger-item" (click)="leaveOrg(m)">
+                          <mat-icon>logout</mat-icon> Quitter l'organisation
+                        </button>
+                      </mat-menu>
                     </div>
                   </mat-card-content>
                 </mat-card>
@@ -105,6 +116,7 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
     .status-waitlisted { background: #fff3e0 !important; color: #e65100 !important; }
     .status-attended { background: #e3f2fd !important; color: #1565c0 !important; }
     .status-cancelled { background: #ffebee !important; color: #c62828 !important; }
+    .danger-item { color: #c62828; }
   `],
 })
 export class MyActivitiesComponent implements OnInit {
@@ -115,9 +127,27 @@ export class MyActivitiesComponent implements OnInit {
   signupsLoading = signal(true);
   signupTotal = signal(0);
 
-  constructor(private membershipService: MembershipService, private eventService: EventService) {}
+  constructor(
+    private membershipService: MembershipService,
+    private eventService: EventService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() { this.loadMemberships(); this.loadSignups(); }
+
+  leaveOrg(m: MembershipResponse) {
+    if (!confirm(`Quitter l'organisation « ${m.organizationName} » ?`)) return;
+    this.membershipService.remove(m.id).subscribe({
+      next: () => {
+        this.snackBar.open(`Vous avez quitté ${m.organizationName}.`, 'OK', { duration: 4000 });
+        this.loadMemberships();
+      },
+      error: err => {
+        const msg = err?.error?.message ?? 'Impossible de quitter cette organisation.';
+        this.snackBar.open(msg, 'OK', { duration: 6000 });
+      },
+    });
+  }
 
   loadMemberships(page = 0) {
     this.membershipsLoading.set(true);

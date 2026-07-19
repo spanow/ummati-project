@@ -207,7 +207,7 @@ public class MembershipService {
     private MembershipResponse toResponse(Membership m) {
         User user = m.getUser();
         return new MembershipResponse(m.getId(), user.getId(), m.getOrganization().getId(),
-                m.getOrganization().getName(),
+                m.getOrganization().getName(), m.getOrganization().getSlug(),
                 user.getFirstName(), user.getLastName(), user.getPhotoUrl(),
                 m.getRole().name(), m.getStatus().name(), m.getMotivation(),
                 m.getJoinedAt(), m.getCreatedAt());

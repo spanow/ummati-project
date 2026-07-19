@@ -248,18 +248,29 @@ public class ProfileService {
                 .toList();
 
         long orgCount = membershipRepository.countByUserIdAndStatus(user.getId(), MembershipStatus.ACTIVE);
+        long attendedCount = eventSignupRepository.countByUserIdAndStatus(user.getId(), SignupStatus.ATTENDED);
+        double volunteerHours = computeVolunteerHours(user.getId());
 
-        // Simplified stats — full implementation with event signups
         return new ProfileResponse(
                 user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
                 user.getPhone(), user.getDateOfBirth(), user.getPhotoUrl(), user.getBio(),
                 new ProfileResponse.AddressDto(user.getAddressStreet(), user.getAddressCity(),
                         user.getAddressZip(), user.getAddressCountry()),
                 skills,
-                new ProfileResponse.StatsDto(orgCount,
-                        eventSignupRepository.countByUserIdAndStatus(user.getId(), SignupStatus.ATTENDED), 0),
+                new ProfileResponse.StatsDto(orgCount, attendedCount, volunteerHours),
                 user.isOnboardingDone(), user.isEmailVerified(), user.getCreatedAt()
         );
+    }
+
+    // Somme des durées des événements ATTENDED, arrondie à 0.5h près
+    private double computeVolunteerHours(UUID userId) {
+        long totalMinutes = eventSignupRepository.findAttendedWithEventByUserId(userId).stream()
+                .filter(s -> s.getEvent().getStartDate() != null && s.getEvent().getEndDate() != null)
+                .mapToLong(s -> java.time.Duration.between(
+                        s.getEvent().getStartDate(), s.getEvent().getEndDate()).toMinutes())
+                .filter(minutes -> minutes > 0)
+                .sum();
+        return Math.round(totalMinutes / 30.0) / 2.0;
     }
 }
 

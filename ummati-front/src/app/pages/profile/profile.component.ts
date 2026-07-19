@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { ProfileService, ProfileResponse } from '../../core/services/profile.service';
+import { SkillService, Skill } from '../../core/services/skill.service';
 
 @Component({
   selector: 'app-profile',
@@ -111,6 +112,19 @@ import { ProfileService, ProfileResponse } from '../../core/services/profile.ser
                   <input matInput formControlName="zip" />
                 </mat-form-field>
               </div>
+
+              <div class="skills-edit">
+                <h4>Mes compétences</h4>
+                <p class="skills-hint">Sélectionnez les compétences que vous souhaitez mettre à disposition des associations.</p>
+                <div class="skills-grid">
+                  @for (skill of allSkills(); track skill.id) {
+                    <mat-chip-option [selected]="selectedSkillIds.has(skill.id)" (click)="toggleSkill(skill.id)">
+                      {{ skill.name }}
+                    </mat-chip-option>
+                  }
+                </div>
+              </div>
+
               @if (infoError()) { <div class="error-banner">{{ infoError() }}</div> }
               <button mat-flat-button type="submit" [disabled]="savingInfo()">
                 @if (savingInfo()) { <mat-spinner diameter="18" /> } @else { Sauvegarder }
@@ -170,6 +184,10 @@ import { ProfileService, ProfileResponse } from '../../core/services/profile.ser
     .full-width { width: 100%; }
     .error-banner { background: #fdecea; color: #d32f2f; padding: 10px 14px; border-radius: 6px; font-size: 0.9rem; }
     .success-banner { background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 6px; font-size: 0.9rem; }
+    .skills-edit { margin: 8px 0 16px; }
+    .skills-edit h4 { font-size: 0.95rem; font-weight: 600; margin: 0 0 4px; }
+    .skills-hint { color: #888; font-size: 0.85rem; margin: 0 0 12px; }
+    .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   `],
 })
 export class ProfileComponent implements OnInit {
@@ -180,6 +198,8 @@ export class ProfileComponent implements OnInit {
   infoError = signal('');
   pwdError = signal('');
   pwdSuccess = signal('');
+  allSkills = signal<Skill[]>([]);
+  selectedSkillIds = new Set<string>();
 
   infoForm: FormGroup;
   passwordForm: FormGroup;
@@ -187,6 +207,7 @@ export class ProfileComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private profileService: ProfileService,
+    private skillService: SkillService,
     private snackBar: MatSnackBar,
   ) {
     this.infoForm = this.fb.group({
@@ -216,10 +237,20 @@ export class ProfileComponent implements OnInit {
           city: res.data.address.city ?? '',
           zip: res.data.address.zip ?? '',
         });
+        this.selectedSkillIds = new Set(res.data.skills.map(s => s.id));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
+    this.skillService.getAll().subscribe({
+      next: res => this.allSkills.set(res.data ?? []),
+      error: () => {},
+    });
+  }
+
+  toggleSkill(id: string) {
+    if (this.selectedSkillIds.has(id)) this.selectedSkillIds.delete(id);
+    else this.selectedSkillIds.add(id);
   }
 
   saveInfo() {
@@ -230,6 +261,7 @@ export class ProfileComponent implements OnInit {
     this.profileService.update({
       firstName: v.firstName, lastName: v.lastName, phone: v.phone, bio: v.bio,
       address: { city: v.city, zip: v.zip },
+      skillIds: Array.from(this.selectedSkillIds),
     }).subscribe({
       next: res => {
         this.profile.set(res.data);

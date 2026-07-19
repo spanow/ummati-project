@@ -14,11 +14,14 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSelectModule } from '@angular/material/select';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MembershipService, MembershipResponse } from '../../../core/services/membership.service';
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
+import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
+import { OrgDocumentsComponent } from '../org-documents/org-documents.component';
 
 @Component({
   selector: 'app-organization-manage',
@@ -27,7 +30,7 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
     MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatChipsModule, MatMenuModule, MatProgressSpinnerModule, MatSnackBarModule,
     MatDialogModule, MatBadgeModule, MatFormFieldModule, MatInputModule, MatCheckboxModule,
-    DatePipe, RouterLink, FormsModule,
+    MatSelectModule, DatePipe, RouterLink, FormsModule, OrgDocumentsComponent,
   ],
   template: `
     <div class="page-container">
@@ -207,6 +210,86 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
             }
           </div>
         </mat-tab>
+
+        <!-- Informations tab -->
+        <mat-tab>
+          <ng-template matTabLabel>
+            <mat-icon>edit</mat-icon>
+            Informations
+          </ng-template>
+
+          <div class="tab-section">
+            @if (!org()) {
+              <div class="loading"><mat-spinner diameter="28" /></div>
+            } @else {
+              <form class="org-edit-form" (ngSubmit)="saveOrgInfo()">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Description</mat-label>
+                  <textarea matInput [(ngModel)]="editModel.description" name="description" rows="4" maxlength="5000"></textarea>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Mission</mat-label>
+                  <textarea matInput [(ngModel)]="editModel.mission" name="mission" rows="3" maxlength="5000"></textarea>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Domaine</mat-label>
+                  <mat-select [(ngModel)]="editModel.domain" name="domain">
+                    @for (d of domains; track d) {
+                      <mat-option [value]="d">{{ d }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <div class="form-row">
+                  <mat-form-field appearance="outline" class="flex-2">
+                    <mat-label>Adresse</mat-label>
+                    <input matInput [(ngModel)]="editModel.addressStreet" name="addressStreet" />
+                  </mat-form-field>
+                </div>
+                <div class="form-row">
+                  <mat-form-field appearance="outline" class="flex-2">
+                    <mat-label>Ville</mat-label>
+                    <input matInput [(ngModel)]="editModel.addressCity" name="addressCity" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Code postal</mat-label>
+                    <input matInput [(ngModel)]="editModel.addressZip" name="addressZip" />
+                  </mat-form-field>
+                </div>
+                <div class="form-row">
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Email de contact</mat-label>
+                    <input matInput type="email" [(ngModel)]="editModel.email" name="email" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Téléphone</mat-label>
+                    <input matInput [(ngModel)]="editModel.phone" name="phone" />
+                  </mat-form-field>
+                </div>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Site web</mat-label>
+                  <input matInput [(ngModel)]="editModel.website" name="website" placeholder="https://…" />
+                </mat-form-field>
+                <button mat-flat-button color="primary" type="submit" [disabled]="savingInfo()">
+                  {{ savingInfo() ? 'Sauvegarde…' : 'Sauvegarder les modifications' }}
+                </button>
+              </form>
+            }
+          </div>
+        </mat-tab>
+
+        <!-- Documents tab -->
+        <mat-tab>
+          <ng-template matTabLabel>
+            <mat-icon>folder</mat-icon>
+            Documents
+          </ng-template>
+
+          <div class="tab-section">
+            @if (orgId) {
+              <app-org-documents [orgId]="orgId" [canUpload]="true" />
+            }
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -257,6 +340,12 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
     .delete-btn { color: #d32f2f; }
     .announce-body { margin: 0 0 10px; color: #444; line-height: 1.6; white-space: pre-line; font-size: 0.9rem; }
     .announce-date { font-size: 0.78rem; color: #aaa; }
+    .org-edit-form { display: flex; flex-direction: column; gap: 4px; max-width: 640px; padding: 16px 0; }
+    .form-row { display: flex; gap: 16px; }
+    .flex-1 { flex: 1; }
+    .flex-2 { flex: 2; }
+    .full-width { width: 100%; }
+    .org-edit-form button { align-self: flex-start; margin-top: 8px; }
   `],
 })
 export class OrganizationManageComponent implements OnInit {
@@ -271,21 +360,68 @@ export class OrganizationManageComponent implements OnInit {
   newTitle = '';
   newContent = '';
   newPinned = false;
+  org = signal<OrganizationDetail | null>(null);
+  savingInfo = signal(false);
+  domains = ['EDUCATION', 'SANTE', 'ENVIRONNEMENT', 'SOCIAL', 'CULTURE', 'SPORT',
+    'HUMANITAIRE', 'DROITS_HUMAINS', 'AIDE_URGENCE', 'AUTRE'];
+  editModel = {
+    description: '', mission: '', domain: '', addressStreet: '',
+    addressCity: '', addressZip: '', email: '', phone: '', website: '',
+  };
 
   constructor(
     private route: ActivatedRoute,
     private membershipService: MembershipService,
     private announcementService: OrgAnnouncementService,
+    private orgService: OrganizationService,
     private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit() {
     this.orgSlug = this.route.snapshot.paramMap.get('slug') ?? '';
     this.orgId = this.route.snapshot.queryParamMap.get('orgId') ?? '';
+    this.orgService.getBySlug(this.orgSlug).subscribe({
+      next: res => {
+        this.org.set(res.data);
+        this.editModel = {
+          description: res.data.description ?? '',
+          mission: res.data.mission ?? '',
+          domain: res.data.domain ?? '',
+          addressStreet: res.data.addressStreet ?? '',
+          addressCity: res.data.addressCity ?? '',
+          addressZip: res.data.addressZip ?? '',
+          email: res.data.email ?? '',
+          phone: res.data.phone ?? '',
+          website: res.data.website ?? '',
+        };
+        // Fallback si le queryParam orgId est absent (accès direct par URL)
+        if (!this.orgId) {
+          this.orgId = res.data.id;
+          this.loadMembers();
+          this.loadAnnouncements();
+        }
+      },
+      error: () => {},
+    });
     if (this.orgId) {
       this.loadMembers();
       this.loadAnnouncements();
     }
+  }
+
+  saveOrgInfo() {
+    this.savingInfo.set(true);
+    this.orgService.update(this.orgId, this.editModel).subscribe({
+      next: res => {
+        this.org.set(res.data);
+        this.savingInfo.set(false);
+        this.snackBar.open('Informations de l\'organisation mises à jour !', '', { duration: 3000 });
+      },
+      error: err => {
+        this.savingInfo.set(false);
+        this.snackBar.open(err.error?.message ?? 'Erreur lors de la sauvegarde', '', { duration: 4000 });
+      },
+    });
   }
 
   loadMembers() {
