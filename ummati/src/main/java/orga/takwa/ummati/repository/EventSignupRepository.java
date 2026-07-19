@@ -25,6 +25,10 @@ public interface EventSignupRepository extends JpaRepository<EventSignup, UUID> 
     long countByUserId(UUID userId);
     Optional<EventSignup> findFirstByEventIdAndStatusOrderByRegisteredAtAsc(UUID eventId, SignupStatus status);
     List<EventSignup> findByEventIdAndStatusIn(UUID eventId, Collection<SignupStatus> statuses);
+    long countByStatus(SignupStatus status);
+
+    @Query("SELECT s FROM EventSignup s JOIN FETCH s.event WHERE s.user.id = :userId AND s.status = 'ATTENDED'")
+    List<EventSignup> findAttendedWithEventByUserId(@Param("userId") UUID userId);
 
     @Query("""
             SELECT s FROM EventSignup s

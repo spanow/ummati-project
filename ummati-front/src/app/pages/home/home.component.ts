@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { AdminService } from '../../core/services/admin.service';
+import { PublicService } from '../../core/services/public.service';
 
 interface PlatformStat { icon: string; value: string; label: string; }
 interface Feature { icon: string; title: string; description: string; }
@@ -223,12 +223,12 @@ interface Feature { icon: string; title: string; description: string; }
   `],
 })
 export class HomeComponent implements OnInit {
-  private adminService = inject(AdminService);
+  private publicService = inject(PublicService);
   stats = signal<PlatformStat[]>([
-    { icon: 'people', value: '500+', label: 'Bénévoles inscrits' },
-    { icon: 'business', value: '50+', label: 'Associations actives' },
-    { icon: 'event', value: '200+', label: 'Événements organisés' },
-    { icon: 'volunteer_activism', value: '1 000+', label: 'Heures de bénévolat' },
+    { icon: 'people', value: '—', label: 'Bénévoles inscrits' },
+    { icon: 'business', value: '—', label: 'Associations actives' },
+    { icon: 'event', value: '—', label: 'Événements organisés' },
+    { icon: 'volunteer_activism', value: '—', label: 'Participations validées' },
   ]);
   tags = ['Solidarité', 'Bénévolat', 'ONG', 'Communauté', 'Engagement', 'Social'];
   features: Feature[] = [
@@ -246,18 +246,18 @@ export class HomeComponent implements OnInit {
   ];
 
   ngOnInit() {
-    this.adminService.getStats().subscribe({
+    this.publicService.getStats().subscribe({
       next: (res) => {
         if (res?.data) {
           this.stats.set([
-            { icon: 'people', value: this.fmt(res.data.totalUsers), label: 'Bénévoles inscrits' },
+            { icon: 'people', value: this.fmt(res.data.totalVolunteers), label: 'Bénévoles inscrits' },
             { icon: 'business', value: this.fmt(res.data.totalOrganizations), label: 'Associations actives' },
             { icon: 'event', value: this.fmt(res.data.totalEvents), label: 'Événements organisés' },
-            { icon: 'volunteer_activism', value: '1 000+', label: 'Heures de bénévolat' },
+            { icon: 'volunteer_activism', value: this.fmt(res.data.totalParticipations), label: 'Participations validées' },
           ]);
         }
       },
-      error: () => {} // garde les valeurs par défaut
+      error: () => {} // garde les tirets si l'API est indisponible
     });
   }
   private fmt(n: number): string {

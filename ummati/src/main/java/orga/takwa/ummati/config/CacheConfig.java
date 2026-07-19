@@ -22,6 +22,7 @@ public class CacheConfig {
      * - "org-stats"      : stats d'une organisation (5 min, 500 entries)
      * - "dashboard-vol"  : données dashboard bénévole (2 min, 1000 entries)
      * - "admin-stats"    : stats admin plateforme (5 min, 10 entries)
+     * - "public-stats"   : stats publiques landing page (10 min, 1 entry)
      */
     @Bean
     public CacheManager cacheManager() {
@@ -34,6 +35,8 @@ public class CacheConfig {
                 Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(2, TimeUnit.MINUTES).build());
         manager.registerCustomCache("admin-stats",
                 Caffeine.newBuilder().maximumSize(10).expireAfterWrite(5, TimeUnit.MINUTES).build());
+        manager.registerCustomCache("public-stats",
+                Caffeine.newBuilder().maximumSize(1).expireAfterWrite(10, TimeUnit.MINUTES).build());
         // Default
         manager.setCaffeine(
                 Caffeine.newBuilder().maximumSize(500).expireAfterWrite(10, TimeUnit.MINUTES));

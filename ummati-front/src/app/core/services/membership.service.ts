@@ -6,6 +6,7 @@ import { ApiResponse, PageResponse } from '../models/api.models';
 
 export interface MembershipResponse {
   id: string; userId: string; organizationId: string; organizationName: string;
+  organizationSlug: string;
   firstName: string; lastName: string; photoUrl: string | null;
   role: string; status: string; motivation: string | null;
   joinedAt: string | null; createdAt: string;

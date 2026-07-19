@@ -12,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { EventService, EventDetail, FeedbackResponse } from '../../../core/services/event.service';
@@ -19,13 +20,15 @@ import { EventAnnouncementService, AnnouncementResponse } from '../../../core/se
 import { EventCommentService, CommentResponse } from '../../../core/services/event-comment.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
+import { StarRatingComponent } from '../../../shared/components/star-rating/star-rating.component';
 
 @Component({
   selector: 'app-event-detail',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
     MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, MatFormFieldModule, MatInputModule,
-    MatMenuModule, MatDialogModule, FormsModule, RouterLink, DatePipe, DecimalPipe],
+    MatMenuModule, MatDialogModule, MatCheckboxModule, FormsModule, RouterLink, DatePipe, DecimalPipe,
+    StarRatingComponent],
   template: `
     <div class="page-container">
       @if (loading()) {
@@ -138,6 +141,30 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
                 }
               </mat-card-content>
             </mat-card>
+
+            @if (canGiveFeedback()) {
+              <mat-card class="feedback-form-card">
+                <mat-card-content>
+                  <h3>⭐ Donner mon avis</h3>
+                  <p class="feedback-hint">Vous avez participé à cet événement — partagez votre expérience !</p>
+                  <div class="feedback-form">
+                    <app-star-rating [value]="feedbackRating" (valueChange)="feedbackRating = $event" />
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Commentaire (optionnel)</mat-label>
+                      <textarea matInput [(ngModel)]="feedbackComment" rows="3" maxlength="1000"
+                                placeholder="Qu'avez-vous pensé de cet événement ?"></textarea>
+                    </mat-form-field>
+                    <div class="feedback-actions">
+                      <mat-checkbox [(ngModel)]="feedbackAnonymous">Publier anonymement</mat-checkbox>
+                      <button mat-flat-button color="primary" (click)="submitFeedback()"
+                              [disabled]="feedbackRating === 0 || submittingFeedback()">
+                        {{ submittingFeedback() ? 'Envoi…' : 'Publier mon avis' }}
+                      </button>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            }
 
             @if (feedbacks().length > 0) {
               <mat-card>
@@ -276,6 +303,11 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
     .fb-author { font-weight: 500; }
     .fb-date { color: #999; margin-left: auto; }
     .fb-comment { margin: 8px 0 0; color: #555; line-height: 1.5; }
+    .feedback-form-card { border-left: 4px solid #ffc107; }
+    .feedback-hint { color: #666; font-size: 0.9rem; margin: 0 0 16px; }
+    .feedback-form { display: flex; flex-direction: column; gap: 12px; }
+    .feedback-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .full-width { width: 100%; }
     .announcements-card { border-left: 4px solid #1976d2; }
     .announcement-item { padding: 12px 0; border-bottom: 1px solid #eee; }
     .announcement-item:last-child { border-bottom: none; }
@@ -313,6 +345,12 @@ export class EventDetailComponent implements OnInit {
   isParticipant = signal(false);
   newComment = '';
   postingComment = signal(false);
+  mySignupStatus = signal<string | null>(null);
+  feedbackRating = 0;
+  feedbackComment = '';
+  feedbackAnonymous = false;
+  submittingFeedback = signal(false);
+  feedbackSubmitted = signal(false);
 
   get isLoggedIn() { return this.authService.isLoggedIn; }
 
@@ -344,6 +382,7 @@ export class EventDetailComponent implements OnInit {
           const isActive = active.includes(res.data.status);
           this.isSignedUp.set(res.data.status === 'REGISTERED' || res.data.status === 'WAITLISTED');
           this.isParticipant.set(isActive);
+          this.mySignupStatus.set(res.data.status);
         },
         error: () => {}
       });
@@ -421,6 +460,38 @@ export class EventDetailComponent implements OnInit {
       next: res => {
         this.feedbacks.set(res.data.feedbacks.content);
         this.avgRating.set(res.data.averageRating);
+      },
+    });
+  }
+
+  canGiveFeedback(): boolean {
+    return this.event()?.status === 'COMPLETED'
+      && this.mySignupStatus() === 'ATTENDED'
+      && !this.feedbackSubmitted();
+  }
+
+  submitFeedback() {
+    if (this.feedbackRating === 0) return;
+    this.submittingFeedback.set(true);
+    this.eventService.createFeedback(this.eventId, {
+      rating: this.feedbackRating,
+      comment: this.feedbackComment.trim() || undefined,
+      anonymous: this.feedbackAnonymous,
+    }).subscribe({
+      next: () => {
+        this.submittingFeedback.set(false);
+        this.feedbackSubmitted.set(true);
+        this.snackBar.open('Merci pour votre avis !', 'OK', { duration: 3000 });
+        this.loadFeedbacks();
+      },
+      error: err => {
+        this.submittingFeedback.set(false);
+        const msg = err?.error?.message || 'Erreur lors de l\'envoi de votre avis';
+        this.snackBar.open(msg, 'OK', { duration: 4000 });
+        // Feedback déjà donné : on masque le formulaire
+        if (err?.status === 409 || msg.toLowerCase().includes('déjà')) {
+          this.feedbackSubmitted.set(true);
+        }
       },
     });
   }

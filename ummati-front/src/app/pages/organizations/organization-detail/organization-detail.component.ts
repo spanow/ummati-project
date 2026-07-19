@@ -14,6 +14,7 @@ import { OrganizationService, OrganizationDetail } from '../../../core/services/
 import { MembershipService } from '../../../core/services/membership.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
+import { EventService, EventSummary } from '../../../core/services/event.service';
 import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
 
 @Component({
@@ -111,7 +112,13 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
               </div>
             </mat-tab>
 
-            <mat-tab label="Événements">
+            <mat-tab>
+              <ng-template matTabLabel>
+                Événements
+                @if (orgEvents().length > 0) {
+                  <span class="tab-badge">{{ orgEvents().length }}</span>
+                }
+              </ng-template>
               <div class="tab-content">
                 @if (membershipRole() === 'ADMIN') {
                   <div class="events-admin-bar">
@@ -124,7 +131,41 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
                     </a>
                   </div>
                 }
-                <p class="placeholder-text">Les événements publiés apparaîtront ici.</p>
+                @if (loadingEvents()) {
+                  <div class="loading-inline"><mat-spinner diameter="28" /></div>
+                } @else if (orgEvents().length === 0) {
+                  <p class="placeholder-text">Aucun événement à venir pour le moment.</p>
+                } @else {
+                  <div class="org-event-list">
+                    @for (e of orgEvents(); track e.id) {
+                      <a class="org-event-card" [routerLink]="['/events', e.id]">
+                        <div class="event-date-block">
+                          <span class="event-day">{{ e.startDate | date:'d' }}</span>
+                          <span class="event-month">{{ e.startDate | date:'MMM' }}</span>
+                        </div>
+                        <div class="event-info">
+                          <h4 class="event-title">{{ e.title }}</h4>
+                          <div class="event-meta">
+                            <span><mat-icon>schedule</mat-icon> {{ e.startDate | date:'HH:mm' }}</span>
+                            @if (e.online) {
+                              <span><mat-icon>videocam</mat-icon> En ligne</span>
+                            } @else {
+                              <span><mat-icon>location_on</mat-icon> {{ e.locationCity }}</span>
+                            }
+                            <mat-chip class="event-type-chip">{{ e.type }}</mat-chip>
+                          </div>
+                        </div>
+                        @if (e.maxParticipants) {
+                          <div class="event-spots"
+                               [class.almost-full]="e.registeredCount / e.maxParticipants >= 0.8">
+                            {{ e.registeredCount }}/{{ e.maxParticipants }}
+                            <span class="spots-label">inscrits</span>
+                          </div>
+                        }
+                      </a>
+                    }
+                  </div>
+                }
               </div>
             </mat-tab>
 
@@ -201,6 +242,21 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
     .announcement-title { margin: 0 0 8px; font-size: 1rem; font-weight: 600; color: #222; }
     .announcement-content { margin: 0 0 12px; color: #444; line-height: 1.6; white-space: pre-line; }
     .announcement-meta { font-size: 0.8rem; color: #999; }
+    .org-event-list { display: flex; flex-direction: column; gap: 12px; }
+    .org-event-card { display: flex; align-items: center; gap: 20px; padding: 16px 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: white; text-decoration: none; color: inherit; transition: box-shadow 0.15s, transform 0.15s; }
+    .org-event-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+    .event-date-block { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 56px; background: #e3f2fd; border-radius: 10px; flex-shrink: 0; }
+    .event-day { font-size: 1.3rem; font-weight: 700; color: #1565c0; line-height: 1.1; }
+    .event-month { font-size: 0.7rem; text-transform: uppercase; color: #1976d2; font-weight: 600; }
+    .event-info { flex: 1; min-width: 0; }
+    .event-title { margin: 0 0 6px; font-size: 1rem; font-weight: 600; color: #222; }
+    .event-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: #666; font-size: 0.85rem; }
+    .event-meta span { display: inline-flex; align-items: center; gap: 4px; }
+    .event-meta mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .event-type-chip { font-size: 0.7rem !important; min-height: 22px !important; }
+    .event-spots { display: flex; flex-direction: column; align-items: center; font-weight: 700; color: #2e7d32; flex-shrink: 0; }
+    .event-spots.almost-full { color: #e65100; }
+    .spots-label { font-size: 0.7rem; font-weight: 400; color: #999; }
   `],
 })
 export class OrganizationDetailComponent implements OnInit {
@@ -211,6 +267,8 @@ export class OrganizationDetailComponent implements OnInit {
   membershipRole = signal<string | null>(null);
   announcements = signal<OrgAnnouncementResponse[]>([]);
   loadingAnnouncements = signal(false);
+  orgEvents = signal<EventSummary[]>([]);
+  loadingEvents = signal(false);
 
   private authService = inject(AuthService);
   protected isLoggedIn = this.authService.isLoggedIn;
@@ -220,6 +278,7 @@ export class OrganizationDetailComponent implements OnInit {
     private orgService: OrganizationService,
     private membershipService: MembershipService,
     private announcementService: OrgAnnouncementService,
+    private eventService: EventService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
   ) {}
@@ -231,9 +290,21 @@ export class OrganizationDetailComponent implements OnInit {
         this.org.set(res.data);
         this.loading.set(false);
         this.loadAnnouncements(res.data.id);
+        this.loadEvents(res.data.id);
         this.checkMembership(res.data.id);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  loadEvents(orgId: string) {
+    this.loadingEvents.set(true);
+    this.eventService.listEvents({ orgId, size: 20 }).subscribe({
+      next: res => {
+        this.orgEvents.set(res.data.content);
+        this.loadingEvents.set(false);
+      },
+      error: () => this.loadingEvents.set(false),
     });
   }
 
