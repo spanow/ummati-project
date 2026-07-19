@@ -21,12 +21,15 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final PushNotificationService pushNotificationService;
 
     public NotificationService(NotificationRepository notificationRepository,
-                               UserRepository userRepository, EmailService emailService) {
+                               UserRepository userRepository, EmailService emailService,
+                               PushNotificationService pushNotificationService) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.pushNotificationService = pushNotificationService;
     }
 
     // Save notification to DB only (no email) — used internally by domain services
@@ -54,6 +57,7 @@ public class NotificationService {
         if (type != NotificationType.GENERAL) {
             emailService.sendNotificationEmail(user.getEmail(), user.getFirstName(), title, message, link);
         }
+        pushNotificationService.sendToUser(user, title, message, link);
     }
 
     // T-101: List notifications
