@@ -38,6 +38,7 @@ public interface EventSignupRepository extends JpaRepository<EventSignup, UUID> 
     Page<EventSignup> findByUserId(UUID userId, Pageable pageable);
     long countByUserIdAndStatus(UUID userId, SignupStatus status);
     long countByUserId(UUID userId);
+    long countByUserIdAndLateCancelTrue(UUID userId);
     long countByStatus(SignupStatus status);
 
     // Somme des heures certifiées (présences validées) d'un bénévole — null si aucune.

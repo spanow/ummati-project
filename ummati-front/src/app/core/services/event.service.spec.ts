@@ -121,5 +121,20 @@ describe('EventService', () => {
     expect(req.request.body.hours).toBe(2.5);
     req.flush({ success: true, data: {} });
   });
+
+  it('markNoShow should call PATCH /events/:id/occurrences/:occId/signups/no-show', () => {
+    service.markNoShow('evt-1', 'occ-9', ['u1', 'u2']).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/occurrences/occ-9/signups/no-show'));
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body.userIds).toEqual(['u1', 'u2']);
+    req.flush(null);
+  });
+
+  it('getReliability should call GET /organizations/:orgId/members/:userId/reliability', () => {
+    service.getReliability('org-1', 'user-2').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/organizations/org-1/members/user-2/reliability'));
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: {} });
+  });
 });
 

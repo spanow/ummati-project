@@ -553,4 +553,83 @@ class EventServiceTest {
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("présence validée");
     }
+
+    // --- PR3 : fiabilité ---
+
+    @Test
+    void markNoShow_shouldFlagRegisteredAsNoShow() {
+        EventSignup s = new EventSignup();
+        s.setId(UUID.randomUUID());
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.REGISTERED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventOccurrenceRepository.findById(occurrenceId)).thenReturn(Optional.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.of(s));
+
+        eventService.markNoShow(userId, eventId, occurrenceId, new AttendanceRequest(List.of(userId)));
+
+        assertThat(s.getStatus()).isEqualTo(SignupStatus.NO_SHOW);
+    }
+
+    @Test
+    void markAttendance_shouldCorrectNoShowToAttended() {
+        EventSignup s = new EventSignup();
+        s.setId(UUID.randomUUID());
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.NO_SHOW);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.of(s));
+
+        eventService.markAttendance(userId, eventId, new AttendanceRequest(List.of(userId)));
+
+        assertThat(s.getStatus()).isEqualTo(SignupStatus.ATTENDED);
+        assertThat(s.getHoursValidated()).isEqualByComparingTo(new BigDecimal("3.00"));
+    }
+
+    @Test
+    void cancelSignup_shouldFlagLateCancel_whenWithin24h() {
+        publishedOccurrence.setStartDate(LocalDateTime.now().plusHours(2));
+        EventSignup s = new EventSignup();
+        s.setId(UUID.randomUUID());
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.REGISTERED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.of(s));
+
+        eventService.cancelSignup(userId, eventId);
+
+        assertThat(s.getStatus()).isEqualTo(SignupStatus.CANCELLED);
+        assertThat(s.isLateCancel()).isTrue();
+    }
+
+    @Test
+    void getReliability_shouldComputeRate() {
+        UUID volunteerId = UUID.randomUUID();
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventSignupRepository.countByUserIdAndStatus(volunteerId, SignupStatus.ATTENDED)).thenReturn(8L);
+        when(eventSignupRepository.countByUserIdAndStatus(volunteerId, SignupStatus.NO_SHOW)).thenReturn(1L);
+        when(eventSignupRepository.countByUserIdAndLateCancelTrue(volunteerId)).thenReturn(1L);
+
+        ReliabilityResponse r = eventService.getReliability(userId, orgId, volunteerId);
+
+        assertThat(r.attendedCount()).isEqualTo(8L);
+        assertThat(r.noShowCount()).isEqualTo(1L);
+        assertThat(r.lateCancelCount()).isEqualTo(1L);
+        assertThat(r.reliabilityRate()).isEqualTo(0.8);
+    }
 }
