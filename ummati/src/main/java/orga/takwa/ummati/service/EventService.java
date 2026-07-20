@@ -14,12 +14,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class EventService {
 
+    /** Garde-fou : nombre maximum de créneaux générés pour une série (récurrence + explicites). */
+    static final int MAX_OCCURRENCES = 100;
+
     private final EventRepository eventRepository;
+    private final EventOccurrenceRepository occurrenceRepository;
     private final EventSignupRepository eventSignupRepository;
     private final EventFeedbackRepository eventFeedbackRepository;
     private final OrganizationService organizationService;
@@ -29,12 +32,14 @@ public class EventService {
     private final NotificationService notificationService;
     private final AuditService auditService;
 
-    public EventService(EventRepository eventRepository, EventSignupRepository eventSignupRepository,
+    public EventService(EventRepository eventRepository, EventOccurrenceRepository occurrenceRepository,
+                        EventSignupRepository eventSignupRepository,
                         EventFeedbackRepository eventFeedbackRepository, OrganizationService organizationService,
                         UserRepository userRepository, SkillRepository skillRepository,
                         MembershipRepository membershipRepository, NotificationService notificationService,
                         AuditService auditService) {
         this.eventRepository = eventRepository;
+        this.occurrenceRepository = occurrenceRepository;
         this.eventSignupRepository = eventSignupRepository;
         this.eventFeedbackRepository = eventFeedbackRepository;
         this.organizationService = organizationService;
@@ -45,7 +50,7 @@ public class EventService {
         this.auditService = auditService;
     }
 
-    // T-070: Create event
+    // T-070: Create event (+ ses créneaux)
     @Transactional
     public EventDetail createEvent(UUID userId, UUID orgId, CreateEventRequest request) {
         organizationService.verifyAdmin(userId, orgId);
@@ -85,11 +90,23 @@ public class EventService {
         }
 
         event = eventRepository.save(event);
+
+        // Créneaux : créneau principal + récurrence + créneaux explicites additionnels.
+        List<EventOccurrence> occurrences = buildOccurrences(event, request);
+        occurrenceRepository.saveAll(occurrences);
+
+        // L'événement (série) porte une enveloppe de dates = min début / max fin des créneaux.
+        event.setStartDate(occurrences.stream().map(EventOccurrence::getStartDate)
+                .min(Comparator.naturalOrder()).orElse(request.startDate()));
+        event.setEndDate(occurrences.stream().map(EventOccurrence::getEndDate)
+                .max(Comparator.naturalOrder()).orElse(request.endDate()));
+        event = eventRepository.save(event);
+
         auditService.log(userId, "EVENT_CREATED", "Event", event.getId());
         return toDetail(event, userId);
     }
 
-    // T-071: Update event
+    // T-071: Update event (métadonnées de la série ; dates/capacité limitées, cf. créneaux)
     @Transactional
     public EventDetail updateEvent(UUID userId, UUID eventId, UpdateEventRequest request) {
         Event event = findEvent(eventId);
@@ -99,10 +116,10 @@ public class EventService {
             throw new BusinessRuleException("Impossible de modifier un événement " + event.getStatus().name().toLowerCase());
         }
 
-        if (event.getStatus() == EventStatus.PUBLISHED) {
-            if (request.startDate() != null || request.endDate() != null || request.maxParticipants() != null) {
-                throw new BusinessRuleException("Impossible de modifier les dates ou le nombre max de participants d'un événement publié");
-            }
+        boolean touchesSchedule = request.startDate() != null || request.endDate() != null
+                || request.maxParticipants() != null || request.registrationDeadline() != null;
+        if (touchesSchedule && event.getStatus() == EventStatus.PUBLISHED) {
+            throw new BusinessRuleException("Impossible de modifier les dates ou le nombre max de participants d'un événement publié");
         }
 
         if (request.title() != null) event.setTitle(request.title().trim());
@@ -117,14 +134,33 @@ public class EventService {
         if (request.locationLng() != null) event.setLocationLng(request.locationLng());
         if (request.online() != null) event.setOnline(request.online());
         if (request.onlineLink() != null) event.setOnlineLink(request.onlineLink());
-        if (request.startDate() != null) event.setStartDate(request.startDate());
-        if (request.endDate() != null) event.setEndDate(request.endDate());
-        if (request.registrationDeadline() != null) event.setRegistrationDeadline(request.registrationDeadline());
-        if (request.maxParticipants() != null) event.setMaxParticipants(request.maxParticipants());
         if (request.minAge() != null) event.setMinAge(request.minAge());
         if (request.requiredSkillIds() != null) {
             Set<Skill> skills = new HashSet<>(skillRepository.findAllById(request.requiredSkillIds()));
             event.setRequiredSkills(skills);
+        }
+
+        // Modification d'horaire/capacité : uniquement pour un événement mono-créneau en brouillon.
+        // Les séries multi-créneaux se modifient via les endpoints de créneaux.
+        if (touchesSchedule) {
+            List<EventOccurrence> occs = occurrenceRepository.findByEventIdOrderByStartDateAsc(eventId);
+            if (occs.size() != 1) {
+                throw new BusinessRuleException("Cet événement a plusieurs créneaux : modifiez-les via les créneaux.");
+            }
+            EventOccurrence occ = occs.get(0);
+            LocalDateTime newStart = request.startDate() != null ? request.startDate() : occ.getStartDate();
+            LocalDateTime newEnd = request.endDate() != null ? request.endDate() : occ.getEndDate();
+            LocalDateTime newDeadline = request.registrationDeadline() != null ? request.registrationDeadline() : occ.getRegistrationDeadline();
+            validateDates(newStart, newEnd, newDeadline);
+            occ.setStartDate(newStart);
+            occ.setEndDate(newEnd);
+            occ.setRegistrationDeadline(newDeadline);
+            if (request.maxParticipants() != null) occ.setMaxParticipants(request.maxParticipants());
+            occurrenceRepository.save(occ);
+            event.setStartDate(newStart);
+            event.setEndDate(newEnd);
+            event.setRegistrationDeadline(newDeadline);
+            if (request.maxParticipants() != null) event.setMaxParticipants(request.maxParticipants());
         }
 
         event = eventRepository.save(event);
@@ -132,13 +168,14 @@ public class EventService {
         return toDetail(event, userId);
     }
 
-    // T-072: Change event status
+    // T-072: Change series status
     @Transactional
     public EventDetail changeStatus(UUID userId, UUID eventId, EventStatusRequest request) {
         Event event = findEvent(eventId);
         organizationService.verifyAdmin(userId, event.getOrganization().getId());
 
         String action = request.status().toUpperCase();
+        List<EventOccurrence> occurrences = occurrenceRepository.findByEventIdOrderByStartDateAsc(eventId);
 
         switch (action) {
             case "PUBLISH" -> {
@@ -146,7 +183,12 @@ public class EventService {
                     throw new BusinessRuleException("Seul un événement en brouillon peut être publié");
                 }
                 event.setStatus(EventStatus.PUBLISHED);
-                // Notify all active members of the org
+                for (EventOccurrence o : occurrences) {
+                    if (o.getStatus() == EventOccurrenceStatus.DRAFT) {
+                        o.setStatus(EventOccurrenceStatus.PUBLISHED);
+                    }
+                }
+                occurrenceRepository.saveAll(occurrences);
                 String publishTitle = event.getTitle();
                 String publishOrgName = event.getOrganization().getName();
                 membershipRepository.findByOrganizationIdAndRoleInAndStatus(
@@ -164,7 +206,12 @@ public class EventService {
                 }
                 event.setStatus(EventStatus.CANCELLED);
                 event.setCancellationReason(request.reason());
-                // Notify all registered/waitlisted signups
+                for (EventOccurrence o : occurrences) {
+                    o.setStatus(EventOccurrenceStatus.CANCELLED);
+                    o.setCancellationReason(request.reason());
+                }
+                occurrenceRepository.saveAll(occurrences);
+                // Annuler toutes les inscriptions actives de la série + notifier.
                 List<EventSignup> signups = eventSignupRepository.findByEventIdAndStatusIn(
                         eventId, List.of(SignupStatus.REGISTERED, SignupStatus.WAITLISTED));
                 for (EventSignup s : signups) {
@@ -182,6 +229,12 @@ public class EventService {
                     throw new BusinessRuleException("Seul un événement publié peut être marqué comme terminé");
                 }
                 event.setStatus(EventStatus.COMPLETED);
+                for (EventOccurrence o : occurrences) {
+                    if (o.getStatus() == EventOccurrenceStatus.PUBLISHED) {
+                        o.setStatus(EventOccurrenceStatus.COMPLETED);
+                    }
+                }
+                occurrenceRepository.saveAll(occurrences);
                 auditService.log(userId, "EVENT_COMPLETED", "Event", eventId);
             }
             default -> throw new BusinessRuleException("Action invalide. Utilisez PUBLISH, CANCEL ou COMPLETE.");
@@ -191,7 +244,52 @@ public class EventService {
         return toDetail(event, userId);
     }
 
-    // T-073: List events
+    // Annuler / compléter un seul créneau d'une série
+    @Transactional
+    public EventDetail changeOccurrenceStatus(UUID userId, UUID eventId, UUID occurrenceId, EventStatusRequest request) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(userId, event.getOrganization().getId());
+        EventOccurrence occ = requireOccurrenceInEvent(occurrenceId, eventId);
+
+        String action = request.status().toUpperCase();
+        switch (action) {
+            case "CANCEL" -> {
+                if (request.reason() == null || request.reason().length() < 10) {
+                    throw new BusinessRuleException("Le motif d'annulation doit faire au moins 10 caractères");
+                }
+                if (occ.getStatus() == EventOccurrenceStatus.CANCELLED || occ.getStatus() == EventOccurrenceStatus.COMPLETED) {
+                    throw new BusinessRuleException("Ce créneau ne peut plus être annulé");
+                }
+                occ.setStatus(EventOccurrenceStatus.CANCELLED);
+                occ.setCancellationReason(request.reason());
+                occurrenceRepository.save(occ);
+                // Annuler + notifier uniquement les inscrits de CE créneau.
+                List<EventSignup> signups = eventSignupRepository.findByOccurrenceIdAndStatusIn(
+                        occurrenceId, List.of(SignupStatus.REGISTERED, SignupStatus.WAITLISTED));
+                for (EventSignup s : signups) {
+                    s.setStatus(SignupStatus.CANCELLED);
+                    s.setCancelledAt(LocalDateTime.now());
+                    notificationService.saveNotification(s.getUser(), NotificationType.EVENT_CANCELLED,
+                            "Créneau annulé", "Un créneau de '" + event.getTitle() + "' a été annulé. Motif : " + request.reason(),
+                            "/events/" + eventId);
+                }
+                eventSignupRepository.saveAll(signups);
+                auditService.log(userId, "EVENT_OCCURRENCE_CANCELLED", "EventOccurrence", occurrenceId);
+            }
+            case "COMPLETE" -> {
+                if (occ.getStatus() != EventOccurrenceStatus.PUBLISHED) {
+                    throw new BusinessRuleException("Seul un créneau publié peut être marqué comme terminé");
+                }
+                occ.setStatus(EventOccurrenceStatus.COMPLETED);
+                occurrenceRepository.save(occ);
+                auditService.log(userId, "EVENT_OCCURRENCE_COMPLETED", "EventOccurrence", occurrenceId);
+            }
+            default -> throw new BusinessRuleException("Action invalide pour un créneau. Utilisez CANCEL ou COMPLETE.");
+        }
+        return toDetail(event, userId);
+    }
+
+    // T-073: List events (public)
     @Transactional(readOnly = true)
     public Page<EventSummary> listEvents(String type, String city, UUID orgId, Boolean online,
                                           LocalDateTime startAfter, LocalDateTime startBefore,
@@ -219,37 +317,45 @@ public class EventService {
         return toDetail(event, userId);
     }
 
-    // T-075: Signup for event
+    // T-075: Signup — événement mono-créneau (rétro-compatible)
     @Transactional
     public SignupResponse signup(UUID userId, UUID eventId) {
         Event event = findEvent(eventId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        EventOccurrence occ = resolveSoleOccurrence(event);
+        return doSignup(user, event, occ);
+    }
 
-        if (event.getStatus() != EventStatus.PUBLISHED) {
-            throw new BusinessRuleException("L'inscription n'est possible que pour les événements publiés");
+    // T-075bis: Signup à un créneau précis
+    @Transactional
+    public SignupResponse signupToOccurrence(UUID userId, UUID eventId, UUID occurrenceId) {
+        Event event = findEvent(eventId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        EventOccurrence occ = requireOccurrenceInEvent(occurrenceId, eventId);
+        return doSignup(user, event, occ);
+    }
+
+    private SignupResponse doSignup(User user, Event event, EventOccurrence occ) {
+        if (occ.getStatus() != EventOccurrenceStatus.PUBLISHED) {
+            throw new BusinessRuleException("L'inscription n'est possible que pour les créneaux publiés");
         }
-
-        // Check deadline
-        LocalDateTime deadline = event.getRegistrationDeadline() != null
-                ? event.getRegistrationDeadline() : event.getStartDate();
-        if (LocalDateTime.now().isAfter(deadline)) {
+        if (LocalDateTime.now().isAfter(occ.effectiveDeadline())) {
             throw new BusinessRuleException("La date limite d'inscription est dépassée");
         }
 
-        // Check existing signup row for this user
-        Optional<EventSignup> existingOpt = eventSignupRepository.findByEventIdAndUserId(eventId, userId);
+        Optional<EventSignup> existingOpt = eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), user.getId());
         if (existingOpt.isPresent()) {
             SignupStatus existingStatus = existingOpt.get().getStatus();
             if (existingStatus == SignupStatus.REGISTERED || existingStatus == SignupStatus.WAITLISTED) {
-                throw new ConflictException("Vous êtes déjà inscrit à cet événement");
+                throw new ConflictException("Vous êtes déjà inscrit à ce créneau");
             }
             if (existingStatus == SignupStatus.ATTENDED) {
-                throw new BusinessRuleException("Vous avez déjà participé à cet événement");
+                throw new BusinessRuleException("Vous avez déjà participé à ce créneau");
             }
         }
 
-        // Check min age
         if (event.getMinAge() != null && user.getDateOfBirth() != null) {
             int age = Period.between(user.getDateOfBirth(), LocalDate.now()).getYears();
             if (age < event.getMinAge()) {
@@ -257,19 +363,14 @@ public class EventService {
             }
         }
 
-        // Determine status
-        long registeredCount = eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED);
-        SignupStatus status;
-        if (event.getMaxParticipants() == null || registeredCount < event.getMaxParticipants()) {
-            status = SignupStatus.REGISTERED;
-        } else {
-            status = SignupStatus.WAITLISTED;
-        }
+        long registeredCount = eventSignupRepository.countByOccurrenceIdAndStatus(occ.getId(), SignupStatus.REGISTERED);
+        SignupStatus status = (occ.getMaxParticipants() == null || registeredCount < occ.getMaxParticipants())
+                ? SignupStatus.REGISTERED : SignupStatus.WAITLISTED;
 
-        // Reuse CANCELLED row if it exists (unique constraint on event_id+user_id)
         EventSignup signup = existingOpt.orElseGet(() -> {
             EventSignup s = new EventSignup();
             s.setEvent(event);
+            s.setOccurrence(occ);
             s.setUser(user);
             return s;
         });
@@ -283,21 +384,36 @@ public class EventService {
         String msg = status == SignupStatus.REGISTERED
                 ? "Vous êtes inscrit à '" + event.getTitle() + "'"
                 : "Vous êtes sur la liste d'attente pour '" + event.getTitle() + "'";
-        notificationService.saveNotification(user, notifType, "Inscription événement", msg, "/events/" + eventId);
+        notificationService.saveNotification(user, notifType, "Inscription événement", msg, "/events/" + event.getId());
 
-        auditService.log(userId, "EVENT_SIGNUP", "EventSignup", signup.getId());
+        auditService.log(user.getId(), "EVENT_SIGNUP", "EventSignup", signup.getId());
         return toSignupResponse(signup);
     }
 
     @Transactional(readOnly = true)
-    public java.util.Optional<SignupResponse> getMySignup(UUID userId, UUID eventId) {
-        return eventSignupRepository.findByEventIdAndUserId(eventId, userId).map(this::toSignupResponse);
+    public Optional<SignupResponse> getMySignup(UUID userId, UUID eventId) {
+        return eventSignupRepository.findByEventIdAndUserId(eventId, userId).stream()
+                .findFirst().map(this::toSignupResponse);
     }
 
-    // T-076: Cancel signup
+    // T-076: Cancel signup — événement mono-créneau (rétro-compatible)
     @Transactional
     public void cancelSignup(UUID userId, UUID eventId) {
-        EventSignup signup = eventSignupRepository.findByEventIdAndUserId(eventId, userId)
+        Event event = findEvent(eventId);
+        EventOccurrence occ = resolveSoleOccurrence(event);
+        doCancel(userId, event, occ);
+    }
+
+    // T-076bis: Cancel signup sur un créneau précis
+    @Transactional
+    public void cancelOccurrenceSignup(UUID userId, UUID eventId, UUID occurrenceId) {
+        Event event = findEvent(eventId);
+        EventOccurrence occ = requireOccurrenceInEvent(occurrenceId, eventId);
+        doCancel(userId, event, occ);
+    }
+
+    private void doCancel(UUID userId, Event event, EventOccurrence occ) {
+        EventSignup signup = eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inscription non trouvée"));
 
         if (signup.getStatus() == SignupStatus.CANCELLED || signup.getStatus() == SignupStatus.ATTENDED) {
@@ -309,25 +425,22 @@ public class EventService {
         signup.setCancelledAt(LocalDateTime.now());
         eventSignupRepository.save(signup);
 
-        // FIFO promotion from waitlist
-        if (wasRegistered) {
-            Event event = signup.getEvent();
-            if (event.getMaxParticipants() != null) {
-                eventSignupRepository.findFirstByEventIdAndStatusOrderByRegisteredAtAsc(
-                        eventId, SignupStatus.WAITLISTED).ifPresent(waitlisted -> {
-                    waitlisted.setStatus(SignupStatus.REGISTERED);
-                    eventSignupRepository.save(waitlisted);
-                    notificationService.saveNotification(waitlisted.getUser(), NotificationType.SIGNUP_PROMOTED,
-                            "Place libérée !", "Une place s'est libérée pour '" + event.getTitle() + "'. Vous êtes désormais inscrit !",
-                            "/events/" + eventId);
-                });
-            }
+        // Promotion FIFO de la liste d'attente — isolée au créneau.
+        if (wasRegistered && occ.getMaxParticipants() != null) {
+            eventSignupRepository.findFirstByOccurrenceIdAndStatusOrderByRegisteredAtAsc(
+                    occ.getId(), SignupStatus.WAITLISTED).ifPresent(waitlisted -> {
+                waitlisted.setStatus(SignupStatus.REGISTERED);
+                eventSignupRepository.save(waitlisted);
+                notificationService.saveNotification(waitlisted.getUser(), NotificationType.SIGNUP_PROMOTED,
+                        "Place libérée !", "Une place s'est libérée pour '" + event.getTitle() + "'. Vous êtes désormais inscrit !",
+                        "/events/" + event.getId());
+            });
         }
 
         auditService.log(userId, "EVENT_SIGNUP_CANCELLED", "EventSignup", signup.getId());
     }
 
-    // T-077: List signups
+    // T-077: List signups de la série (admin ONG)
     @Transactional(readOnly = true)
     public Page<SignupResponse> listSignups(UUID userId, UUID eventId, Pageable pageable) {
         Event event = findEvent(eventId);
@@ -335,59 +448,78 @@ public class EventService {
         return eventSignupRepository.findByEventId(eventId, pageable).map(this::toSignupResponse);
     }
 
-    // T-078: Export signups CSV
+    // List signups d'un créneau précis (admin ONG)
+    @Transactional(readOnly = true)
+    public Page<SignupResponse> listOccurrenceSignups(UUID userId, UUID eventId, UUID occurrenceId, Pageable pageable) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(userId, event.getOrganization().getId());
+        requireOccurrenceInEvent(occurrenceId, eventId);
+        return eventSignupRepository.findByOccurrenceId(occurrenceId, pageable).map(this::toSignupResponse);
+    }
+
+    // T-078: Export signups CSV (admin ONG)
     @Transactional(readOnly = true)
     public String exportSignupsCsv(UUID userId, UUID eventId) {
         Event event = findEvent(eventId);
         organizationService.verifyAdmin(userId, event.getOrganization().getId());
 
         List<EventSignup> signups = eventSignupRepository.findByEventId(eventId, Pageable.unpaged()).getContent();
-        StringBuilder csv = new StringBuilder("Prénom,Nom,Email,Statut,Date inscription\n");
+        StringBuilder csv = new StringBuilder("Prénom,Nom,Email,Créneau,Statut,Date inscription\n");
         for (EventSignup s : signups) {
-            csv.append(String.format("%s,%s,%s,%s,%s\n",
+            csv.append(String.format("%s,%s,%s,%s,%s,%s\n",
                     s.getUser().getFirstName(), s.getUser().getLastName(),
-                    s.getUser().getEmail(), s.getStatus().name(), s.getRegisteredAt()));
+                    s.getUser().getEmail(),
+                    s.getOccurrence() != null ? s.getOccurrence().getStartDate() : "",
+                    s.getStatus().name(), s.getRegisteredAt()));
         }
         return csv.toString();
     }
 
-    // T-079: Mark attendance
+    // T-079: Mark attendance — événement mono-créneau (rétro-compatible)
     @Transactional
     public void markAttendance(UUID userId, UUID eventId, AttendanceRequest request) {
         Event event = findEvent(eventId);
         organizationService.verifyAdmin(userId, event.getOrganization().getId());
+        EventOccurrence occ = resolveSoleOccurrence(event);
+        doMarkAttendance(userId, event, occ, request);
+    }
 
+    // T-079bis: Mark attendance sur un créneau précis
+    @Transactional
+    public void markOccurrenceAttendance(UUID userId, UUID eventId, UUID occurrenceId, AttendanceRequest request) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(userId, event.getOrganization().getId());
+        EventOccurrence occ = requireOccurrenceInEvent(occurrenceId, eventId);
+        doMarkAttendance(userId, event, occ, request);
+    }
+
+    private void doMarkAttendance(UUID actorUserId, Event event, EventOccurrence occ, AttendanceRequest request) {
         for (UUID attendeeId : request.userIds()) {
-            eventSignupRepository.findByEventIdAndUserId(eventId, attendeeId).ifPresent(signup -> {
+            eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), attendeeId).ifPresent(signup -> {
                 if (signup.getStatus() == SignupStatus.REGISTERED) {
                     signup.setStatus(SignupStatus.ATTENDED);
                     signup.setAttendedAt(LocalDateTime.now());
                     eventSignupRepository.save(signup);
                     notificationService.saveNotification(signup.getUser(), NotificationType.FEEDBACK_REQUESTED,
                             "Donnez votre avis", "Comment s'est passé '" + event.getTitle() + "' ? Laissez un feedback !",
-                            "/events/" + eventId);
+                            "/events/" + event.getId());
                 }
             });
         }
-
-        auditService.log(userId, "EVENT_ATTENDANCE_MARKED", "Event", eventId);
+        auditService.log(actorUserId, "EVENT_ATTENDANCE_MARKED", "EventOccurrence", occ.getId());
     }
 
-    // T-080: Create feedback
+    // T-080: Create feedback (au niveau série : avoir participé à au moins un créneau)
     @Transactional
     public FeedbackResponse createFeedback(UUID userId, UUID eventId, CreateFeedbackRequest request) {
         Event event = findEvent(eventId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        // Verify ATTENDED
-        EventSignup signup = eventSignupRepository.findByEventIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new BusinessRuleException("Vous n'êtes pas inscrit à cet événement"));
-        if (signup.getStatus() != SignupStatus.ATTENDED) {
+        if (!eventSignupRepository.existsByEventIdAndUserIdAndStatus(eventId, userId, SignupStatus.ATTENDED)) {
             throw new BusinessRuleException("Seuls les participants ayant assisté à l'événement peuvent laisser un feedback");
         }
 
-        // Uniqueness
         if (eventFeedbackRepository.existsByEventIdAndUserId(eventId, userId)) {
             throw new ConflictException("Vous avez déjà laissé un feedback pour cet événement");
         }
@@ -420,11 +552,101 @@ public class EventService {
         return eventSignupRepository.findByUserId(userId, pageable).map(this::toSignupResponse);
     }
 
+    // --- Génération des créneaux ---
+
+    private List<EventOccurrence> buildOccurrences(Event event, CreateEventRequest request) {
+        List<EventOccurrence> result = new ArrayList<>();
+
+        // 1) Créneau principal (toujours présent).
+        result.add(newOccurrence(event, null, request.startDate(), request.endDate(),
+                request.registrationDeadline(), request.maxParticipants()));
+
+        // 2) Récurrence : répète le créneau principal.
+        if (request.recurrence() != null) {
+            result.addAll(generateRecurrence(event, request));
+        }
+
+        // 3) Créneaux explicites additionnels (journée multi-créneaux).
+        if (request.occurrences() != null) {
+            for (OccurrenceInput in : request.occurrences()) {
+                validateDates(in.startDate(), in.endDate(), in.registrationDeadline());
+                result.add(newOccurrence(event, in.label(), in.startDate(), in.endDate(),
+                        in.registrationDeadline(), in.maxParticipants()));
+            }
+        }
+
+        if (result.size() > MAX_OCCURRENCES) {
+            throw new BusinessRuleException("Trop de créneaux (maximum " + MAX_OCCURRENCES + ")");
+        }
+        return result;
+    }
+
+    private List<EventOccurrence> generateRecurrence(Event event, CreateEventRequest request) {
+        RecurrenceInput r = request.recurrence();
+        String freq = r.frequency() == null ? "" : r.frequency().toUpperCase();
+        if (!freq.equals("WEEKLY") && !freq.equals("MONTHLY")) {
+            throw new BusinessRuleException("Fréquence de récurrence invalide (WEEKLY ou MONTHLY)");
+        }
+        int interval = (r.interval() == null || r.interval() < 1) ? 1 : r.interval();
+        LocalDate until = r.until();
+        if (until.isBefore(request.startDate().toLocalDate())) {
+            throw new BusinessRuleException("La fin de récurrence doit être après le premier créneau");
+        }
+
+        List<EventOccurrence> list = new ArrayList<>();
+        LocalDateTime start = request.startDate();
+        LocalDateTime end = request.endDate();
+        while (true) {
+            if (freq.equals("WEEKLY")) {
+                start = start.plusWeeks(interval);
+                end = end.plusWeeks(interval);
+            } else {
+                start = start.plusMonths(interval);
+                end = end.plusMonths(interval);
+            }
+            if (start.toLocalDate().isAfter(until)) break;
+            list.add(newOccurrence(event, null, start, end, null, request.maxParticipants()));
+            if (list.size() >= MAX_OCCURRENCES) {
+                throw new BusinessRuleException("Trop de créneaux générés (maximum " + MAX_OCCURRENCES + ")");
+            }
+        }
+        return list;
+    }
+
+    private EventOccurrence newOccurrence(Event event, String label, LocalDateTime start, LocalDateTime end,
+                                          LocalDateTime deadline, Integer maxParticipants) {
+        EventOccurrence o = new EventOccurrence();
+        o.setEvent(event);
+        o.setLabel(label);
+        o.setStartDate(start);
+        o.setEndDate(end);
+        o.setRegistrationDeadline(deadline);
+        o.setMaxParticipants(maxParticipants);
+        o.setStatus(EventOccurrenceStatus.DRAFT);
+        return o;
+    }
+
     // --- Helpers ---
 
     Event findEvent(UUID eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Événement non trouvé"));
+    }
+
+    private EventOccurrence resolveSoleOccurrence(Event event) {
+        List<EventOccurrence> occs = occurrenceRepository.findByEventIdOrderByStartDateAsc(event.getId());
+        if (occs.size() == 1) return occs.get(0);
+        if (occs.isEmpty()) throw new ResourceNotFoundException("Aucun créneau pour cet événement");
+        throw new BusinessRuleException("Cet événement a plusieurs créneaux : précisez le créneau souhaité");
+    }
+
+    private EventOccurrence requireOccurrenceInEvent(UUID occurrenceId, UUID eventId) {
+        EventOccurrence occ = occurrenceRepository.findById(occurrenceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Créneau non trouvé"));
+        if (!occ.getEvent().getId().equals(eventId)) {
+            throw new BusinessRuleException("Ce créneau n'appartient pas à cet événement");
+        }
+        return occ;
     }
 
     private void validateDates(LocalDateTime startDate, LocalDateTime endDate, LocalDateTime deadline) {
@@ -440,23 +662,35 @@ public class EventService {
     }
 
     EventDetail toDetail(Event event, UUID userId) {
+        List<EventOccurrence> occs = occurrenceRepository.findByEventIdOrderByStartDateAsc(event.getId());
+        List<OccurrenceResponse> occResponses = occs.stream().map(o -> toOccurrenceResponse(o, userId)).toList();
+
         long registeredCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.REGISTERED);
         long waitlistedCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.WAITLISTED);
-        Integer availableSpots = event.getMaxParticipants() != null
-                ? Math.max(0, event.getMaxParticipants() - (int) registeredCount) : null;
+
+        Integer availableSpots;
+        String currentUserSignupStatus;
+        if (occResponses.size() == 1) {
+            availableSpots = occResponses.get(0).availableSpots();
+            currentUserSignupStatus = occResponses.get(0).currentUserSignupStatus();
+        } else if (occResponses.isEmpty()) {
+            // Repli (aucun créneau chargé, ex. contexte de test unitaire) : logique historique niveau événement.
+            availableSpots = event.getMaxParticipants() != null
+                    ? Math.max(0, event.getMaxParticipants() - (int) registeredCount) : null;
+            currentUserSignupStatus = userId == null ? null :
+                    eventSignupRepository.findByEventIdAndUserId(event.getId(), userId).stream()
+                            .findFirst().map(s -> s.getStatus().name()).orElse(null);
+        } else {
+            // Multi-créneaux : les places sont propres à chaque créneau.
+            availableSpots = null;
+            currentUserSignupStatus = null;
+        }
 
         List<EventDetail.SkillDto> skills = event.getRequiredSkills().stream()
                 .map(s -> new EventDetail.SkillDto(s.getId(), s.getName(), s.getCategory().name()))
                 .toList();
 
         Double avgRating = eventFeedbackRepository.findAverageRatingByEventId(event.getId());
-
-        String currentUserSignupStatus = null;
-        if (userId != null) {
-            currentUserSignupStatus = eventSignupRepository.findByEventIdAndUserId(event.getId(), userId)
-                    .map(s -> s.getStatus().name())
-                    .orElse(null);
-        }
 
         Organization org = event.getOrganization();
         return new EventDetail(
@@ -469,22 +703,46 @@ public class EventService {
                 event.getStatus().name(), event.getCancellationReason(),
                 org.getId(), org.getName(), org.getSlug(),
                 registeredCount, waitlistedCount, availableSpots, skills, avgRating,
-                event.getCreatedAt(), currentUserSignupStatus);
+                event.getCreatedAt(), currentUserSignupStatus, occResponses);
+    }
+
+    private OccurrenceResponse toOccurrenceResponse(EventOccurrence occ, UUID userId) {
+        long registered = eventSignupRepository.countByOccurrenceIdAndStatus(occ.getId(), SignupStatus.REGISTERED);
+        long waitlisted = eventSignupRepository.countByOccurrenceIdAndStatus(occ.getId(), SignupStatus.WAITLISTED);
+        Integer available = occ.getMaxParticipants() != null
+                ? Math.max(0, occ.getMaxParticipants() - (int) registered) : null;
+        String currentStatus = userId == null ? null :
+                eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), userId)
+                        .map(s -> s.getStatus().name()).orElse(null);
+        return new OccurrenceResponse(occ.getId(), occ.getLabel(), occ.getStartDate(), occ.getEndDate(),
+                occ.getRegistrationDeadline(), occ.getMaxParticipants(),
+                registered, waitlisted, available, occ.getStatus().name(), currentStatus);
     }
 
     EventSummary toSummary(Event event) {
         long registeredCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.REGISTERED);
+        List<EventOccurrence> occs = occurrenceRepository.findByEventIdOrderByStartDateAsc(event.getId());
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nextOccurrenceDate = occs.stream()
+                .filter(o -> o.getStatus() == EventOccurrenceStatus.PUBLISHED && o.getStartDate().isAfter(now))
+                .map(EventOccurrence::getStartDate)
+                .findFirst()
+                .orElse(null);
         Organization org = event.getOrganization();
         return new EventSummary(event.getId(), event.getTitle(), event.getType().name(),
                 event.getLocationCity(), event.isOnline(), event.getLocationLat(), event.getLocationLng(),
                 event.getStartDate(), event.getEndDate(),
                 event.getMaxParticipants(), registeredCount, event.getStatus().name(),
-                org.getName(), org.getSlug());
+                org.getName(), org.getSlug(), nextOccurrenceDate, occs.size());
     }
 
     SignupResponse toSignupResponse(EventSignup signup) {
         User user = signup.getUser();
+        EventOccurrence occ = signup.getOccurrence();
         return new SignupResponse(signup.getId(), signup.getEvent().getId(), signup.getEvent().getTitle(),
+                occ != null ? occ.getId() : null,
+                occ != null ? occ.getStartDate() : null,
+                occ != null ? occ.getEndDate() : null,
                 user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(),
                 signup.getStatus().name(), signup.getRegisteredAt(), signup.getAttendedAt());
     }
@@ -498,4 +756,3 @@ public class EventService {
     }
 
 }
-

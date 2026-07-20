@@ -36,6 +36,7 @@ class EventControllerIntegrationTest {
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private MembershipRepository membershipRepository;
     @Autowired private EventRepository eventRepository;
+    @Autowired private EventOccurrenceRepository eventOccurrenceRepository;
     @Autowired private EventSignupRepository eventSignupRepository;
     @Autowired private EventFeedbackRepository eventFeedbackRepository;
 
@@ -121,7 +122,32 @@ class EventControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("Maraude Paris"))
                 .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.occurrences", hasSize(1)))
                 .andExpect(jsonPath("$.data.organizationName").value(activeOrg.getName()));
+    }
+
+    @Test
+    void createEvent_withRecurrence_shouldCreateMultipleOccurrences() throws Exception {
+        LocalDateTime start = LocalDateTime.now().plusDays(3);
+        var body = new HashMap<String, Object>();
+        body.put("title", "Maraude hebdomadaire");
+        body.put("description", "Chaque semaine");
+        body.put("type", "MARAUDE");
+        body.put("locationCity", "Paris");
+        body.put("startDate", start.toString());
+        body.put("endDate", start.plusHours(3).toString());
+        body.put("online", false);
+        body.put("recurrence", Map.of(
+                "frequency", "WEEKLY", "interval", 1,
+                "until", start.toLocalDate().plusWeeks(2).toString()));
+
+        // 1 créneau principal + 2 générés (semaines +1, +2) = 3.
+        mockMvc.perform(post("/api/v1/organizations/" + activeOrg.getId() + "/events")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.occurrences", hasSize(3)));
     }
 
     @Test
@@ -216,7 +242,8 @@ class EventControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/events/" + event.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value(event.getTitle()))
-                .andExpect(jsonPath("$.data.registeredCount").value(0));
+                .andExpect(jsonPath("$.data.registeredCount").value(0))
+                .andExpect(jsonPath("$.data.occurrences", hasSize(1)));
     }
 
     @Test
@@ -240,7 +267,7 @@ class EventControllerIntegrationTest {
     @Test
     void signup_shouldReturn201_waitlisted_whenFull() throws Exception {
         Event event = createPublishedEventWithMaxParticipants(1);
-        // Fill the event
+        // Fill the only spot on the occurrence
         registerUser(event);
 
         mockMvc.perform(post("/api/v1/events/" + event.getId() + "/signups")
@@ -250,15 +277,26 @@ class EventControllerIntegrationTest {
     }
 
     @Test
+    void signupToSpecificOccurrence_shouldReturn201() throws Exception {
+        Event event = createPublishedEvent();
+        EventOccurrence occ2 = new EventOccurrence();
+        occ2.setEvent(event);
+        occ2.setStartDate(LocalDateTime.now().plusDays(14));
+        occ2.setEndDate(LocalDateTime.now().plusDays(14).plusHours(3));
+        occ2.setStatus(EventOccurrenceStatus.PUBLISHED);
+        occ2 = eventOccurrenceRepository.save(occ2);
+
+        mockMvc.perform(post("/api/v1/events/" + event.getId() + "/occurrences/" + occ2.getId() + "/signups")
+                        .header("Authorization", "Bearer " + volunteerToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("REGISTERED"))
+                .andExpect(jsonPath("$.data.occurrenceId").value(occ2.getId().toString()));
+    }
+
+    @Test
     void signup_shouldReturn409_whenDuplicate() throws Exception {
         Event event = createPublishedEvent();
-        // First signup
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(volunteerUser);
-        signup.setStatus(SignupStatus.REGISTERED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        eventSignupRepository.save(signup);
+        saveSignup(event, volunteerUser, SignupStatus.REGISTERED, LocalDateTime.now());
 
         mockMvc.perform(post("/api/v1/events/" + event.getId() + "/signups")
                         .header("Authorization", "Bearer " + volunteerToken))
@@ -268,8 +306,9 @@ class EventControllerIntegrationTest {
     @Test
     void signup_shouldReturn400_whenDeadlinePassed() throws Exception {
         Event event = createPublishedEvent();
-        event.setRegistrationDeadline(LocalDateTime.now().minusDays(1));
-        event = eventRepository.save(event);
+        EventOccurrence occ = occurrenceOf(event);
+        occ.setRegistrationDeadline(LocalDateTime.now().minusDays(1));
+        eventOccurrenceRepository.save(occ);
 
         mockMvc.perform(post("/api/v1/events/" + event.getId() + "/signups")
                         .header("Authorization", "Bearer " + volunteerToken))
@@ -289,12 +328,7 @@ class EventControllerIntegrationTest {
     @Test
     void cancelSignup_shouldReturn204() throws Exception {
         Event event = createPublishedEvent();
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(volunteerUser);
-        signup.setStatus(SignupStatus.REGISTERED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        eventSignupRepository.save(signup);
+        saveSignup(event, volunteerUser, SignupStatus.REGISTERED, LocalDateTime.now());
 
         mockMvc.perform(delete("/api/v1/events/" + event.getId() + "/signups")
                         .header("Authorization", "Bearer " + volunteerToken))
@@ -304,13 +338,7 @@ class EventControllerIntegrationTest {
     @Test
     void cancelSignup_shouldPromoteWaitlisted() throws Exception {
         Event event = createPublishedEventWithMaxParticipants(1);
-        // Register volunteer
-        EventSignup reg = new EventSignup();
-        reg.setEvent(event);
-        reg.setUser(volunteerUser);
-        reg.setStatus(SignupStatus.REGISTERED);
-        reg.setRegisteredAt(LocalDateTime.now().minusHours(2));
-        eventSignupRepository.save(reg);
+        saveSignup(event, volunteerUser, SignupStatus.REGISTERED, LocalDateTime.now().minusHours(2));
 
         // Waitlist another user
         User waitUser = new User();
@@ -322,13 +350,7 @@ class EventControllerIntegrationTest {
         waitUser.setEmailVerified(true);
         waitUser.setEnabled(true);
         waitUser = userRepository.save(waitUser);
-
-        EventSignup wait = new EventSignup();
-        wait.setEvent(event);
-        wait.setUser(waitUser);
-        wait.setStatus(SignupStatus.WAITLISTED);
-        wait.setRegisteredAt(LocalDateTime.now().minusHours(1));
-        eventSignupRepository.save(wait);
+        saveSignup(event, waitUser, SignupStatus.WAITLISTED, LocalDateTime.now().minusHours(1));
 
         // Cancel the registered signup
         mockMvc.perform(delete("/api/v1/events/" + event.getId() + "/signups")
@@ -336,7 +358,8 @@ class EventControllerIntegrationTest {
                 .andExpect(status().isNoContent());
 
         // Verify waitlisted was promoted
-        EventSignup promoted = eventSignupRepository.findByEventIdAndUserId(event.getId(), waitUser.getId()).orElseThrow();
+        EventSignup promoted = eventSignupRepository
+                .findByEventIdAndUserId(event.getId(), waitUser.getId()).get(0);
         Assertions.assertEquals(SignupStatus.REGISTERED, promoted.getStatus());
     }
 
@@ -378,12 +401,7 @@ class EventControllerIntegrationTest {
     @Test
     void markAttendance_shouldReturn200() throws Exception {
         Event event = createPublishedEvent();
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(volunteerUser);
-        signup.setStatus(SignupStatus.REGISTERED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        signup = eventSignupRepository.save(signup);
+        EventSignup signup = saveSignup(event, volunteerUser, SignupStatus.REGISTERED, LocalDateTime.now());
 
         String body = objectMapper.writeValueAsString(Map.of("userIds", List.of(volunteerUser.getId())));
 
@@ -403,13 +421,7 @@ class EventControllerIntegrationTest {
     @Test
     void createFeedback_shouldReturn201_whenAttended() throws Exception {
         Event event = createPublishedEvent();
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(volunteerUser);
-        signup.setStatus(SignupStatus.ATTENDED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        signup.setAttendedAt(LocalDateTime.now());
-        eventSignupRepository.save(signup);
+        saveSignup(event, volunteerUser, SignupStatus.ATTENDED, LocalDateTime.now());
 
         var body = Map.of("rating", 4, "comment", "Très bien organisé", "anonymous", false);
 
@@ -425,12 +437,7 @@ class EventControllerIntegrationTest {
     @Test
     void createFeedback_shouldReturn400_whenNotAttended() throws Exception {
         Event event = createPublishedEvent();
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(volunteerUser);
-        signup.setStatus(SignupStatus.REGISTERED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        eventSignupRepository.save(signup);
+        saveSignup(event, volunteerUser, SignupStatus.REGISTERED, LocalDateTime.now());
 
         var body = Map.of("rating", 5, "comment", "Nice", "anonymous", false);
 
@@ -444,13 +451,7 @@ class EventControllerIntegrationTest {
     @Test
     void createFeedback_shouldHideNameWhenAnonymous() throws Exception {
         Event event = createPublishedEvent();
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(volunteerUser);
-        signup.setStatus(SignupStatus.ATTENDED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        signup.setAttendedAt(LocalDateTime.now());
-        eventSignupRepository.save(signup);
+        saveSignup(event, volunteerUser, SignupStatus.ATTENDED, LocalDateTime.now());
 
         var body = Map.of("rating", 3, "comment", "Correct", "anonymous", true);
 
@@ -506,30 +507,58 @@ class EventControllerIntegrationTest {
     // ===== Helpers =====
 
     private Event createDraftEvent() {
+        return createEventWithOccurrence(EventStatus.DRAFT, EventOccurrenceStatus.DRAFT, null);
+    }
+
+    private Event createPublishedEvent() {
+        return createEventWithOccurrence(EventStatus.PUBLISHED, EventOccurrenceStatus.PUBLISHED, null);
+    }
+
+    private Event createPublishedEventWithMaxParticipants(int max) {
+        return createEventWithOccurrence(EventStatus.PUBLISHED, EventOccurrenceStatus.PUBLISHED, max);
+    }
+
+    // Crée un événement mono-créneau (série + son unique occurrence miroir).
+    private Event createEventWithOccurrence(EventStatus eventStatus, EventOccurrenceStatus occStatus, Integer max) {
         Event event = new Event();
         event.setOrganization(activeOrg);
-        event.setTitle("Draft Event " + UUID.randomUUID().toString().substring(0, 8));
-        event.setDescription("Test draft event");
+        event.setTitle("Event " + UUID.randomUUID().toString().substring(0, 8));
+        event.setDescription("Test event");
         event.setType(EventType.FORMATION);
         event.setLocationCity("Paris");
         event.setStartDate(LocalDateTime.now().plusDays(7));
         event.setEndDate(LocalDateTime.now().plusDays(7).plusHours(3));
-        event.setStatus(EventStatus.DRAFT);
+        event.setMaxParticipants(max);
+        event.setStatus(eventStatus);
         event.setCreatedBy(adminUser);
         event.setRequiredSkills(new HashSet<>());
-        return eventRepository.save(event);
+        event = eventRepository.save(event);
+
+        EventOccurrence occ = new EventOccurrence();
+        occ.setEvent(event);
+        occ.setStartDate(event.getStartDate());
+        occ.setEndDate(event.getEndDate());
+        occ.setMaxParticipants(max);
+        occ.setStatus(occStatus);
+        eventOccurrenceRepository.save(occ);
+        return event;
     }
 
-    private Event createPublishedEvent() {
-        Event event = createDraftEvent();
-        event.setStatus(EventStatus.PUBLISHED);
-        return eventRepository.save(event);
+    private EventOccurrence occurrenceOf(Event event) {
+        return eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(event.getId()).get(0);
     }
 
-    private Event createPublishedEventWithMaxParticipants(int max) {
-        Event event = createPublishedEvent();
-        event.setMaxParticipants(max);
-        return eventRepository.save(event);
+    private EventSignup saveSignup(Event event, User u, SignupStatus status, LocalDateTime registeredAt) {
+        EventSignup signup = new EventSignup();
+        signup.setEvent(event);
+        signup.setOccurrence(occurrenceOf(event));
+        signup.setUser(u);
+        signup.setStatus(status);
+        signup.setRegisteredAt(registeredAt);
+        if (status == SignupStatus.ATTENDED) {
+            signup.setAttendedAt(LocalDateTime.now());
+        }
+        return eventSignupRepository.save(signup);
     }
 
     private void registerUser(Event event) {
@@ -543,15 +572,6 @@ class EventControllerIntegrationTest {
         filler.setEnabled(true);
         filler = userRepository.save(filler);
 
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setUser(filler);
-        signup.setStatus(SignupStatus.REGISTERED);
-        signup.setRegisteredAt(LocalDateTime.now());
-        eventSignupRepository.save(signup);
+        saveSignup(event, filler, SignupStatus.REGISTERED, LocalDateTime.now());
     }
 }
-
-
-
-

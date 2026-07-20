@@ -17,6 +17,8 @@ public record EventSummary(
         long registeredCount,
         String status,
         String organizationName,
-        String organizationSlug
+        String organizationSlug,
+        // Prochain créneau à venir (null si aucun) + nombre total de créneaux de la série.
+        LocalDateTime nextOccurrenceDate,
+        int occurrenceCount
 ) {}
-

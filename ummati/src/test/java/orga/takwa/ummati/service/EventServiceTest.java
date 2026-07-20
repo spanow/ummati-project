@@ -29,6 +29,7 @@ import static org.mockito.Mockito.*;
 class EventServiceTest {
 
     @Mock private EventRepository eventRepository;
+    @Mock private EventOccurrenceRepository eventOccurrenceRepository;
     @Mock private EventSignupRepository eventSignupRepository;
     @Mock private EventFeedbackRepository eventFeedbackRepository;
     @Mock private OrganizationService organizationService;
@@ -44,16 +45,19 @@ class EventServiceTest {
     private UUID userId;
     private UUID orgId;
     private UUID eventId;
+    private UUID occurrenceId;
     private Organization activeOrg;
     private User user;
     private Event publishedEvent;
     private Event draftEvent;
+    private EventOccurrence publishedOccurrence;
 
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
         orgId = UUID.randomUUID();
         eventId = UUID.randomUUID();
+        occurrenceId = UUID.randomUUID();
 
         activeOrg = new Organization();
         activeOrg.setId(orgId);
@@ -95,35 +99,73 @@ class EventServiceTest {
         publishedEvent.setStatus(EventStatus.PUBLISHED);
         publishedEvent.setCreatedBy(user);
         publishedEvent.setRequiredSkills(new HashSet<>());
+
+        // Créneau unique miroir de l'événement publié (cas mono-créneau).
+        publishedOccurrence = new EventOccurrence();
+        publishedOccurrence.setId(occurrenceId);
+        publishedOccurrence.setEvent(publishedEvent);
+        publishedOccurrence.setStartDate(publishedEvent.getStartDate());
+        publishedOccurrence.setEndDate(publishedEvent.getEndDate());
+        publishedOccurrence.setMaxParticipants(20);
+        publishedOccurrence.setStatus(EventOccurrenceStatus.PUBLISHED);
     }
 
     // --- T-070: Create Event ---
 
     @Test
-    void createEvent_shouldSucceed_whenAdminAndValidDates() {
+    void createEvent_shouldSucceed_andGenerateOnePrimaryOccurrence() {
         doNothing().when(organizationService).verifyAdmin(userId, orgId);
         when(organizationService.findOrg(orgId)).thenReturn(activeOrg);
         when(userRepository.getReferenceById(userId)).thenReturn(user);
         when(eventRepository.save(any(Event.class))).thenAnswer(inv -> {
             Event e = inv.getArgument(0);
-            e.setId(UUID.randomUUID());
+            if (e.getId() == null) e.setId(UUID.randomUUID());
             return e;
         });
-        when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
 
         CreateEventRequest request = new CreateEventRequest(
                 "Maraude", "Description", null, "MARAUDE",
                 null, null, "Paris", null, null, null, false, null,
                 LocalDateTime.now().plusDays(7), LocalDateTime.now().plusDays(7).plusHours(3),
-                LocalDateTime.now().plusDays(6), 20, null, null);
+                LocalDateTime.now().plusDays(6), 20, null, null, null, null);
 
         EventDetail result = eventService.createEvent(userId, orgId, request);
 
         assertThat(result).isNotNull();
         assertThat(result.title()).isEqualTo("Maraude");
         assertThat(result.status()).isEqualTo("DRAFT");
-        verify(eventRepository).save(any(Event.class));
+        // Un créneau principal est généré et persisté.
+        verify(eventOccurrenceRepository).saveAll(argThat((Iterable<EventOccurrence> occ) ->
+                occ.iterator().hasNext()));
         verify(auditService).log(eq(userId), eq("EVENT_CREATED"), eq("Event"), any());
+    }
+
+    @Test
+    void createEvent_shouldGenerateWeeklyRecurrence() {
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(organizationService.findOrg(orgId)).thenReturn(activeOrg);
+        when(userRepository.getReferenceById(userId)).thenReturn(user);
+        when(eventRepository.save(any(Event.class))).thenAnswer(inv -> {
+            Event e = inv.getArgument(0);
+            if (e.getId() == null) e.setId(UUID.randomUUID());
+            return e;
+        });
+
+        LocalDateTime start = LocalDateTime.now().plusDays(3);
+        RecurrenceInput recurrence = new RecurrenceInput("WEEKLY", 1, start.toLocalDate().plusWeeks(3));
+        CreateEventRequest request = new CreateEventRequest(
+                "Maraude hebdo", "Description", null, "MARAUDE",
+                null, null, "Paris", null, null, null, false, null,
+                start, start.plusHours(3), null, 10, null, null, null, recurrence);
+
+        eventService.createEvent(userId, orgId, request);
+
+        // 1 créneau principal + 3 générés (semaines +1, +2, +3) = 4.
+        verify(eventOccurrenceRepository).saveAll(argThat((Iterable<EventOccurrence> occ) -> {
+            int count = 0;
+            for (EventOccurrence ignored : occ) count++;
+            return count == 4;
+        }));
     }
 
     @Test
@@ -135,21 +177,23 @@ class EventServiceTest {
                 "Event", "Desc", null, "FORMATION",
                 null, null, "Paris", null, null, null, false, null,
                 LocalDateTime.now().plusDays(7), LocalDateTime.now().plusDays(6),
-                null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThatThrownBy(() -> eventService.createEvent(userId, orgId, request))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("date de fin");
     }
 
-    // --- T-075: Signup ---
+    // --- T-075: Signup (occurrence-based) ---
 
     @Test
     void signup_shouldRegister_whenSpotsAvailable() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.empty());
-        when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(5L);
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.empty());
+        when(eventSignupRepository.countByOccurrenceIdAndStatus(occurrenceId, SignupStatus.REGISTERED)).thenReturn(5L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> {
             EventSignup s = inv.getArgument(0);
             s.setId(UUID.randomUUID());
@@ -160,6 +204,7 @@ class EventServiceTest {
         SignupResponse result = eventService.signup(userId, eventId);
 
         assertThat(result.status()).isEqualTo("REGISTERED");
+        assertThat(result.occurrenceId()).isEqualTo(occurrenceId);
         verify(notificationService).saveNotification(eq(user), eq(NotificationType.SIGNUP_CONFIRMED),
                 anyString(), anyString(), anyString());
     }
@@ -168,8 +213,10 @@ class EventServiceTest {
     void signup_shouldWaitlist_whenFull() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.empty());
-        when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(20L);
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.empty());
+        when(eventSignupRepository.countByOccurrenceIdAndStatus(occurrenceId, SignupStatus.REGISTERED)).thenReturn(20L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> {
             EventSignup s = inv.getArgument(0);
             s.setId(UUID.randomUUID());
@@ -188,18 +235,22 @@ class EventServiceTest {
         cancelledSignup.setId(UUID.randomUUID());
         cancelledSignup.setUser(user);
         cancelledSignup.setEvent(publishedEvent);
+        cancelledSignup.setOccurrence(publishedOccurrence);
         cancelledSignup.setStatus(SignupStatus.CANCELLED);
 
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(cancelledSignup));
-        when(eventSignupRepository.countByEventIdAndStatus(eventId, SignupStatus.REGISTERED)).thenReturn(5L);
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
+                .thenReturn(Optional.of(cancelledSignup));
+        when(eventSignupRepository.countByOccurrenceIdAndStatus(occurrenceId, SignupStatus.REGISTERED)).thenReturn(5L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> inv.getArgument(0));
 
         SignupResponse result = eventService.signup(userId, eventId);
 
         assertThat(result.status()).isEqualTo("REGISTERED");
-        // Should have reused the same row, not created a new one
+        // La ligne annulée est réutilisée (pas de vérif d'existence event-level).
         verify(eventSignupRepository, never()).existsByEventIdAndUserId(any(), any());
     }
 
@@ -209,10 +260,14 @@ class EventServiceTest {
         existing.setStatus(SignupStatus.REGISTERED);
         existing.setUser(user);
         existing.setEvent(publishedEvent);
+        existing.setOccurrence(publishedOccurrence);
 
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(existing));
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
+                .thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> eventService.signup(userId, eventId))
                 .isInstanceOf(ConflictException.class)
@@ -221,22 +276,41 @@ class EventServiceTest {
 
     @Test
     void signup_shouldFail_whenDeadlinePassed() {
-        publishedEvent.setRegistrationDeadline(LocalDateTime.now().minusDays(1));
+        publishedOccurrence.setRegistrationDeadline(LocalDateTime.now().minusDays(1));
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
 
         assertThatThrownBy(() -> eventService.signup(userId, eventId))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("date limite");
     }
 
-    // --- T-076: Cancel signup with FIFO promotion ---
+    @Test
+    void signup_shouldFail_whenEventHasMultipleOccurrences_withoutOccurrenceId() {
+        EventOccurrence second = new EventOccurrence();
+        second.setId(UUID.randomUUID());
+        second.setEvent(publishedEvent);
+        second.setStatus(EventOccurrenceStatus.PUBLISHED);
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence, second));
+
+        assertThatThrownBy(() -> eventService.signup(userId, eventId))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("plusieurs créneaux");
+    }
+
+    // --- T-076: Cancel signup with FIFO promotion (per occurrence) ---
 
     @Test
     void cancelSignup_shouldPromoteWaitlisted_FIFO() {
         EventSignup registeredSignup = new EventSignup();
         registeredSignup.setId(UUID.randomUUID());
         registeredSignup.setEvent(publishedEvent);
+        registeredSignup.setOccurrence(publishedOccurrence);
         registeredSignup.setUser(user);
         registeredSignup.setStatus(SignupStatus.REGISTERED);
 
@@ -248,11 +322,16 @@ class EventServiceTest {
         EventSignup waitlistedSignup = new EventSignup();
         waitlistedSignup.setId(UUID.randomUUID());
         waitlistedSignup.setEvent(publishedEvent);
+        waitlistedSignup.setOccurrence(publishedOccurrence);
         waitlistedSignup.setUser(waitlistedUser);
         waitlistedSignup.setStatus(SignupStatus.WAITLISTED);
 
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(registeredSignup));
-        when(eventSignupRepository.findFirstByEventIdAndStatusOrderByRegisteredAtAsc(eventId, SignupStatus.WAITLISTED))
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
+                .thenReturn(Optional.of(registeredSignup));
+        when(eventSignupRepository.findFirstByOccurrenceIdAndStatusOrderByRegisteredAtAsc(occurrenceId, SignupStatus.WAITLISTED))
                 .thenReturn(Optional.of(waitlistedSignup));
 
         eventService.cancelSignup(userId, eventId);
@@ -306,16 +385,44 @@ class EventServiceTest {
                 .hasMessageContaining("10 caractères");
     }
 
-    // --- T-080: Feedback ---
+    // --- Occurrence status: cancel a single créneau ---
+
+    @Test
+    void changeOccurrenceStatus_shouldCancelOneOccurrence_andNotifyOnlyItsSignups() {
+        UUID occId = publishedOccurrence.getId();
+        EventSignup s = new EventSignup();
+        s.setId(UUID.randomUUID());
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.REGISTERED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventOccurrenceRepository.findById(occId)).thenReturn(Optional.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndStatusIn(eq(occId), any())).thenReturn(List.of(s));
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
+
+        eventService.changeOccurrenceStatus(userId, eventId, occId,
+                new EventStatusRequest("CANCEL", "Créneau annulé pour cause de météo"));
+
+        assertThat(publishedOccurrence.getStatus()).isEqualTo(EventOccurrenceStatus.CANCELLED);
+        assertThat(s.getStatus()).isEqualTo(SignupStatus.CANCELLED);
+        verify(notificationService).saveNotification(eq(user), eq(NotificationType.EVENT_CANCELLED),
+                anyString(), anyString(), anyString());
+        verify(auditService).log(eq(userId), eq("EVENT_OCCURRENCE_CANCELLED"), eq("EventOccurrence"), eq(occId));
+    }
+
+    // --- T-080: Feedback (série : avoir assisté à un créneau) ---
 
     @Test
     void createFeedback_shouldFail_whenNotAttended() {
-        EventSignup signup = new EventSignup();
-        signup.setStatus(SignupStatus.REGISTERED);
-
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
+        when(eventSignupRepository.existsByEventIdAndUserIdAndStatus(eventId, userId, SignupStatus.ATTENDED))
+                .thenReturn(false);
 
         assertThatThrownBy(() -> eventService.createFeedback(userId, eventId,
                 new CreateFeedbackRequest(4, "Good", false)))
@@ -325,14 +432,10 @@ class EventServiceTest {
 
     @Test
     void createFeedback_shouldFail_whenDuplicate() {
-        EventSignup signup = new EventSignup();
-        signup.setStatus(SignupStatus.ATTENDED);
-        signup.setUser(user);
-        signup.setEvent(publishedEvent);
-
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
+        when(eventSignupRepository.existsByEventIdAndUserIdAndStatus(eventId, userId, SignupStatus.ATTENDED))
+                .thenReturn(true);
         when(eventFeedbackRepository.existsByEventIdAndUserId(eventId, userId)).thenReturn(true);
 
         assertThatThrownBy(() -> eventService.createFeedback(userId, eventId,

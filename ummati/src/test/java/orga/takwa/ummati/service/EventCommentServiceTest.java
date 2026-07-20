@@ -77,7 +77,7 @@ class EventCommentServiceTest {
         signup.setStatus(SignupStatus.REGISTERED);
 
         when(eventService.findEvent(eventId)).thenReturn(publishedEvent);
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
+        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(true);
         when(userRepository.getReferenceById(userId)).thenReturn(participant);
         when(commentRepository.save(any())).thenAnswer(inv -> {
             EventComment c = inv.getArgument(0);
@@ -101,7 +101,7 @@ class EventCommentServiceTest {
         publishedEvent.setStatus(EventStatus.COMPLETED);
 
         when(eventService.findEvent(eventId)).thenReturn(publishedEvent);
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
+        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(true);
         when(userRepository.getReferenceById(userId)).thenReturn(participant);
         when(commentRepository.save(any())).thenAnswer(inv -> {
             EventComment c = inv.getArgument(0);
@@ -117,7 +117,7 @@ class EventCommentServiceTest {
     @Test
     void create_shouldFail_whenNotInscrit() {
         when(eventService.findEvent(eventId)).thenReturn(publishedEvent);
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.empty());
+        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(false);
 
         assertThatThrownBy(() -> commentService.create(userId, eventId, new CreateCommentRequest("Commentaire")))
                 .isInstanceOf(ForbiddenException.class)
@@ -125,14 +125,9 @@ class EventCommentServiceTest {
     }
 
     @Test
-    void create_shouldFail_whenCancelledSignup() {
-        EventSignup signup = new EventSignup();
-        signup.setStatus(SignupStatus.CANCELLED);
-        signup.setUser(participant);
-        signup.setEvent(publishedEvent);
-
+    void create_shouldFail_whenNotActiveParticipant() {
         when(eventService.findEvent(eventId)).thenReturn(publishedEvent);
-        when(eventSignupRepository.findByEventIdAndUserId(eventId, userId)).thenReturn(Optional.of(signup));
+        when(eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(eq(eventId), eq(userId), any())).thenReturn(false);
 
         assertThatThrownBy(() -> commentService.create(userId, eventId, new CreateCommentRequest("Commentaire")))
                 .isInstanceOf(ForbiddenException.class)

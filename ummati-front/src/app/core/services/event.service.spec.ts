@@ -91,5 +91,27 @@ describe('EventService', () => {
     expect(req.request.body.rating).toBe(4);
     req.flush({ success: true, data: {} });
   });
+
+  it('signupToOccurrence should call POST /events/:id/occurrences/:occId/signups', () => {
+    service.signupToOccurrence('evt-1', 'occ-9').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/occurrences/occ-9/signups'));
+    expect(req.request.method).toBe('POST');
+    req.flush({ success: true, data: { status: 'REGISTERED' } });
+  });
+
+  it('cancelOccurrenceSignup should call DELETE /events/:id/occurrences/:occId/signups', () => {
+    service.cancelOccurrenceSignup('evt-1', 'occ-9').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/occurrences/occ-9/signups'));
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+  });
+
+  it('changeOccurrenceStatus should call PATCH /events/:id/occurrences/:occId/status', () => {
+    service.changeOccurrenceStatus('evt-1', 'occ-9', { status: 'CANCEL', reason: 'Créneau annulé' }).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/occurrences/occ-9/status'));
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body.status).toBe('CANCEL');
+    req.flush({ success: true, data: {} });
+  });
 });
 

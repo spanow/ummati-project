@@ -202,15 +202,17 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
           <div class="side-col">
             <mat-card class="info-card">
               <mat-card-content>
-                <div class="info-row">
-                  <mat-icon>calendar_today</mat-icon>
-                  <div>
-                    <strong>{{ 'Date' | t }}</strong>
-                    <p>{{ event()!.startDate | date:'EEEE d MMMM yyyy' }}</p>
-                    <p>{{ event()!.startDate | date:'HH:mm' }} — {{ event()!.endDate | date:'HH:mm' }}</p>
+                @if (!isMulti()) {
+                  <div class="info-row">
+                    <mat-icon>calendar_today</mat-icon>
+                    <div>
+                      <strong>{{ 'Date' | t }}</strong>
+                      <p>{{ event()!.startDate | date:'EEEE d MMMM yyyy' }}</p>
+                      <p>{{ event()!.startDate | date:'HH:mm' }} — {{ event()!.endDate | date:'HH:mm' }}</p>
+                    </div>
                   </div>
-                </div>
-                <mat-divider />
+                  <mat-divider />
+                }
                 <div class="info-row">
                   <mat-icon>location_on</mat-icon>
                   <div>
@@ -223,7 +225,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
                     }
                   </div>
                 </div>
-                @if (event()!.maxParticipants) {
+                @if (!isMulti() && event()!.maxParticipants) {
                   <mat-divider />
                   <div class="info-row">
                     <mat-icon>people</mat-icon>
@@ -255,12 +257,49 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
               </mat-card-content>
             </mat-card>
 
+            @if (isMulti()) {
+              <mat-card class="occurrences-card">
+                <mat-card-content>
+                  <h3>{{ 'Créneaux' | t }} ({{ event()!.occurrences.length }})</h3>
+                  @for (occ of event()!.occurrences; track occ.id) {
+                    <div class="occ-item" [class.occ-cancelled]="occ.status === 'CANCELLED'">
+                      <div class="occ-info">
+                        @if (occ.label) { <span class="occ-label">{{ occ.label }}</span> }
+                        <span class="occ-date">{{ occ.startDate | date:'EEE d MMM yyyy' }}</span>
+                        <span class="occ-time">{{ occ.startDate | date:'HH:mm' }} — {{ occ.endDate | date:'HH:mm' }}</span>
+                        @if (occ.maxParticipants) {
+                          <span class="occ-places">{{ occ.registeredCount }}/{{ occ.maxParticipants }} {{ 'inscrits' | t }}</span>
+                        }
+                      </div>
+                      @if (occ.status === 'CANCELLED') {
+                        <span class="occ-badge cancelled">{{ 'Annulé' | t }}</span>
+                      } @else if (occ.status === 'COMPLETED') {
+                        <span class="occ-badge">{{ 'Terminé' | t }}</span>
+                      } @else if (isLoggedIn()) {
+                        @if (occ.currentUserSignupStatus === 'REGISTERED' || occ.currentUserSignupStatus === 'WAITLISTED') {
+                          <button mat-stroked-button (click)="cancelOccurrence(occ.id)" [disabled]="signingUp()">
+                            <mat-icon>close</mat-icon>
+                            {{ (occ.currentUserSignupStatus === 'WAITLISTED' ? 'Quitter' : 'Se désinscrire') | t }}
+                          </button>
+                        } @else {
+                          <button mat-flat-button color="primary" (click)="signupOccurrence(occ.id)"
+                                  [disabled]="signingUp() || occ.status !== 'PUBLISHED'">
+                            <mat-icon>how_to_reg</mat-icon> {{ 'S\\'inscrire' | t }}
+                          </button>
+                        }
+                      }
+                    </div>
+                  }
+                </mat-card-content>
+              </mat-card>
+            }
+
             @if (!event()!.online && event()!.locationLat && event()!.locationLng) {
               <app-location-picker [editable]="false"
                 [lat]="+event()!.locationLat" [lng]="+event()!.locationLng" />
             }
 
-            @if (event()!.status === 'PUBLISHED') {
+            @if (!isMulti() && event()!.status === 'PUBLISHED') {
               <button mat-flat-button class="signup-btn" (click)="toggleSignup()" [disabled]="signingUp()">
                 <mat-icon>{{ isSignedUp() ? 'close' : 'how_to_reg' }}</mat-icon>
                 {{ (isSignedUp() ? 'Se désinscrire' : 'S\\'inscrire') | t }}
@@ -343,6 +382,18 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     .delete-btn mat-icon { font-size: 18px; }
     .comment-content { margin: 0; line-height: 1.6; white-space: pre-line; color: #444; }
     .no-comments { color: #aaa; font-style: italic; text-align: center; padding: 24px 0; }
+    .occurrences-card { border-radius: 12px; }
+    .occ-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #eee; }
+    .occ-item:last-child { border-bottom: none; }
+    .occ-item.occ-cancelled { opacity: 0.55; }
+    .occ-info { display: flex; flex-direction: column; gap: 2px; }
+    .occ-label { font-weight: 600; font-size: 0.9rem; }
+    .occ-date { font-weight: 500; font-size: 0.9rem; text-transform: capitalize; }
+    .occ-time { font-size: 0.82rem; color: #666; }
+    .occ-places { font-size: 0.8rem; color: var(--brand-primary); }
+    .occ-badge { font-size: 0.78rem; padding: 3px 8px; border-radius: 6px; background: #eee; color: #666; white-space: nowrap; }
+    .occ-badge.cancelled { background: #ffebee; color: #c62828; }
+    .occ-item button mat-icon { font-size: 18px; width: 18px; height: 18px; }
   `],
 })
 export class EventDetailComponent implements OnInit {
@@ -600,6 +651,43 @@ export class EventDetailComponent implements OnInit {
         },
       });
     }
+  }
+
+  /** Vrai si l'événement a plusieurs créneaux (inscription au niveau créneau). */
+  isMulti(): boolean {
+    return (this.event()?.occurrences?.length ?? 0) > 1;
+  }
+
+  signupOccurrence(occurrenceId: string) {
+    this.signingUp.set(true);
+    this.eventService.signupToOccurrence(this.eventId, occurrenceId).subscribe({
+      next: res => {
+        this.signingUp.set(false);
+        const msg = res.data.status === 'WAITLISTED'
+          ? 'Vous êtes sur la liste d\'attente' : 'Inscription confirmée !';
+        this.snackBar.open(msg, 'OK', { duration: 3000 });
+        this.loadEvent();
+      },
+      error: err => {
+        this.signingUp.set(false);
+        this.snackBar.open(err?.error?.message || 'Erreur lors de l\'inscription', 'OK', { duration: 4000 });
+      },
+    });
+  }
+
+  cancelOccurrence(occurrenceId: string) {
+    this.signingUp.set(true);
+    this.eventService.cancelOccurrenceSignup(this.eventId, occurrenceId).subscribe({
+      next: () => {
+        this.signingUp.set(false);
+        this.snackBar.open('Désinscription effectuée', 'OK', { duration: 3000 });
+        this.loadEvent();
+      },
+      error: err => {
+        this.signingUp.set(false);
+        this.snackBar.open(err?.error?.message || 'Erreur lors de la désinscription', 'OK', { duration: 4000 });
+      },
+    });
   }
 }
 

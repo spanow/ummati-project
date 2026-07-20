@@ -120,6 +120,36 @@ import { GeoResult } from '../../../core/services/geocoding.service';
               <input matInput type="number" formControlName="minAge" />
             </mat-form-field>
 
+            @if (!isEdit) {
+              <div class="recurrence-block">
+                <mat-checkbox formControlName="recurrenceEnabled" class="online-check">
+                  {{ 'Événement récurrent (plusieurs créneaux)' | t }}
+                </mat-checkbox>
+                @if (form.get('recurrenceEnabled')?.value) {
+                  <div class="row">
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ 'Fréquence' | t }}</mat-label>
+                      <mat-select formControlName="recurrenceFrequency">
+                        <mat-option value="WEEKLY">{{ 'Chaque semaine' | t }}</mat-option>
+                        <mat-option value="MONTHLY">{{ 'Chaque mois' | t }}</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ 'Tous les' | t }}</mat-label>
+                      <input matInput type="number" min="1" formControlName="recurrenceInterval" />
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ 'Jusqu\\'au' | t }}</mat-label>
+                      <input matInput type="date" formControlName="recurrenceUntil" />
+                    </mat-form-field>
+                  </div>
+                  <p class="recurrence-hint">
+                    {{ 'Un créneau est généré à partir de la date de début, répété selon la règle jusqu\\'à la date de fin (100 créneaux max).' | t }}
+                  </p>
+                }
+              </div>
+            }
+
             @if (skills().length > 0) {
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>{{ 'Compétences requises' | t }}</mat-label>
@@ -157,6 +187,8 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     .online-check { margin-bottom: 16px; display: block; }
     .map-block { margin-bottom: 16px; }
     .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
+    .recurrence-block { margin-bottom: 16px; padding: 8px 0; }
+    .recurrence-hint { font-size: 0.85rem; color: #666; margin: 4px 0 0; }
     .error { color: #d32f2f; font-size: 0.9rem; margin-bottom: 16px; }
     .actions { display: flex; gap: 12px; margin-top: 16px; }
     .actions button[type="submit"] { min-width: 180px; height: 44px; }
@@ -205,6 +237,10 @@ export class EventCreateComponent implements OnInit {
       registrationDeadline: [''],
       maxParticipants: [null],
       minAge: [null],
+      recurrenceEnabled: [false],
+      recurrenceFrequency: ['WEEKLY'],
+      recurrenceInterval: [1],
+      recurrenceUntil: [''],
       requiredSkillIds: [[]],
     });
 
@@ -252,6 +288,19 @@ export class EventCreateComponent implements OnInit {
     if (!data.registrationDeadline) delete data.registrationDeadline;
     if (!data.maxParticipants) delete data.maxParticipants;
     if (!data.minAge) delete data.minAge;
+
+    // Récurrence : transformer les champs de formulaire en objet `recurrence` (création seulement).
+    const recEnabled = data.recurrenceEnabled;
+    const recFreq = data.recurrenceFrequency;
+    const recInterval = data.recurrenceInterval;
+    const recUntil = data.recurrenceUntil;
+    delete data.recurrenceEnabled;
+    delete data.recurrenceFrequency;
+    delete data.recurrenceInterval;
+    delete data.recurrenceUntil;
+    if (!this.isEdit && recEnabled && recUntil) {
+      data.recurrence = { frequency: recFreq, interval: recInterval || 1, until: recUntil };
+    }
 
     const obs = this.isEdit
       ? this.eventService.updateEvent(this.eventId, data)

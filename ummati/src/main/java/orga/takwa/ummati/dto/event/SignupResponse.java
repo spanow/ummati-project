@@ -7,6 +7,9 @@ public record SignupResponse(
         UUID id,
         UUID eventId,
         String eventTitle,
+        UUID occurrenceId,
+        LocalDateTime occurrenceStartDate,
+        LocalDateTime occurrenceEndDate,
         UUID userId,
         String userFirstName,
         String userLastName,
@@ -15,4 +18,3 @@ public record SignupResponse(
         LocalDateTime registeredAt,
         LocalDateTime attendedAt
 ) {}
-
