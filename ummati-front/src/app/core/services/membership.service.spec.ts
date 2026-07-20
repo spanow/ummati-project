@@ -72,4 +72,40 @@ describe('MembershipService', () => {
     expect(req.request.body).toEqual({ action: 'REJECT' });
     req.flush({ success: true, data: { id: 'mem-1', status: 'REJECTED' } });
   });
+
+  it('requestMembership() should include answers when provided', () => {
+    service.requestMembership('org-1', 'motiv', [{ questionId: 'q-1', value: 'Oui' }]).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/organizations/org-1/memberships') && r.method === 'POST');
+    expect(req.request.body.answers).toEqual([{ questionId: 'q-1', value: 'Oui' }]);
+    req.flush({ success: true, data: {} });
+  });
+
+  it('listQuestions() should GET /organizations/:orgId/membership-questions', () => {
+    service.listQuestions('org-1').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/organizations/org-1/membership-questions'));
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: [] });
+  });
+
+  it('createQuestion() should POST the question', () => {
+    service.createQuestion('org-1', { label: 'Permis B ?', type: 'BOOLEAN', required: true }).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/organizations/org-1/membership-questions') && r.method === 'POST');
+    expect(req.request.body.label).toBe('Permis B ?');
+    expect(req.request.body.type).toBe('BOOLEAN');
+    req.flush({ success: true, data: {} });
+  });
+
+  it('deleteQuestion() should DELETE /membership-questions/:id', () => {
+    service.deleteQuestion('q-1').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/membership-questions/q-1'));
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+  });
+
+  it('getAnswers() should GET /memberships/:id/answers', () => {
+    service.getAnswers('mem-1').subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/memberships/mem-1/answers'));
+    expect(req.request.method).toBe('GET');
+    req.flush({ success: true, data: [] });
+  });
 });
