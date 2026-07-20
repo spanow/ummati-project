@@ -113,5 +113,13 @@ describe('EventService', () => {
     expect(req.request.body.status).toBe('CANCEL');
     req.flush({ success: true, data: {} });
   });
+
+  it('adjustHours should call PATCH /events/:id/occurrences/:occId/signups/:signupId/hours', () => {
+    service.adjustHours('evt-1', 'occ-9', 'sig-2', 2.5).subscribe();
+    const req = httpMock.expectOne(r => r.url.endsWith('/events/evt-1/occurrences/occ-9/signups/sig-2/hours'));
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body.hours).toBe(2.5);
+    req.flush({ success: true, data: {} });
+  });
 });
 

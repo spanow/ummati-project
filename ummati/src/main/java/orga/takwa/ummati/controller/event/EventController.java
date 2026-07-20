@@ -197,6 +197,15 @@ public class EventController {
                 eventService.changeOccurrenceStatus(userId, id, occId, request)));
     }
 
+    // Ajuster les heures certifiées d'une présence (admin ONG)
+    @PatchMapping("/events/{id}/occurrences/{occId}/signups/{signupId}/hours")
+    public ResponseEntity<ApiResponse<SignupResponse>> adjustHours(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId,
+            @PathVariable UUID signupId, @Valid @RequestBody HoursRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                eventService.adjustSignupHours(userId, id, occId, signupId, request.hours())));
+    }
+
     // T-080: Create feedback
     @PostMapping("/events/{id}/feedbacks")
     public ResponseEntity<ApiResponse<FeedbackResponse>> createFeedback(

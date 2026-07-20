@@ -21,6 +21,7 @@ import { EventAnnouncementService, AnnouncementResponse } from '../../../core/se
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-event-manage',
@@ -144,7 +145,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                     <mat-icon>download</mat-icon> {{ 'Export CSV' | t }}
                   </button>
                   @if (selectedEvent()!.status !== 'DRAFT') {
-                    <button mat-flat-button (click)="markSelectedAttended()" [disabled]="selectedUserIds.length === 0">
+                    <button mat-flat-button (click)="markSelectedAttended()" [disabled]="selectedSignupIds.size === 0">
                       <mat-icon>check_circle</mat-icon> {{ 'Marquer présents' | t }}
                     </button>
                   }
@@ -158,19 +159,36 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                     <tr>
                       <th><input type="checkbox" (change)="toggleAll($event)" /></th>
                       <th>{{ 'Nom' | t }}</th>
-                      <th>{{ 'Email' | t }}</th>
+                      <th>{{ 'Créneau' | t }}</th>
                       <th>{{ 'Statut' | t }}</th>
+                      <th>{{ 'Heures' | t }}</th>
                       <th>{{ 'Inscrit le' | t }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     @for (s of signups(); track s.id) {
                       <tr>
-                        <td><input type="checkbox" [checked]="selectedUserIds.includes(s.userId)"
-                                   (change)="toggleUser(s.userId)" /></td>
-                        <td>{{ s.userFirstName }} {{ s.userLastName }}</td>
-                        <td>{{ s.userEmail }}</td>
+                        <td><input type="checkbox" [checked]="isSelected(s.id)"
+                                   (change)="toggleSignup(s.id)" /></td>
+                        <td>
+                          <div class="name">{{ s.userFirstName }} {{ s.userLastName }}</div>
+                          <div class="email">{{ s.userEmail }}</div>
+                        </td>
+                        <td>{{ s.occurrenceStartDate ? (s.occurrenceStartDate | date:'d MMM, HH:mm') : '—' }}</td>
                         <td><mat-chip [class]="'signup-' + s.status.toLowerCase()">{{ s.status }}</mat-chip></td>
+                        <td>
+                          @if (s.status === 'ATTENDED') {
+                            <span class="hours-cell">
+                              <input type="number" min="0" step="0.25" [(ngModel)]="s.hoursValidated" class="hours-input" />
+                              <button mat-icon-button class="hours-save" (click)="saveHours(s)"
+                                      [title]="'Enregistrer les heures' | t">
+                                <mat-icon>save</mat-icon>
+                              </button>
+                            </span>
+                          } @else {
+                            <span class="muted">—</span>
+                          }
+                        </td>
                         <td>{{ s.registeredAt | date:'d MMM yyyy' }}</td>
                       </tr>
                     }
@@ -221,6 +239,13 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     .signups-table { width: 100%; border-collapse: collapse; }
     .signups-table th, .signups-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
     .signups-table th { font-size: 0.8rem; color: #888; text-transform: uppercase; }
+    .signups-table .name { font-weight: 500; }
+    .signups-table .email { font-size: 0.8rem; color: #888; }
+    .hours-cell { display: flex; align-items: center; gap: 4px; }
+    .hours-input { width: 64px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    .hours-save { width: 32px; height: 32px; line-height: 32px; }
+    .hours-save mat-icon { font-size: 18px; }
+    .muted { color: #bbb; }
     .ann-section { padding: 16px 0; }
     .ann-section h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 16px; }
     .ann-form { background: #f9f9f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
@@ -249,7 +274,7 @@ export class EventManageComponent implements OnInit {
   signups = signal<SignupResponse[]>([]);
   signupsLoading = signal(false);
   signupTotal = signal(0);
-  selectedUserIds: string[] = [];
+  selectedSignupIds = new Set<string>();
   cancelReason = '';
   announcements = signal<AnnouncementResponse[]>([]);
   newAnnContent = '';
@@ -355,27 +380,48 @@ export class EventManageComponent implements OnInit {
 
   onSignupPage(event: PageEvent) { this.loadSignups(event.pageIndex); }
 
-  toggleUser(userId: string) {
-    const idx = this.selectedUserIds.indexOf(userId);
-    if (idx >= 0) this.selectedUserIds.splice(idx, 1);
-    else this.selectedUserIds.push(userId);
+  isSelected(signupId: string) { return this.selectedSignupIds.has(signupId); }
+
+  toggleSignup(signupId: string) {
+    if (this.selectedSignupIds.has(signupId)) this.selectedSignupIds.delete(signupId);
+    else this.selectedSignupIds.add(signupId);
   }
 
   toggleAll(event: any) {
-    if (event.target.checked) {
-      this.selectedUserIds = this.signups().map(s => s.userId);
-    } else {
-      this.selectedUserIds = [];
-    }
+    this.selectedSignupIds = event.target.checked
+      ? new Set(this.signups().map(s => s.id))
+      : new Set();
   }
 
   markSelectedAttended() {
-    this.eventService.markAttendance(this.selectedEvent()!.id, this.selectedUserIds).subscribe({
+    const selected = this.signups().filter(s => this.selectedSignupIds.has(s.id));
+    // Présence marquée au niveau créneau : on regroupe les inscriptions sélectionnées par occurrence.
+    const byOccurrence = new Map<string, string[]>();
+    for (const s of selected) {
+      if (!s.occurrenceId) continue;
+      const arr = byOccurrence.get(s.occurrenceId) ?? [];
+      arr.push(s.userId);
+      byOccurrence.set(s.occurrenceId, arr);
+    }
+    const eventId = this.selectedEvent()!.id;
+    const calls = Array.from(byOccurrence.entries())
+      .map(([occId, userIds]) => this.eventService.markOccurrenceAttendance(eventId, occId, userIds));
+    if (calls.length === 0) return;
+
+    forkJoin(calls).subscribe({
       next: () => {
         this.snackBar.open('Présences marquées', 'OK', { duration: 3000 });
-        this.selectedUserIds = [];
+        this.selectedSignupIds.clear();
         this.loadSignups(0);
       },
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  saveHours(s: SignupResponse) {
+    if (!s.occurrenceId || s.hoursValidated == null) return;
+    this.eventService.adjustHours(this.selectedEvent()!.id, s.occurrenceId, s.id, s.hoursValidated).subscribe({
+      next: () => this.snackBar.open('Heures mises à jour', 'OK', { duration: 2000 }),
       error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
     });
   }

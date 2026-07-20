@@ -46,6 +46,7 @@ export interface SignupResponse {
   userId: string;
   userFirstName: string; userLastName: string; userEmail: string;
   status: string; registeredAt: string; attendedAt: string | null;
+  hoursValidated: number | null;
 }
 
 export interface FeedbackResponse {
@@ -169,6 +170,12 @@ export class EventService {
   changeOccurrenceStatus(eventId: string, occurrenceId: string, data: { status: string; reason?: string }): Observable<ApiResponse<EventDetail>> {
     return this.http.patch<ApiResponse<EventDetail>>(
       `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/status`, data);
+  }
+
+  // Ajuste les heures certifiées d'une présence (admin ONG).
+  adjustHours(eventId: string, occurrenceId: string, signupId: string, hours: number): Observable<ApiResponse<SignupResponse>> {
+    return this.http.patch<ApiResponse<SignupResponse>>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups/${signupId}/hours`, { hours });
   }
 }
 

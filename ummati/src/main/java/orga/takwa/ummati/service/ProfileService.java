@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -262,15 +263,10 @@ public class ProfileService {
         );
     }
 
-    // Somme des durées des événements ATTENDED, arrondie à 0.5h près
+    // Somme des heures certifiées et stockées (présences validées) — jamais recalculées.
     private double computeVolunteerHours(UUID userId) {
-        long totalMinutes = eventSignupRepository.findAttendedWithEventByUserId(userId).stream()
-                .filter(s -> s.getEvent().getStartDate() != null && s.getEvent().getEndDate() != null)
-                .mapToLong(s -> java.time.Duration.between(
-                        s.getEvent().getStartDate(), s.getEvent().getEndDate()).toMinutes())
-                .filter(minutes -> minutes > 0)
-                .sum();
-        return Math.round(totalMinutes / 30.0) / 2.0;
+        BigDecimal sum = eventSignupRepository.sumValidatedHoursByUserId(userId);
+        return sum == null ? 0.0 : sum.doubleValue();
     }
 }
 

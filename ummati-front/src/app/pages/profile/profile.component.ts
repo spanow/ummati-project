@@ -67,6 +67,20 @@ import { TPipe } from '../../shared/pipes/t.pipe';
           </div>
         </div>
 
+        <!-- Attestation de bénévolat -->
+        @if (profile()!.stats.eventsAttended > 0) {
+          <div class="attestation-cta">
+            <div class="att-text">
+              <strong>{{ 'Attestation de bénévolat' | t }}</strong>
+              <p>{{ 'Téléchargez le justificatif de vos heures validées (PDF).' | t }}</p>
+            </div>
+            <button mat-flat-button (click)="downloadAttestation()" [disabled]="downloadingAtt()">
+              @if (downloadingAtt()) { <mat-spinner diameter="18" /> } @else { <mat-icon>picture_as_pdf</mat-icon> }
+              {{ 'Télécharger' | t }}
+            </button>
+          </div>
+        }
+
         <!-- Skills -->
         @if (profile()!.skills.length > 0) {
           <div class="section">
@@ -189,6 +203,11 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     .skills-edit h4 { font-size: 0.95rem; font-weight: 600; margin: 0 0 4px; }
     .skills-hint { color: #888; font-size: 0.85rem; margin: 0 0 12px; }
     .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .attestation-cta { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      background: var(--brand-primary-soft, #f0f7f3); border: 1px solid var(--brand-primary-100, #cfe6da);
+      border-radius: 10px; padding: 14px 18px; margin: 8px 0 24px; flex-wrap: wrap; }
+    .att-text strong { font-size: 0.95rem; }
+    .att-text p { margin: 2px 0 0; font-size: 0.85rem; color: #666; }
   `],
 })
 export class ProfileComponent implements OnInit {
@@ -201,6 +220,7 @@ export class ProfileComponent implements OnInit {
   pwdSuccess = signal('');
   allSkills = signal<Skill[]>([]);
   selectedSkillIds = new Set<string>();
+  downloadingAtt = signal(false);
 
   infoForm: FormGroup;
   passwordForm: FormGroup;
@@ -304,6 +324,25 @@ export class ProfileComponent implements OnInit {
         this.snackBar.open('Photo mise à jour !', '', { duration: 3000 });
       },
       error: (err: any) => this.snackBar.open(err.error?.message ?? 'Erreur upload', '', { duration: 4000 }),
+    });
+  }
+
+  downloadAttestation() {
+    this.downloadingAtt.set(true);
+    this.profileService.downloadAttestation().subscribe({
+      next: blob => {
+        this.downloadingAtt.set(false);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'attestation-benevolat.pdf';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.downloadingAtt.set(false);
+        this.snackBar.open('Erreur lors de la génération de l\'attestation', 'OK', { duration: 3000 });
+      },
     });
   }
 }
