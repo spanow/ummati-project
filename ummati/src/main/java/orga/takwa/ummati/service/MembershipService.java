@@ -22,17 +22,20 @@ public class MembershipService {
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final OrganizationService organizationService;
+    private final MembershipQuestionService membershipQuestionService;
 
     public MembershipService(MembershipRepository membershipRepository,
                              OrganizationRepository organizationRepository, UserRepository userRepository,
                              NotificationService notificationService, AuditService auditService,
-                             OrganizationService organizationService) {
+                             OrganizationService organizationService,
+                             MembershipQuestionService membershipQuestionService) {
         this.membershipRepository = membershipRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.auditService = auditService;
         this.organizationService = organizationService;
+        this.membershipQuestionService = membershipQuestionService;
     }
 
     // T-051: Request membership
@@ -63,6 +66,7 @@ public class MembershipService {
             m.setMotivation(request.motivation());
             m.setRejectedAt(null);
             m = membershipRepository.save(m);
+            membershipQuestionService.saveAnswers(m, request.answers());
             notifyAdmins(org, userId);
             return toResponse(m);
         }
@@ -75,6 +79,7 @@ public class MembershipService {
         membership.setStatus(MembershipStatus.PENDING);
         membership.setMotivation(request.motivation());
         membership = membershipRepository.save(membership);
+        membershipQuestionService.saveAnswers(membership, request.answers());
 
         notifyAdmins(org, userId);
         auditService.log(userId, "MEMBERSHIP_REQUESTED", "Membership", membership.getId());

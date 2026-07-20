@@ -12,6 +12,14 @@ export interface MembershipResponse {
   joinedAt: string | null; createdAt: string;
 }
 
+export interface MembershipQuestion {
+  id: string; label: string; type: string; options: string[]; required: boolean; position: number;
+}
+
+export interface MembershipAnswer {
+  questionId: string; questionLabel: string; type: string; value: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MembershipService {
   private readonly apiUrl = environment.apiUrl;
@@ -30,9 +38,29 @@ export class MembershipService {
       `${this.apiUrl}/organizations/${orgId}/memberships/me`);
   }
 
-  requestMembership(orgId: string, motivation?: string): Observable<ApiResponse<MembershipResponse>> {
+  requestMembership(orgId: string, motivation?: string,
+                    answers?: { questionId: string; value: string }[]): Observable<ApiResponse<MembershipResponse>> {
     return this.http.post<ApiResponse<MembershipResponse>>(
-      `${this.apiUrl}/organizations/${orgId}/memberships`, { motivation });
+      `${this.apiUrl}/organizations/${orgId}/memberships`, { motivation, answers });
+  }
+
+  // Questionnaire d'adhésion configurable par l'ONG
+  listQuestions(orgId: string): Observable<ApiResponse<MembershipQuestion[]>> {
+    return this.http.get<ApiResponse<MembershipQuestion[]>>(
+      `${this.apiUrl}/organizations/${orgId}/membership-questions`);
+  }
+
+  createQuestion(orgId: string, data: { label: string; type: string; options?: string[]; required: boolean }): Observable<ApiResponse<MembershipQuestion>> {
+    return this.http.post<ApiResponse<MembershipQuestion>>(
+      `${this.apiUrl}/organizations/${orgId}/membership-questions`, data);
+  }
+
+  deleteQuestion(questionId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/membership-questions/${questionId}`);
+  }
+
+  getAnswers(membershipId: string): Observable<ApiResponse<MembershipAnswer[]>> {
+    return this.http.get<ApiResponse<MembershipAnswer[]>>(`${this.apiUrl}/memberships/${membershipId}/answers`);
   }
 
   approve(membershipId: string): Observable<ApiResponse<MembershipResponse>> {

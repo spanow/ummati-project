@@ -16,6 +16,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
 import { EventService, EventSummary } from '../../../core/services/event.service';
 import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
+import { JoinDialogComponent } from '../join-dialog/join-dialog.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
@@ -348,19 +349,16 @@ export class OrganizationDetailComponent implements OnInit {
   }
 
   joinOrg() {
-    const orgId = this.org()!.id;
-    this.joining.set(true);
-    this.membershipService.requestMembership(orgId).subscribe({
-      next: res => {
-        this.joining.set(false);
-        this.membershipStatus.set(res.data.status);
+    const org = this.org()!;
+    const ref = this.dialog.open(JoinDialogComponent, {
+      data: { orgId: org.id, orgName: org.name },
+      width: '520px',
+    });
+    ref.afterClosed().subscribe((result: any) => {
+      if (result) {
+        this.membershipStatus.set(result.status);
         this.snackBar.open('Demande d\'adhésion envoyée, en attente de validation.', 'Fermer', { duration: 4000 });
-      },
-      error: err => {
-        this.joining.set(false);
-        const msg = err?.error?.message ?? 'Une erreur est survenue. Veuillez réessayer.';
-        this.snackBar.open(msg, 'Fermer', { duration: 4000 });
-      },
+      }
     });
   }
 }
