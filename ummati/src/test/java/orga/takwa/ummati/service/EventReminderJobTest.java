@@ -1,9 +1,11 @@
 package orga.takwa.ummati.service;
 
 import orga.takwa.ummati.entity.Event;
+import orga.takwa.ummati.entity.EventOccurrence;
 import orga.takwa.ummati.entity.EventSignup;
 import orga.takwa.ummati.entity.Organization;
 import orga.takwa.ummati.entity.User;
+import orga.takwa.ummati.entity.enums.EventOccurrenceStatus;
 import orga.takwa.ummati.entity.enums.SignupStatus;
 import orga.takwa.ummati.repository.EventSignupRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ class EventReminderJobTest {
     private User user;
     private Event event;
     private Organization org;
+    private EventOccurrence occurrence;
 
     @BeforeEach
     void setUp() {
@@ -55,16 +58,23 @@ class EventReminderJobTest {
         event.setStartDate(LocalDateTime.now().plusDays(1).withHour(9).withMinute(0));
         event.setOrganization(org);
 
+        occurrence = new EventOccurrence();
+        occurrence.setId(UUID.randomUUID());
+        occurrence.setEvent(event);
+        occurrence.setStartDate(event.getStartDate());
+        occurrence.setStatus(EventOccurrenceStatus.PUBLISHED);
+
         signup = new EventSignup();
         signup.setId(UUID.randomUUID());
         signup.setUser(user);
         signup.setEvent(event);
+        signup.setOccurrence(occurrence);
         signup.setStatus(SignupStatus.REGISTERED);
     }
 
     @Test
     void sendReminders_sendsOneEmailPerRegisteredSignup() {
-        when(eventSignupRepository.findRegisteredSignupsForEventsBetween(any(), any()))
+        when(eventSignupRepository.findRegisteredSignupsForOccurrencesBetween(any(), any()))
                 .thenReturn(List.of(signup));
 
         job.sendReminders();
@@ -81,7 +91,7 @@ class EventReminderJobTest {
 
     @Test
     void sendReminders_noSignups_sendsNoEmail() {
-        when(eventSignupRepository.findRegisteredSignupsForEventsBetween(any(), any()))
+        when(eventSignupRepository.findRegisteredSignupsForOccurrencesBetween(any(), any()))
                 .thenReturn(List.of());
 
         job.sendReminders();
@@ -91,14 +101,14 @@ class EventReminderJobTest {
 
     @Test
     void sendReminders_usesCorrectTimeWindow() {
-        when(eventSignupRepository.findRegisteredSignupsForEventsBetween(any(), any()))
+        when(eventSignupRepository.findRegisteredSignupsForOccurrencesBetween(any(), any()))
                 .thenReturn(List.of());
 
         job.sendReminders();
 
         ArgumentCaptor<LocalDateTime> fromCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
         ArgumentCaptor<LocalDateTime> toCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(eventSignupRepository).findRegisteredSignupsForEventsBetween(fromCaptor.capture(), toCaptor.capture());
+        verify(eventSignupRepository).findRegisteredSignupsForOccurrencesBetween(fromCaptor.capture(), toCaptor.capture());
 
         LocalDateTime from = fromCaptor.getValue();
         LocalDateTime to = toCaptor.getValue();
@@ -111,7 +121,7 @@ class EventReminderJobTest {
     @Test
     void sendReminders_onlineEvent_displaysEnLigne() {
         event.setOnline(true);
-        when(eventSignupRepository.findRegisteredSignupsForEventsBetween(any(), any()))
+        when(eventSignupRepository.findRegisteredSignupsForOccurrencesBetween(any(), any()))
                 .thenReturn(List.of(signup));
 
         job.sendReminders();
@@ -128,9 +138,10 @@ class EventReminderJobTest {
         signup2.setId(UUID.randomUUID());
         signup2.setUser(user);
         signup2.setEvent(event);
+        signup2.setOccurrence(occurrence);
         signup2.setStatus(SignupStatus.REGISTERED);
 
-        when(eventSignupRepository.findRegisteredSignupsForEventsBetween(any(), any()))
+        when(eventSignupRepository.findRegisteredSignupsForOccurrencesBetween(any(), any()))
                 .thenReturn(List.of(signup, signup2));
         doThrow(new RuntimeException("SMTP error"))
                 .doNothing()

@@ -7,16 +7,22 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "event_signups", uniqueConstraints = @UniqueConstraint(columnNames = {"event_id", "user_id"}))
+@Table(name = "event_signups", uniqueConstraints = @UniqueConstraint(columnNames = {"occurrence_id", "user_id"}))
 public class EventSignup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    // Série de rattachement (dénormalisé : permet de lister toutes les inscriptions d'un événement).
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
+
+    // Créneau réellement réservé — porte l'unicité (occurrence_id, user_id), la présence et les heures.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "occurrence_id", nullable = false)
+    private EventOccurrence occurrence;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -49,6 +55,9 @@ public class EventSignup {
 
     public Event getEvent() { return event; }
     public void setEvent(Event event) { this.event = event; }
+
+    public EventOccurrence getOccurrence() { return occurrence; }
+    public void setOccurrence(EventOccurrence occurrence) { this.occurrence = occurrence; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

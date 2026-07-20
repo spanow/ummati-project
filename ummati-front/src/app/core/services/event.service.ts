@@ -10,6 +10,17 @@ export interface EventSummary {
   startDate: string; endDate: string;
   maxParticipants: number | null; registeredCount: number;
   status: string; organizationName: string; organizationSlug: string;
+  nextOccurrenceDate: string | null; occurrenceCount: number;
+}
+
+export interface OccurrenceResponse {
+  id: string; label: string | null;
+  startDate: string; endDate: string;
+  registrationDeadline: string | null;
+  maxParticipants: number | null;
+  registeredCount: number; waitlistedCount: number;
+  availableSpots: number | null;
+  status: string; currentUserSignupStatus: string | null;
 }
 
 export interface EventDetail {
@@ -26,10 +37,13 @@ export interface EventDetail {
   feedbackAvgRating: number | null;
   createdAt: string;
   currentUserSignupStatus: string | null;
+  occurrences: OccurrenceResponse[];
 }
 
 export interface SignupResponse {
-  id: string; eventId: string; eventTitle: string; userId: string;
+  id: string; eventId: string; eventTitle: string;
+  occurrenceId: string | null; occurrenceStartDate: string | null; occurrenceEndDate: string | null;
+  userId: string;
   userFirstName: string; userLastName: string; userEmail: string;
   status: string; registeredAt: string; attendedAt: string | null;
 }
@@ -128,6 +142,33 @@ export class EventService {
   listUserSignups(page = 0, size = 10): Observable<ApiResponse<PageResponse<SignupResponse>>> {
     return this.http.get<ApiResponse<PageResponse<SignupResponse>>>(
       `${this.apiUrl}/profile/signups`, { params: new HttpParams().set('page', page).set('size', size) });
+  }
+
+  // ===== Créneaux (occurrences) — événements multi-créneaux / récurrents =====
+
+  signupToOccurrence(eventId: string, occurrenceId: string): Observable<ApiResponse<SignupResponse>> {
+    return this.http.post<ApiResponse<SignupResponse>>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups`, {});
+  }
+
+  cancelOccurrenceSignup(eventId: string, occurrenceId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups`);
+  }
+
+  listOccurrenceSignups(eventId: string, occurrenceId: string, page = 0, size = 20): Observable<ApiResponse<PageResponse<SignupResponse>>> {
+    const params = new HttpParams().set('page', page).set('size', size);
+    return this.http.get<ApiResponse<PageResponse<SignupResponse>>>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups`, { params });
+  }
+
+  markOccurrenceAttendance(eventId: string, occurrenceId: string, userIds: string[]): Observable<void> {
+    return this.http.patch<void>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups/attendance`, { userIds });
+  }
+
+  changeOccurrenceStatus(eventId: string, occurrenceId: string, data: { status: string; reason?: string }): Observable<ApiResponse<EventDetail>> {
+    return this.http.patch<ApiResponse<EventDetail>>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/status`, data);
   }
 }
 

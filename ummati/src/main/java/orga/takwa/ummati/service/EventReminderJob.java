@@ -1,6 +1,7 @@
 package orga.takwa.ummati.service;
 
 import orga.takwa.ummati.entity.Event;
+import orga.takwa.ummati.entity.EventOccurrence;
 import orga.takwa.ummati.entity.EventSignup;
 import orga.takwa.ummati.entity.User;
 import orga.takwa.ummati.repository.EventSignupRepository;
@@ -38,7 +39,7 @@ public class EventReminderJob {
         LocalDateTime tomorrowEnd = tomorrowStart.plusDays(1);
 
         List<EventSignup> signups = eventSignupRepository
-                .findRegisteredSignupsForEventsBetween(tomorrowStart, tomorrowEnd);
+                .findRegisteredSignupsForOccurrencesBetween(tomorrowStart, tomorrowEnd);
 
         if (signups.isEmpty()) {
             return;
@@ -48,6 +49,7 @@ public class EventReminderJob {
             try {
                 User user = signup.getUser();
                 Event event = signup.getEvent();
+                EventOccurrence occurrence = signup.getOccurrence();
                 String location = event.isOnline()
                         ? "En ligne"
                         : buildLocation(event);
@@ -57,7 +59,7 @@ public class EventReminderJob {
                         user.getFirstName(),
                         event.getTitle(),
                         location,
-                        event.getStartDate().format(DISPLAY_FORMAT),
+                        occurrence.getStartDate().format(DISPLAY_FORMAT),
                         event.getOrganization().getName(),
                         event.getId().toString());
             } catch (Exception e) {

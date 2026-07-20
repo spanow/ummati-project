@@ -56,11 +56,10 @@ public class EventCommentService {
             throw new BusinessRuleException("Les commentaires ne sont disponibles que sur les événements publiés ou terminés");
         }
 
-        boolean isParticipant = eventSignupRepository.findByEventIdAndUserId(eventId, userId)
-                .map(s -> s.getStatus() == SignupStatus.REGISTERED
-                        || s.getStatus() == SignupStatus.WAITLISTED
-                        || s.getStatus() == SignupStatus.ATTENDED)
-                .orElse(false);
+        // Participant = au moins une inscription active à un créneau de l'événement.
+        boolean isParticipant = eventSignupRepository.existsByEventIdAndUserIdAndStatusIn(
+                eventId, userId,
+                java.util.List.of(SignupStatus.REGISTERED, SignupStatus.WAITLISTED, SignupStatus.ATTENDED));
 
         if (!isParticipant) {
             throw new ForbiddenException("Seuls les participants inscrits peuvent commenter");

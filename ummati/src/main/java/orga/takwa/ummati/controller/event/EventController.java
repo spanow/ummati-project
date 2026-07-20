@@ -150,6 +150,53 @@ public class EventController {
         return ResponseEntity.ok().build();
     }
 
+    // ===== Créneaux (occurrences) — événements multi-créneaux / récurrents =====
+
+    // Inscription à un créneau précis
+    @PostMapping("/events/{id}/occurrences/{occId}/signups")
+    public ResponseEntity<ApiResponse<SignupResponse>> signupToOccurrence(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(eventService.signupToOccurrence(userId, id, occId)));
+    }
+
+    // Désinscription d'un créneau précis
+    @DeleteMapping("/events/{id}/occurrences/{occId}/signups")
+    public ResponseEntity<Void> cancelOccurrenceSignup(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId) {
+        eventService.cancelOccurrenceSignup(userId, id, occId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Liste des inscrits d'un créneau (admin ONG)
+    @GetMapping("/events/{id}/occurrences/{occId}/signups")
+    public ResponseEntity<ApiResponse<PageResponse<SignupResponse>>> listOccurrenceSignups(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        var result = eventService.listOccurrenceSignups(userId, id, occId, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(result)));
+    }
+
+    // Marquage de présence sur un créneau (admin ONG)
+    @PatchMapping("/events/{id}/occurrences/{occId}/signups/attendance")
+    public ResponseEntity<Void> markOccurrenceAttendance(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId,
+            @Valid @RequestBody AttendanceRequest request) {
+        eventService.markOccurrenceAttendance(userId, id, occId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    // Annuler / compléter un créneau précis (admin ONG)
+    @PatchMapping("/events/{id}/occurrences/{occId}/status")
+    public ResponseEntity<ApiResponse<EventDetail>> changeOccurrenceStatus(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId,
+            @Valid @RequestBody EventStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                eventService.changeOccurrenceStatus(userId, id, occId, request)));
+    }
+
     // T-080: Create feedback
     @PostMapping("/events/{id}/feedbacks")
     public ResponseEntity<ApiResponse<FeedbackResponse>> createFeedback(

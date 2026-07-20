@@ -35,8 +35,9 @@ public record EventDetail(
         List<SkillDto> requiredSkills,
         Double feedbackAvgRating,
         LocalDateTime createdAt,
-        String currentUserSignupStatus
+        String currentUserSignupStatus,
+        // Créneaux réservables de la série (1 pour un événement one-shot).
+        List<OccurrenceResponse> occurrences
 ) {
     public record SkillDto(UUID id, String name, String category) {}
 }
-
