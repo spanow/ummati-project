@@ -11,12 +11,12 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { EventService, EventSummary, SignupResponse } from '../../../core/services/event.service';
+import { EventService, EventSummary, SignupResponse, ReliabilityResponse } from '../../../core/services/event.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
@@ -29,7 +29,7 @@ import { forkJoin } from 'rxjs';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
-    RouterLink, DatePipe, FormsModule, TPipe, OrgDocumentsComponent],
+    RouterLink, DatePipe, DecimalPipe, FormsModule, TPipe, OrgDocumentsComponent],
   template: `
     <div class="page-container">
       <header class="page-header">
@@ -148,6 +148,9 @@ import { forkJoin } from 'rxjs';
                     <button mat-flat-button (click)="markSelectedAttended()" [disabled]="selectedSignupIds.size === 0">
                       <mat-icon>check_circle</mat-icon> {{ 'Marquer présents' | t }}
                     </button>
+                    <button mat-stroked-button (click)="markSelectedNoShow()" [disabled]="selectedSignupIds.size === 0">
+                      <mat-icon>person_off</mat-icon> {{ 'Marquer absents' | t }}
+                    </button>
                   }
                 </div>
               </div>
@@ -173,6 +176,11 @@ import { forkJoin } from 'rxjs';
                         <td>
                           <div class="name">{{ s.userFirstName }} {{ s.userLastName }}</div>
                           <div class="email">{{ s.userEmail }}</div>
+                          @if (reliability()[s.userId]?.reliabilityRate != null) {
+                            <span class="rel-badge" [class.rel-low]="reliability()[s.userId]!.reliabilityRate! < 0.7">
+                              {{ 'Fiabilité' | t }} {{ (reliability()[s.userId]!.reliabilityRate! * 100) | number:'1.0-0' }}%
+                            </span>
+                          }
                         </td>
                         <td>{{ s.occurrenceStartDate ? (s.occurrenceStartDate | date:'d MMM, HH:mm') : '—' }}</td>
                         <td><mat-chip [class]="'signup-' + s.status.toLowerCase()">{{ s.status }}</mat-chip></td>
@@ -246,6 +254,9 @@ import { forkJoin } from 'rxjs';
     .hours-save { width: 32px; height: 32px; line-height: 32px; }
     .hours-save mat-icon { font-size: 18px; }
     .muted { color: #bbb; }
+    .rel-badge { display: inline-block; margin-top: 4px; font-size: 0.72rem; padding: 2px 7px; border-radius: 10px;
+      background: var(--brand-primary-100, #e0f0e8); color: var(--brand-primary-dark, #2e7d5b); }
+    .rel-badge.rel-low { background: #ffe0e0; color: #c62828; }
     .ann-section { padding: 16px 0; }
     .ann-section h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 16px; }
     .ann-form { background: #f9f9f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
@@ -272,6 +283,7 @@ export class EventManageComponent implements OnInit {
   loading = signal(true);
   selectedEvent = signal<EventSummary | null>(null);
   signups = signal<SignupResponse[]>([]);
+  reliability = signal<Record<string, ReliabilityResponse>>({});
   signupsLoading = signal(false);
   signupTotal = signal(0);
   selectedSignupIds = new Set<string>();
@@ -373,9 +385,22 @@ export class EventManageComponent implements OnInit {
         this.signups.set(res.data.content);
         this.signupTotal.set(res.data.totalElements);
         this.signupsLoading.set(false);
+        this.reliability.set({});
+        this.loadReliability();
       },
       error: () => this.signupsLoading.set(false),
     });
+  }
+
+  // Fiabilité chargée par bénévole (dédupliquée) et mise en cache pour la page courante.
+  loadReliability() {
+    const ids = Array.from(new Set(this.signups().map(s => s.userId)));
+    for (const uid of ids) {
+      this.eventService.getReliability(this.orgId, uid).subscribe({
+        next: res => this.reliability.update(m => ({ ...m, [uid]: res.data })),
+        error: () => {},
+      });
+    }
   }
 
   onSignupPage(event: PageEvent) { this.loadSignups(event.pageIndex); }
@@ -422,6 +447,30 @@ export class EventManageComponent implements OnInit {
     if (!s.occurrenceId || s.hoursValidated == null) return;
     this.eventService.adjustHours(this.selectedEvent()!.id, s.occurrenceId, s.id, s.hoursValidated).subscribe({
       next: () => this.snackBar.open('Heures mises à jour', 'OK', { duration: 2000 }),
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  markSelectedNoShow() {
+    const selected = this.signups().filter(s => this.selectedSignupIds.has(s.id));
+    const byOccurrence = new Map<string, string[]>();
+    for (const s of selected) {
+      if (!s.occurrenceId) continue;
+      const arr = byOccurrence.get(s.occurrenceId) ?? [];
+      arr.push(s.userId);
+      byOccurrence.set(s.occurrenceId, arr);
+    }
+    const eventId = this.selectedEvent()!.id;
+    const calls = Array.from(byOccurrence.entries())
+      .map(([occId, userIds]) => this.eventService.markNoShow(eventId, occId, userIds));
+    if (calls.length === 0) return;
+
+    forkJoin(calls).subscribe({
+      next: () => {
+        this.snackBar.open('Absences enregistrées', 'OK', { duration: 3000 });
+        this.selectedSignupIds.clear();
+        this.loadSignups(0);
+      },
       error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
     });
   }

@@ -504,6 +504,49 @@ class EventControllerIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // ===== PR3 : fiabilité =====
+
+    @Test
+    void markNoShow_shouldReturn200_andSetStatus() throws Exception {
+        Event event = createPublishedEvent();
+        EventSignup s = saveSignup(event, volunteerUser, SignupStatus.REGISTERED, LocalDateTime.now());
+        EventOccurrence occ = occurrenceOf(event);
+
+        String body = objectMapper.writeValueAsString(Map.of("userIds", List.of(volunteerUser.getId())));
+        mockMvc.perform(patch("/api/v1/events/" + event.getId() + "/occurrences/" + occ.getId() + "/signups/no-show")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        Assertions.assertEquals(SignupStatus.NO_SHOW,
+                eventSignupRepository.findById(s.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void reliability_shouldReturnCounts_forAdmin() throws Exception {
+        Event e1 = createPublishedEvent();
+        saveSignup(e1, volunteerUser, SignupStatus.ATTENDED, LocalDateTime.now());
+        Event e2 = createPublishedEvent();
+        saveSignup(e2, volunteerUser, SignupStatus.NO_SHOW, LocalDateTime.now());
+
+        mockMvc.perform(get("/api/v1/organizations/" + activeOrg.getId()
+                        + "/members/" + volunteerUser.getId() + "/reliability")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.attendedCount").value(1))
+                .andExpect(jsonPath("$.data.noShowCount").value(1))
+                .andExpect(jsonPath("$.data.reliabilityRate").value(0.5));
+    }
+
+    @Test
+    void reliability_shouldReturn403_forNonAdmin() throws Exception {
+        mockMvc.perform(get("/api/v1/organizations/" + activeOrg.getId()
+                        + "/members/" + volunteerUser.getId() + "/reliability")
+                        .header("Authorization", "Bearer " + volunteerToken))
+                .andExpect(status().isForbidden());
+    }
+
     // ===== Helpers =====
 
     private Event createDraftEvent() {

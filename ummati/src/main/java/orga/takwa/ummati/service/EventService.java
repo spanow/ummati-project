@@ -419,11 +419,17 @@ public class EventService {
         EventSignup signup = eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inscription non trouvée"));
 
-        if (signup.getStatus() == SignupStatus.CANCELLED || signup.getStatus() == SignupStatus.ATTENDED) {
+        if (signup.getStatus() == SignupStatus.CANCELLED || signup.getStatus() == SignupStatus.ATTENDED
+                || signup.getStatus() == SignupStatus.NO_SHOW) {
             throw new BusinessRuleException("Impossible d'annuler cette inscription");
         }
 
         boolean wasRegistered = signup.getStatus() == SignupStatus.REGISTERED;
+        // Annulation tardive : moins de 24h avant le début du créneau (impacte la fiabilité).
+        if (wasRegistered && occ.getStartDate() != null
+                && LocalDateTime.now().isAfter(occ.getStartDate().minusHours(24))) {
+            signup.setLateCancel(true);
+        }
         signup.setStatus(SignupStatus.CANCELLED);
         signup.setCancelledAt(LocalDateTime.now());
         eventSignupRepository.save(signup);
@@ -499,7 +505,8 @@ public class EventService {
     private void doMarkAttendance(UUID actorUserId, Event event, EventOccurrence occ, AttendanceRequest request) {
         for (UUID attendeeId : request.userIds()) {
             eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), attendeeId).ifPresent(signup -> {
-                if (signup.getStatus() == SignupStatus.REGISTERED) {
+                // REGISTERED → ATTENDED ; NO_SHOW → ATTENDED permet à l'ONG de corriger une absence.
+                if (signup.getStatus() == SignupStatus.REGISTERED || signup.getStatus() == SignupStatus.NO_SHOW) {
                     signup.setStatus(SignupStatus.ATTENDED);
                     signup.setAttendedAt(LocalDateTime.now());
                     // Heures pré-remplies avec la durée du créneau (l'ONG pourra ajuster ensuite).
@@ -537,6 +544,23 @@ public class EventService {
         eventSignupRepository.save(signup);
         auditService.log(adminUserId, "EVENT_HOURS_ADJUSTED", "EventSignup", signupId);
         return toSignupResponse(signup);
+    }
+
+    // Marquage d'absence par l'ONG (jamais automatique) : REGISTERED → NO_SHOW.
+    @Transactional
+    public void markNoShow(UUID adminUserId, UUID eventId, UUID occurrenceId, AttendanceRequest request) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(adminUserId, event.getOrganization().getId());
+        EventOccurrence occ = requireOccurrenceInEvent(occurrenceId, eventId);
+        for (UUID attendeeId : request.userIds()) {
+            eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), attendeeId).ifPresent(signup -> {
+                if (signup.getStatus() == SignupStatus.REGISTERED) {
+                    signup.setStatus(SignupStatus.NO_SHOW);
+                    eventSignupRepository.save(signup);
+                }
+            });
+        }
+        auditService.log(adminUserId, "EVENT_NO_SHOW_MARKED", "EventOccurrence", occurrenceId);
     }
 
     // T-080: Create feedback (au niveau série : avoir participé à au moins un créneau)
@@ -580,6 +604,18 @@ public class EventService {
     @Transactional(readOnly = true)
     public Page<SignupResponse> listUserSignups(UUID userId, Pageable pageable) {
         return eventSignupRepository.findByUserId(userId, pageable).map(this::toSignupResponse);
+    }
+
+    // Fiabilité d'un bénévole — réservée aux admins de l'ONG (donnée de profilage, jamais publique).
+    @Transactional(readOnly = true)
+    public ReliabilityResponse getReliability(UUID callerId, UUID orgId, UUID volunteerId) {
+        organizationService.verifyAdmin(callerId, orgId);
+        long attended = eventSignupRepository.countByUserIdAndStatus(volunteerId, SignupStatus.ATTENDED);
+        long noShow = eventSignupRepository.countByUserIdAndStatus(volunteerId, SignupStatus.NO_SHOW);
+        long lateCancel = eventSignupRepository.countByUserIdAndLateCancelTrue(volunteerId);
+        long denom = attended + noShow + lateCancel;
+        Double rate = denom == 0 ? null : Math.round((double) attended / denom * 100.0) / 100.0;
+        return new ReliabilityResponse(volunteerId, attended, noShow, lateCancel, rate);
     }
 
     // --- Génération des créneaux ---

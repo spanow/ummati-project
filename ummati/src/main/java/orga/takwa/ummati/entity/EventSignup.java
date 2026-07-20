@@ -46,6 +46,10 @@ public class EventSignup {
     @Column(name = "hours_validated", precision = 5, scale = 2)
     private BigDecimal hoursValidated;
 
+    // Annulation tardive (< 24h avant le début du créneau) — alimente le score de fiabilité.
+    @Column(name = "late_cancel", nullable = false)
+    private boolean lateCancel = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -81,6 +85,9 @@ public class EventSignup {
 
     public BigDecimal getHoursValidated() { return hoursValidated; }
     public void setHoursValidated(BigDecimal hoursValidated) { this.hoursValidated = hoursValidated; }
+
+    public boolean isLateCancel() { return lateCancel; }
+    public void setLateCancel(boolean lateCancel) { this.lateCancel = lateCancel; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
