@@ -10,6 +10,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -499,6 +502,8 @@ public class EventService {
                 if (signup.getStatus() == SignupStatus.REGISTERED) {
                     signup.setStatus(SignupStatus.ATTENDED);
                     signup.setAttendedAt(LocalDateTime.now());
+                    // Heures pré-remplies avec la durée du créneau (l'ONG pourra ajuster ensuite).
+                    signup.setHoursValidated(occurrenceDurationHours(occ));
                     eventSignupRepository.save(signup);
                     notificationService.saveNotification(signup.getUser(), NotificationType.FEEDBACK_REQUESTED,
                             "Donnez votre avis", "Comment s'est passé '" + event.getTitle() + "' ? Laissez un feedback !",
@@ -507,6 +512,31 @@ public class EventService {
             });
         }
         auditService.log(actorUserId, "EVENT_ATTENDANCE_MARKED", "EventOccurrence", occ.getId());
+    }
+
+    // Ajustement des heures certifiées d'une présence par l'ONG.
+    @Transactional
+    public SignupResponse adjustSignupHours(UUID adminUserId, UUID eventId, UUID occurrenceId,
+                                            UUID signupId, BigDecimal hours) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(adminUserId, event.getOrganization().getId());
+        requireOccurrenceInEvent(occurrenceId, eventId);
+
+        EventSignup signup = eventSignupRepository.findById(signupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Inscription non trouvée"));
+        if (signup.getOccurrence() == null || !signup.getOccurrence().getId().equals(occurrenceId)) {
+            throw new BusinessRuleException("Cette inscription n'appartient pas à ce créneau");
+        }
+        if (signup.getStatus() != SignupStatus.ATTENDED) {
+            throw new BusinessRuleException("Seule une présence validée peut recevoir des heures");
+        }
+        if (hours == null || hours.signum() < 0 || hours.compareTo(new BigDecimal("999.99")) > 0) {
+            throw new BusinessRuleException("Nombre d'heures invalide (0 à 999,99)");
+        }
+        signup.setHoursValidated(hours.setScale(2, RoundingMode.HALF_UP));
+        eventSignupRepository.save(signup);
+        auditService.log(adminUserId, "EVENT_HOURS_ADJUSTED", "EventSignup", signupId);
+        return toSignupResponse(signup);
     }
 
     // T-080: Create feedback (au niveau série : avoir participé à au moins un créneau)
@@ -649,6 +679,14 @@ public class EventService {
         return occ;
     }
 
+    // Durée d'un créneau en heures (2 décimales) — sert de valeur par défaut aux heures validées.
+    private BigDecimal occurrenceDurationHours(EventOccurrence occ) {
+        if (occ.getStartDate() == null || occ.getEndDate() == null) return BigDecimal.ZERO;
+        long minutes = Duration.between(occ.getStartDate(), occ.getEndDate()).toMinutes();
+        if (minutes <= 0) return BigDecimal.ZERO;
+        return BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+    }
+
     private void validateDates(LocalDateTime startDate, LocalDateTime endDate, LocalDateTime deadline) {
         if (startDate.isBefore(LocalDateTime.now())) {
             throw new BusinessRuleException("La date de début doit être dans le futur");
@@ -744,7 +782,8 @@ public class EventService {
                 occ != null ? occ.getStartDate() : null,
                 occ != null ? occ.getEndDate() : null,
                 user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(),
-                signup.getStatus().name(), signup.getRegisteredAt(), signup.getAttendedAt());
+                signup.getStatus().name(), signup.getRegisteredAt(), signup.getAttendedAt(),
+                signup.getHoursValidated());
     }
 
     private FeedbackResponse toFeedbackResponse(EventFeedback feedback) {

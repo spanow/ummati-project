@@ -1,5 +1,6 @@
 package orga.takwa.ummati.dto.event;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -16,5 +17,6 @@ public record SignupResponse(
         String userEmail,
         String status,
         LocalDateTime registeredAt,
-        LocalDateTime attendedAt
+        LocalDateTime attendedAt,
+        BigDecimal hoursValidated
 ) {}

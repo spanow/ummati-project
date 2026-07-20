@@ -3,6 +3,7 @@ package orga.takwa.ummati.entity;
 import jakarta.persistence.*;
 import orga.takwa.ummati.entity.enums.SignupStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -41,6 +42,10 @@ public class EventSignup {
     @Column(name = "attended_at")
     private LocalDateTime attendedAt;
 
+    // Heures de bénévolat certifiées par l'ONG (défaut = durée du créneau, ajustable), puis figées.
+    @Column(name = "hours_validated", precision = 5, scale = 2)
+    private BigDecimal hoursValidated;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -73,6 +78,9 @@ public class EventSignup {
 
     public LocalDateTime getAttendedAt() { return attendedAt; }
     public void setAttendedAt(LocalDateTime attendedAt) { this.attendedAt = attendedAt; }
+
+    public BigDecimal getHoursValidated() { return hoursValidated; }
+    public void setHoursValidated(BigDecimal hoursValidated) { this.hoursValidated = hoursValidated; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

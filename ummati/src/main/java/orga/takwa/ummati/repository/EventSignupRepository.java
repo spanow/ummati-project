@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -39,8 +40,20 @@ public interface EventSignupRepository extends JpaRepository<EventSignup, UUID> 
     long countByUserId(UUID userId);
     long countByStatus(SignupStatus status);
 
-    @Query("SELECT s FROM EventSignup s JOIN FETCH s.event WHERE s.user.id = :userId AND s.status = 'ATTENDED'")
-    List<EventSignup> findAttendedWithEventByUserId(@Param("userId") UUID userId);
+    // Somme des heures certifiées (présences validées) d'un bénévole — null si aucune.
+    @Query("SELECT SUM(s.hoursValidated) FROM EventSignup s WHERE s.user.id = :userId AND s.status = 'ATTENDED'")
+    BigDecimal sumValidatedHoursByUserId(@Param("userId") UUID userId);
+
+    // Présences validées d'un bénévole, avec créneau + événement + ONG chargés — pour l'attestation.
+    @Query("""
+            SELECT s FROM EventSignup s
+            JOIN FETCH s.occurrence o
+            JOIN FETCH s.event e
+            JOIN FETCH e.organization
+            WHERE s.user.id = :userId AND s.status = 'ATTENDED' AND s.hoursValidated IS NOT NULL
+            ORDER BY o.startDate ASC
+            """)
+    List<EventSignup> findAttendedWithHoursByUserId(@Param("userId") UUID userId);
 
     // Rappels J-1 : inscriptions REGISTERED dont le CRÉNEAU (occurrence) démarre demain.
     @Query("""

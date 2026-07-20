@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -485,5 +486,71 @@ class EventServiceTest {
         assertThatThrownBy(() -> eventService.updateEvent(userId, eventId, request))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("publié");
+    }
+
+    // --- PR2 : heures de bénévolat ---
+
+    @Test
+    void markAttendance_shouldPrefillHoursFromOccurrenceDuration() {
+        // publishedOccurrence dure 3h (start +7j, end +7j+3h)
+        EventSignup s = new EventSignup();
+        s.setId(UUID.randomUUID());
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.REGISTERED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
+                .thenReturn(List.of(publishedOccurrence));
+        when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
+                .thenReturn(Optional.of(s));
+
+        eventService.markAttendance(userId, eventId, new AttendanceRequest(List.of(userId)));
+
+        assertThat(s.getStatus()).isEqualTo(SignupStatus.ATTENDED);
+        assertThat(s.getHoursValidated()).isEqualByComparingTo(new BigDecimal("3.00"));
+    }
+
+    @Test
+    void adjustSignupHours_shouldUpdate_whenAttended() {
+        UUID signupId = UUID.randomUUID();
+        EventSignup s = new EventSignup();
+        s.setId(signupId);
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.ATTENDED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventOccurrenceRepository.findById(occurrenceId)).thenReturn(Optional.of(publishedOccurrence));
+        when(eventSignupRepository.findById(signupId)).thenReturn(Optional.of(s));
+
+        SignupResponse res = eventService.adjustSignupHours(userId, eventId, occurrenceId, signupId, new BigDecimal("2.5"));
+
+        assertThat(s.getHoursValidated()).isEqualByComparingTo(new BigDecimal("2.50"));
+        assertThat(res.hoursValidated()).isEqualByComparingTo(new BigDecimal("2.50"));
+    }
+
+    @Test
+    void adjustSignupHours_shouldFail_whenNotAttended() {
+        UUID signupId = UUID.randomUUID();
+        EventSignup s = new EventSignup();
+        s.setId(signupId);
+        s.setEvent(publishedEvent);
+        s.setOccurrence(publishedOccurrence);
+        s.setUser(user);
+        s.setStatus(SignupStatus.REGISTERED);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
+        doNothing().when(organizationService).verifyAdmin(userId, orgId);
+        when(eventOccurrenceRepository.findById(occurrenceId)).thenReturn(Optional.of(publishedOccurrence));
+        when(eventSignupRepository.findById(signupId)).thenReturn(Optional.of(s));
+
+        assertThatThrownBy(() -> eventService.adjustSignupHours(userId, eventId, occurrenceId, signupId, new BigDecimal("2.5")))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("présence validée");
     }
 }
