@@ -29,9 +29,9 @@ import { CommonModule } from '@angular/common';
     .progress-track { flex: 1; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
     .progress-fill {
       height: 100%; border-radius: 4px; transition: width 0.3s ease;
-      background: linear-gradient(90deg, #3f51b5, #7c4dff);
+      background: linear-gradient(90deg, var(--brand-primary), var(--brand-primary-light));
     }
-    .progress-fill.warning { background: linear-gradient(90deg, #ff9800, #ff5722); }
+    .progress-fill.warning { background: linear-gradient(90deg, var(--brand-accent), #ff5722); }
     .progress-fill.danger { background: linear-gradient(90deg, #f44336, #d32f2f); }
     .progress-value { font-size: 0.8rem; color: #888; white-space: nowrap; }
   `]

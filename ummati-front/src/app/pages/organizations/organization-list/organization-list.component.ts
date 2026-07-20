@@ -11,37 +11,38 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { OrganizationService, OrganizationSummary } from '../../../core/services/organization.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-organization-list',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
-    MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule, RouterLink, FormsModule],
+    MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule, RouterLink, FormsModule, TPipe],
   template: `
     <div class="page-container">
       <header class="page-header">
         <div>
-          <h1>Organisations</h1>
-          <p class="subtitle">Trouvez une association qui vous correspond</p>
+          <h1>{{ 'Organisations' | t }}</h1>
+          <p class="subtitle">{{ 'Trouvez une association qui vous correspond' | t }}</p>
         </div>
         <a mat-flat-button routerLink="/organizations/new" class="create-btn">
-          <mat-icon>add</mat-icon> Créer une ONG
+          <mat-icon>add</mat-icon> {{ 'Créer une ONG' | t }}
         </a>
       </header>
 
       <div class="filters">
         <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Rechercher</mat-label>
+          <mat-label>{{ 'Rechercher' | t }}</mat-label>
           <input matInput [(ngModel)]="searchQuery" (keyup.enter)="loadOrganizations()"
-                 placeholder="Nom ou description..." />
+                 [placeholder]="'Nom ou description...' | t" />
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Domaine</mat-label>
+          <mat-label>{{ 'Domaine' | t }}</mat-label>
           <mat-select [(ngModel)]="selectedDomain" (selectionChange)="loadOrganizations()">
-            <mat-option [value]="null">Tous</mat-option>
+            <mat-option [value]="null">{{ 'Tous' | t }}</mat-option>
             @for (d of domains; track d.value) {
-              <mat-option [value]="d.value">{{ d.label }}</mat-option>
+              <mat-option [value]="d.value">{{ d.label | t }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
@@ -52,9 +53,9 @@ import { OrganizationService, OrganizationSummary } from '../../../core/services
       } @else if (organizations().length === 0) {
         <div class="empty-state">
           <mat-icon class="empty-icon">groups</mat-icon>
-          <h3>Aucune organisation trouvée</h3>
-          <p>Essayez d'ajuster vos filtres ou créez la vôtre !</p>
-          <a mat-flat-button routerLink="/organizations/new">Créer une ONG</a>
+          <h3>{{ 'Aucune organisation trouvée' | t }}</h3>
+          <p>{{ 'Essayez d\\'ajuster vos filtres ou créez la vôtre !' | t }}</p>
+          <a mat-flat-button routerLink="/organizations/new">{{ 'Créer une ONG' | t }}</a>
         </div>
       } @else {
         <div class="org-grid">
@@ -74,7 +75,7 @@ import { OrganizationService, OrganizationSummary } from '../../../core/services
                 <h3 class="org-name">{{ org.name }}</h3>
                 <div class="org-meta">
                   <span><mat-icon class="meta-icon">location_on</mat-icon> {{ org.city }}</span>
-                  <span><mat-icon class="meta-icon">people</mat-icon> {{ org.memberCount }} membres</span>
+                  <span><mat-icon class="meta-icon">people</mat-icon> {{ org.memberCount }} {{ 'membres' | t }}</span>
                 </div>
                 <p class="org-excerpt">{{ org.descriptionExcerpt }}</p>
               </mat-card-content>
@@ -104,8 +105,8 @@ import { OrganizationService, OrganizationSummary } from '../../../core/services
     .org-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }
     .card-header { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
     .org-logo { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; }
-    .org-logo-placeholder { width: 48px; height: 48px; border-radius: 10px; background: #e3f2fd; display: flex; align-items: center; justify-content: center; }
-    .org-logo-placeholder mat-icon { color: #1976d2; }
+    .org-logo-placeholder { width: 48px; height: 48px; border-radius: 10px; background: var(--brand-primary-100); display: flex; align-items: center; justify-content: center; }
+    .org-logo-placeholder mat-icon { color: var(--brand-primary); }
     .domain-chip { margin-left: auto; font-size: 12px; }
     .org-name { font-size: 1.15rem; font-weight: 600; margin: 16px 0 8px; }
     .org-meta { display: flex; gap: 16px; color: #888; font-size: 0.85rem; margin-bottom: 12px; }

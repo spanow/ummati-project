@@ -38,11 +38,11 @@ import { CommonModule } from '@angular/common';
     }
     .empty-icon {
       width: 80px; height: 80px; border-radius: 50%;
-      background: linear-gradient(135deg, #e8eaf6, #c5cae9);
+      background: linear-gradient(135deg, var(--brand-primary-100), var(--brand-primary-100));
       display: flex; align-items: center; justify-content: center; margin-bottom: 8px;
     }
-    .empty-icon mat-icon { font-size: 40px !important; width: 40px !important; height: 40px !important; color: #3f51b5; }
-    h3 { font-size: 1.2rem; font-weight: 600; color: #1a1a2e; margin: 0; }
+    .empty-icon mat-icon { font-size: 40px !important; width: 40px !important; height: 40px !important; color: var(--brand-primary); }
+    h3 { font-size: 1.2rem; font-weight: 600; color: var(--brand-ink); margin: 0; }
     p { color: #666; max-width: 360px; line-height: 1.6; margin: 0; }
     .cta-btn { border-radius: 20px !important; margin-top: 8px; }
   `]

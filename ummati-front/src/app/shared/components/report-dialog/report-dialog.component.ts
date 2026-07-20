@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ReportService, ReportReason, ReportTargetType, REPORT_REASON_LABELS } from '../../../core/services/report.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 export interface ReportDialogData {
   targetType: ReportTargetType;
@@ -19,31 +20,31 @@ export interface ReportDialogData {
   selector: 'app-report-dialog',
   standalone: true,
   imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule,
-    MatSelectModule, MatInputModule, MatProgressSpinnerModule, MatSnackBarModule],
+    MatSelectModule, MatInputModule, MatProgressSpinnerModule, MatSnackBarModule, TPipe],
   template: `
-    <h2 mat-dialog-title>Signaler « {{ data.targetLabel }} »</h2>
+    <h2 mat-dialog-title>{{ 'Signaler' | t }} « {{ data.targetLabel }} »</h2>
     <mat-dialog-content>
-      <p class="hint">Votre signalement sera examiné par un administrateur de la plateforme.</p>
+      <p class="hint">{{ 'Votre signalement sera examiné par un administrateur de la plateforme.' | t }}</p>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Motif</mat-label>
+        <mat-label>{{ 'Motif' | t }}</mat-label>
         <mat-select [(ngModel)]="reason">
           @for (r of reasons; track r) {
-            <mat-option [value]="r">{{ reasonLabels[r] }}</mat-option>
+            <mat-option [value]="r">{{ reasonLabels[r] | t }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Description (optionnel)</mat-label>
+        <mat-label>{{ 'Description (optionnel)' | t }}</mat-label>
         <textarea matInput rows="3" [(ngModel)]="description" maxlength="1000"
-                  placeholder="Précisez le contexte du signalement..."></textarea>
+                  [placeholder]="'Précisez le contexte du signalement...' | t"></textarea>
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button [mat-dialog-close]="false" [disabled]="submitting()">Annuler</button>
+      <button mat-button [mat-dialog-close]="false" [disabled]="submitting()">{{ 'Annuler' | t }}</button>
       <button mat-flat-button color="warn" [disabled]="submitting()" (click)="submit()">
-        {{ submitting() ? 'Envoi…' : 'Signaler' }}
+        {{ (submitting() ? 'Envoi…' : 'Signaler') | t }}
       </button>
     </mat-dialog-actions>
   `,

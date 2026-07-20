@@ -33,7 +33,7 @@ export class AvatarComponent {
   @Input() name: string | null = null;
   @Input() photoUrl: string | null = null;
   @Input() size = 40;
-  @Input() color = '#3f51b5';
+  @Input() color = 'var(--brand-primary)';
 
   get initials(): string {
     if (!this.name) return '?';

@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-register',
@@ -15,14 +16,14 @@ import { AuthService } from '../../../core/services/auth.service';
   imports: [
     ReactiveFormsModule, RouterLink,
     MatCardModule, MatFormFieldModule, MatInputModule,
-    MatButtonModule, MatIconModule, MatProgressSpinnerModule,
+    MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe,
   ],
   template: `
     <div class="auth-container">
       <mat-card class="auth-card">
         <mat-card-header>
-          <mat-card-title>Inscription</mat-card-title>
-          <mat-card-subtitle>Rejoignez la communauté Ummati</mat-card-subtitle>
+          <mat-card-title>{{ 'Inscription' | t }}</mat-card-title>
+          <mat-card-subtitle>{{ 'Rejoignez la communauté Ummati' | t }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @if (successMessage()) {
@@ -34,35 +35,35 @@ import { AuthService } from '../../../core/services/auth.service';
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <div class="name-row">
               <mat-form-field appearance="outline">
-                <mat-label>Prénom</mat-label>
+                <mat-label>{{ 'Prénom' | t }}</mat-label>
                 <input matInput formControlName="firstName" />
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Nom</mat-label>
+                <mat-label>{{ 'Nom' | t }}</mat-label>
                 <input matInput formControlName="lastName" />
               </mat-form-field>
             </div>
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Email</mat-label>
+              <mat-label>{{ 'Email' | t }}</mat-label>
               <input matInput formControlName="email" type="email" />
               <mat-icon matSuffix>email</mat-icon>
             </mat-form-field>
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Mot de passe</mat-label>
+              <mat-label>{{ 'Mot de passe' | t }}</mat-label>
               <input matInput formControlName="password" [type]="hidePassword() ? 'password' : 'text'" />
-              <mat-hint>Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial</mat-hint>
+              <mat-hint>{{ 'Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial' | t }}</mat-hint>
               <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())">
                 <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </mat-form-field>
             <button mat-flat-button color="primary" type="submit" class="full-width submit-btn"
                     [disabled]="loading()">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { Créer mon compte }
+              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Créer mon compte' | t }} }
             </button>
           </form>
         </mat-card-content>
         <mat-card-actions align="end">
-          <span>Déjà inscrit ? <a routerLink="/login">Se connecter</a></span>
+          <span>{{ 'Déjà inscrit ?' | t }} <a routerLink="/login">{{ 'Se connecter' | t }}</a></span>
         </mat-card-actions>
       </mat-card>
     </div>

@@ -7,20 +7,21 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { DashboardService, VolunteerDashboard } from '../../core/services/dashboard.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
-    MatProgressSpinnerModule, RouterLink, DatePipe],
+    MatProgressSpinnerModule, RouterLink, DatePipe, TPipe],
   template: `
     <div class="page-container">
       @if (loading()) {
         <div class="loading"><mat-spinner diameter="40" /></div>
       } @else if (dashboard()) {
         <header class="welcome">
-          <h1>Bonjour, {{ dashboard()!.firstName }} 👋</h1>
-          <p class="subtitle">Votre espace bénévole</p>
+          <h1>{{ 'Bonjour,' | t }} {{ dashboard()!.firstName }} 👋</h1>
+          <p class="subtitle">{{ 'Votre espace bénévole' | t }}</p>
         </header>
 
         @if (!dashboard()!.onboardingDone) {
@@ -28,10 +29,10 @@ import { DashboardService, VolunteerDashboard } from '../../core/services/dashbo
             <mat-card-content>
               <mat-icon>emoji_objects</mat-icon>
               <div>
-                <strong>Complétez votre profil !</strong>
-                <p>Ajoutez vos compétences pour recevoir des suggestions personnalisées.</p>
+                <strong>{{ 'Complétez votre profil !' | t }}</strong>
+                <p>{{ 'Ajoutez vos compétences pour recevoir des suggestions personnalisées.' | t }}</p>
               </div>
-              <a mat-flat-button routerLink="/onboarding">Compléter</a>
+              <a mat-flat-button routerLink="/onboarding">{{ 'Compléter' | t }}</a>
             </mat-card-content>
           </mat-card>
         }
@@ -41,21 +42,21 @@ import { DashboardService, VolunteerDashboard } from '../../core/services/dashbo
             <mat-card-content>
               <mat-icon>event_available</mat-icon>
               <div class="stat-value">{{ dashboard()!.stats.eventsAttended }}</div>
-              <div class="stat-label">Événements participés</div>
+              <div class="stat-label">{{ 'Événements participés' | t }}</div>
             </mat-card-content>
           </mat-card>
           <mat-card class="stat-card">
             <mat-card-content>
               <mat-icon>groups</mat-icon>
               <div class="stat-value">{{ dashboard()!.stats.organizationsJoined }}</div>
-              <div class="stat-label">Organisations</div>
+              <div class="stat-label">{{ 'Organisations' | t }}</div>
             </mat-card-content>
           </mat-card>
         </div>
 
         @if (dashboard()!.upcomingEvents.length > 0) {
           <section>
-            <h2>Mes prochains événements</h2>
+            <h2>{{ 'Mes prochains événements' | t }}</h2>
             <div class="card-row">
               @for (e of dashboard()!.upcomingEvents; track e.id) {
                 <mat-card class="event-mini" [routerLink]="['/events', e.id]">
@@ -71,13 +72,13 @@ import { DashboardService, VolunteerDashboard } from '../../core/services/dashbo
 
         @if (dashboard()!.myOrganizations.length > 0) {
           <section>
-            <h2>Mes organisations</h2>
+            <h2>{{ 'Mes organisations' | t }}</h2>
             <div class="card-row">
               @for (o of dashboard()!.myOrganizations; track o.id) {
                 <mat-card class="org-mini" [routerLink]="['/organizations', o.slug]">
                   <mat-card-content>
                     <strong>{{ o.name }}</strong>
-                    <span class="meta">{{ o.city }} · {{ o.memberCount }} membres</span>
+                    <span class="meta">{{ o.city }} · {{ o.memberCount }} {{ 'membres' | t }}</span>
                   </mat-card-content>
                 </mat-card>
               }
@@ -87,7 +88,7 @@ import { DashboardService, VolunteerDashboard } from '../../core/services/dashbo
 
         @if (dashboard()!.suggestedEvents.length > 0) {
           <section>
-            <h2>Événements suggérés</h2>
+            <h2>{{ 'Événements suggérés' | t }}</h2>
             <div class="card-row">
               @for (e of dashboard()!.suggestedEvents; track e.id) {
                 <mat-card class="event-mini" [routerLink]="['/events', e.id]">
@@ -115,7 +116,7 @@ import { DashboardService, VolunteerDashboard } from '../../core/services/dashbo
     .onboarding-banner p { margin: 4px 0 0; color: #666; }
     .stats-row { display: flex; gap: 16px; margin: 24px 0; }
     .stat-card { flex: 1; border-radius: 12px; text-align: center; }
-    .stat-card mat-icon { color: #1976d2; font-size: 28px; width: 28px; height: 28px; }
+    .stat-card mat-icon { color: var(--brand-primary); font-size: 28px; width: 28px; height: 28px; }
     .stat-value { font-size: 2rem; font-weight: 700; margin: 4px 0; }
     .stat-label { color: #888; font-size: 0.85rem; }
     section { margin-top: 32px; }

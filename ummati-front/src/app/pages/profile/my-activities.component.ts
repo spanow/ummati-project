@@ -12,26 +12,27 @@ import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { MembershipService, MembershipResponse } from '../../core/services/membership.service';
 import { EventService, SignupResponse } from '../../core/services/event.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-my-activities',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatChipsModule,
-    MatMenuModule, MatPaginatorModule, MatProgressSpinnerModule, MatSnackBarModule, RouterLink, DatePipe],
+    MatMenuModule, MatPaginatorModule, MatProgressSpinnerModule, MatSnackBarModule, RouterLink, DatePipe, TPipe],
   template: `
     <div class="page-container">
-      <h1>Mes activités</h1>
+      <h1>{{ 'Mes activités' | t }}</h1>
 
       <mat-tab-group>
         <!-- Mes organisations -->
-        <mat-tab label="Mes organisations ({{ membershipTotal() }})">
+        <mat-tab [label]="('Mes organisations' | t) + ' (' + membershipTotal() + ')'">
           @if (membershipsLoading()) {
             <div class="loading"><mat-spinner diameter="30" /></div>
           } @else if (memberships().length === 0) {
             <div class="empty">
               <mat-icon>groups_off</mat-icon>
-              <p>Vous n'êtes membre d'aucune organisation.</p>
-              <a mat-flat-button routerLink="/organizations">Explorer les ONG</a>
+              <p>{{ 'Vous n\\'êtes membre d\\'aucune organisation.' | t }}</p>
+              <a mat-flat-button routerLink="/organizations">{{ 'Explorer les ONG' | t }}</a>
             </div>
           } @else {
             <div class="card-list">
@@ -42,7 +43,7 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
                       <mat-icon>business</mat-icon>
                       <div class="info">
                         <strong>{{ m.organizationName }}</strong>
-                        <span class="meta">Membre depuis {{ m.joinedAt | date:'d MMM yyyy' }}</span>
+                        <span class="meta">{{ 'Membre depuis' | t }} {{ m.joinedAt | date:'d MMM yyyy' }}</span>
                       </div>
                       <mat-chip [class]="'role-' + m.role.toLowerCase()">{{ m.role }}</mat-chip>
                       <button mat-icon-button [matMenuTriggerFor]="membershipMenu"
@@ -51,7 +52,7 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
                       </button>
                       <mat-menu #membershipMenu="matMenu">
                         <button mat-menu-item class="danger-item" (click)="leaveOrg(m)">
-                          <mat-icon>logout</mat-icon> Quitter l'organisation
+                          <mat-icon>logout</mat-icon> {{ 'Quitter l\\'organisation' | t }}
                         </button>
                       </mat-menu>
                     </div>
@@ -64,14 +65,14 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
         </mat-tab>
 
         <!-- Mes inscriptions -->
-        <mat-tab label="Mes inscriptions ({{ signupTotal() }})">
+        <mat-tab [label]="('Mes inscriptions' | t) + ' (' + signupTotal() + ')'">
           @if (signupsLoading()) {
             <div class="loading"><mat-spinner diameter="30" /></div>
           } @else if (signups().length === 0) {
             <div class="empty">
               <mat-icon>event_busy</mat-icon>
-              <p>Vous n'avez aucune inscription à un événement.</p>
-              <a mat-flat-button routerLink="/events">Voir les événements</a>
+              <p>{{ 'Vous n\\'avez aucune inscription à un événement.' | t }}</p>
+              <a mat-flat-button routerLink="/events">{{ 'Voir les événements' | t }}</a>
             </div>
           } @else {
             <div class="card-list">
@@ -82,7 +83,7 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
                       <mat-icon>event</mat-icon>
                       <div class="info">
                         <strong>{{ s.eventTitle }}</strong>
-                        <span class="meta">Inscrit le {{ s.registeredAt | date:'d MMM yyyy' }}</span>
+                        <span class="meta">{{ 'Inscrit le' | t }} {{ s.registeredAt | date:'d MMM yyyy' }}</span>
                       </div>
                       <mat-chip [class]="'status-' + s.status.toLowerCase()">{{ s.status }}</mat-chip>
                     </div>
@@ -106,15 +107,15 @@ import { EventService, SignupResponse } from '../../core/services/event.service'
     .activity-card { border-radius: 10px; cursor: pointer; }
     .activity-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
     .card-row { display: flex; align-items: center; gap: 16px; }
-    .card-row mat-icon { color: #1976d2; }
+    .card-row mat-icon { color: var(--brand-primary); }
     .info { flex: 1; }
     .info strong { display: block; }
     .meta { color: #888; font-size: 0.8rem; }
-    .role-admin { background: #e3f2fd !important; color: #1565c0 !important; }
+    .role-admin { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
     .role-member { background: #e8f5e9 !important; color: #2e7d32 !important; }
     .status-registered { background: #e8f5e9 !important; color: #2e7d32 !important; }
     .status-waitlisted { background: #fff3e0 !important; color: #e65100 !important; }
-    .status-attended { background: #e3f2fd !important; color: #1565c0 !important; }
+    .status-attended { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
     .status-cancelled { background: #ffebee !important; color: #c62828 !important; }
     .danger-item { color: #c62828; }
   `],

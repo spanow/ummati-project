@@ -15,6 +15,7 @@ import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { AdminService } from '../../../core/services/admin.service';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-admin-org-validation',
@@ -24,14 +25,14 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
     MatDividerModule, MatChipsModule, MatDialogModule,
-    OrgDocumentsComponent
+    OrgDocumentsComponent, TPipe
   ],
   template: `
     <div class="validation-container" role="main">
 
       <!-- Back button -->
-      <a mat-button routerLink="/admin" class="back-btn" aria-label="Retour à l'administration">
-        <mat-icon>arrow_back</mat-icon> Retour
+      <a mat-button routerLink="/admin" class="back-btn" [attr.aria-label]="'Retour à l\\'administration' | t">
+        <mat-icon>arrow_back</mat-icon> {{ 'Retour' | t }}
       </a>
 
       @if (loading()) {
@@ -52,7 +53,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
               <h1>{{ org()!.name }}</h1>
               <div class="meta">
                 <span class="status-badge" [class]="'status-' + org()!.status.toLowerCase()">
-                  {{ statusLabel(org()!.status) }}
+                  {{ statusLabel(org()!.status) | t }}
                 </span>
                 <span>{{ org()!.domain }}</span>
                 @if (org()!.addressCity) { <span>📍 {{ org()!.addressCity }}</span> }
@@ -68,7 +69,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
             <mat-card class="detail-card">
               <mat-card-header>
                 <mat-icon mat-card-avatar aria-hidden="true">info</mat-icon>
-                <mat-card-title>Informations</mat-card-title>
+                <mat-card-title>{{ 'Informations' | t }}</mat-card-title>
               </mat-card-header>
               <mat-card-content>
                 <div class="info-grid">
@@ -92,17 +93,17 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                   }
                   <div class="info-item">
                     <mat-icon aria-hidden="true">calendar_today</mat-icon>
-                    <span>Créée le {{ org()!.createdAt | date:'dd/MM/yyyy' }}</span>
+                    <span>{{ 'Créée le' | t }} {{ org()!.createdAt | date:'dd/MM/yyyy' }}</span>
                   </div>
                 </div>
 
                 @if (org()!.description) {
                   <mat-divider class="my-divider"></mat-divider>
-                  <h3>Description</h3>
+                  <h3>{{ 'Description' | t }}</h3>
                   <p class="description-text">{{ org()!.description }}</p>
                 }
                 @if (org()!.mission) {
-                  <h3>Mission</h3>
+                  <h3>{{ 'Mission' | t }}</h3>
                   <p class="description-text">{{ org()!.mission }}</p>
                 }
               </mat-card-content>
@@ -118,16 +119,16 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
               <mat-card class="action-card approve-card">
                 <mat-card-header>
                   <mat-icon mat-card-avatar style="color: #4caf50" aria-hidden="true">check_circle</mat-icon>
-                  <mat-card-title>Approuver l'organisation</mat-card-title>
-                  <mat-card-subtitle>L'organisation sera publiée et visible de tous</mat-card-subtitle>
+                  <mat-card-title>{{ 'Approuver l\\'organisation' | t }}</mat-card-title>
+                  <mat-card-subtitle>{{ 'L\\'organisation sera publiée et visible de tous' | t }}</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content>
                   <button mat-flat-button color="primary" (click)="approve()"
                           [disabled]="actionLoading()"
                           class="full-width-btn"
-                          aria-label="Approuver cette organisation">
+                          [attr.aria-label]="'Approuver cette organisation' | t">
                     @if (actionLoading()) { <mat-spinner diameter="20"></mat-spinner> }
-                    @else { <mat-icon>check</mat-icon> Approuver }
+                    @else { <ng-container><mat-icon>check</mat-icon> {{ 'Approuver' | t }}</ng-container> }
                   </button>
                 </mat-card-content>
               </mat-card>
@@ -135,27 +136,27 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
               <mat-card class="action-card reject-card">
                 <mat-card-header>
                   <mat-icon mat-card-avatar color="warn" aria-hidden="true">cancel</mat-icon>
-                  <mat-card-title>Rejeter l'organisation</mat-card-title>
-                  <mat-card-subtitle>Un motif d'au moins 20 caractères est requis</mat-card-subtitle>
+                  <mat-card-title>{{ 'Rejeter l\\'organisation' | t }}</mat-card-title>
+                  <mat-card-subtitle>{{ 'Un motif d\\'au moins 20 caractères est requis' | t }}</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content>
                   <form [formGroup]="rejectForm" (ngSubmit)="reject()" aria-label="Formulaire de rejet">
                     <mat-form-field appearance="outline" class="full-width">
-                      <mat-label>Motif du rejet</mat-label>
+                      <mat-label>{{ 'Motif du rejet' | t }}</mat-label>
                       <textarea matInput formControlName="reason" rows="4"
-                                placeholder="Expliquez pourquoi cette organisation est rejetée..."
+                                [placeholder]="'Expliquez pourquoi cette organisation est rejetée...' | t"
                                 aria-required="true"></textarea>
                       @if (rejectForm.get('reason')?.hasError('minlength') && rejectForm.get('reason')?.touched) {
-                        <mat-error role="alert">Le motif doit contenir au moins 20 caractères</mat-error>
+                        <mat-error role="alert">{{ 'Le motif doit contenir au moins 20 caractères' | t }}</mat-error>
                       }
                       <mat-hint>{{ rejectForm.get('reason')?.value?.length ?? 0 }} / 20 min</mat-hint>
                     </mat-form-field>
                     <button mat-flat-button color="warn" type="submit"
                             [disabled]="rejectForm.invalid || actionLoading()"
                             class="full-width-btn"
-                            aria-label="Rejeter cette organisation">
+                            [attr.aria-label]="'Rejeter cette organisation' | t">
                       @if (actionLoading()) { <mat-spinner diameter="20"></mat-spinner> }
-                      @else { <mat-icon>close</mat-icon> Rejeter }
+                      @else { <ng-container><mat-icon>close</mat-icon> {{ 'Rejeter' | t }}</ng-container> }
                     </button>
                   </form>
                 </mat-card-content>
@@ -169,10 +170,10 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                     <mat-icon [class]="'status-icon-' + org()!.status.toLowerCase()" aria-hidden="true">
                       {{ org()!.status === 'ACTIVE' ? 'check_circle' : org()!.status === 'REJECTED' ? 'cancel' : 'block' }}
                     </mat-icon>
-                    <p>Cette organisation est <strong>{{ statusLabel(org()!.status) }}</strong>.</p>
+                    <p>{{ 'Cette organisation est' | t }} <strong>{{ statusLabel(org()!.status) | t }}</strong>.</p>
                     @if (org()!.rejectionReason) {
                       <div class="rejection-reason" role="note">
-                        <strong>Motif :</strong> {{ org()!.rejectionReason }}
+                        <strong>{{ 'Motif :' | t }}</strong> {{ org()!.rejectionReason }}
                       </div>
                     }
                   </div>
@@ -184,8 +185,8 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
       } @else {
         <div class="error-state" role="alert">
           <mat-icon>error_outline</mat-icon>
-          <p>Organisation introuvable.</p>
-          <a mat-button routerLink="/admin">Retour à l'administration</a>
+          <p>{{ 'Organisation introuvable.' | t }}</p>
+          <a mat-button routerLink="/admin">{{ 'Retour à l\\'administration' | t }}</a>
         </div>
       }
     </div>
@@ -199,10 +200,10 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     .org-logo { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; }
     .org-logo-placeholder {
       width: 72px; height: 72px; border-radius: 12px;
-      background: #e8eaf6; display: flex; align-items: center; justify-content: center;
+      background: var(--brand-primary-100); display: flex; align-items: center; justify-content: center;
     }
-    .org-logo-placeholder mat-icon { font-size: 36px !important; width: 36px !important; height: 36px !important; color: #3f51b5; }
-    h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 8px; color: #1a1a2e; }
+    .org-logo-placeholder mat-icon { font-size: 36px !important; width: 36px !important; height: 36px !important; color: var(--brand-primary); }
+    h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 8px; color: var(--brand-ink); }
     .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: #666; }
     .status-badge {
       padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
@@ -219,16 +220,16 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     .info-grid { display: flex; flex-direction: column; gap: 12px; }
     .info-item { display: flex; align-items: center; gap: 10px; }
     .info-item mat-icon { color: #666; font-size: 18px !important; width: 18px !important; height: 18px !important; }
-    .info-item a { color: #3f51b5; text-decoration: none; }
+    .info-item a { color: var(--brand-primary); text-decoration: none; }
     .my-divider { margin: 20px 0 !important; }
-    h3 { font-size: 1rem; font-weight: 600; color: #1a1a2e; margin: 0 0 8px; }
+    h3 { font-size: 1rem; font-weight: 600; color: var(--brand-ink); margin: 0 0 8px; }
     .description-text { color: #555; line-height: 1.7; margin: 0 0 16px; white-space: pre-wrap; }
     .full-width { width: 100%; display: block; }
     .full-width-btn { width: 100%; margin-top: 8px; }
     .status-info { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px; text-align: center; }
     .status-icon-active { color: #4caf50; font-size: 48px !important; width: 48px !important; height: 48px !important; }
     .status-icon-rejected { color: #f44336; font-size: 48px !important; width: 48px !important; height: 48px !important; }
-    .status-icon-suspended { color: #ff9800; font-size: 48px !important; width: 48px !important; height: 48px !important; }
+    .status-icon-suspended { color: var(--brand-accent); font-size: 48px !important; width: 48px !important; height: 48px !important; }
     .rejection-reason {
       background: #ffebee; border-radius: 8px; padding: 12px 16px; font-size: 0.9rem; color: #555; text-align: left;
     }

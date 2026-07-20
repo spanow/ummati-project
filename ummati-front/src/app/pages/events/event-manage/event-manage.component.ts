@@ -19,6 +19,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { EventService, EventSummary, SignupResponse } from '../../../core/services/event.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { OrganizationService } from '../../../core/services/organization.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-event-manage',
@@ -26,13 +27,13 @@ import { OrganizationService } from '../../../core/services/organization.service
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
-    RouterLink, DatePipe, FormsModule],
+    RouterLink, DatePipe, FormsModule, TPipe],
   template: `
     <div class="page-container">
       <header class="page-header">
-        <h1>Gestion des événements</h1>
+        <h1>{{ 'Gestion des événements' | t }}</h1>
         <a mat-flat-button [routerLink]="['/organizations', orgId, 'events', 'new']">
-          <mat-icon>add</mat-icon> Nouvel événement
+          <mat-icon>add</mat-icon> {{ 'Nouvel événement' | t }}
         </a>
       </header>
 
@@ -40,10 +41,10 @@ import { OrganizationService } from '../../../core/services/organization.service
         <div class="loading"><mat-spinner diameter="40" /></div>
       } @else {
         <mat-tab-group>
-          <mat-tab label="Tous les événements">
+          <mat-tab [label]="'Tous les événements' | t">
             @if (events().length === 0) {
               <div class="empty">
-                <p>Aucun événement pour cette organisation.</p>
+                <p>{{ 'Aucun événement pour cette organisation.' | t }}</p>
               </div>
             } @else {
               @for (event of events(); track event.id) {
@@ -55,29 +56,29 @@ import { OrganizationService } from '../../../core/services/organization.service
                         <div class="em-meta">
                           <mat-chip [class]="'status-' + event.status.toLowerCase()">{{ event.status }}</mat-chip>
                           <span>{{ event.startDate | date:'d MMM yyyy, HH:mm' }}</span>
-                          <span>{{ event.registeredCount }}@if(event.maxParticipants){/{{ event.maxParticipants }}} inscrits</span>
+                          <span>{{ event.registeredCount }}@if(event.maxParticipants){/{{ event.maxParticipants }}} {{ 'inscrits' | t }}</span>
                         </div>
                       </div>
                       <div class="em-actions">
                         @if (event.status === 'DRAFT') {
                           <button mat-stroked-button (click)="publish(event)">
-                            <mat-icon>publish</mat-icon> Publier
+                            <mat-icon>publish</mat-icon> {{ 'Publier' | t }}
                           </button>
                           <a mat-stroked-button [routerLink]="['/events', event.id, 'edit']">
-                            <mat-icon>edit</mat-icon> Modifier
+                            <mat-icon>edit</mat-icon> {{ 'Modifier' | t }}
                           </a>
                         }
                         @if (event.status === 'PUBLISHED') {
                           <button mat-stroked-button color="warn" (click)="cancelEvent(event)">
-                            <mat-icon>cancel</mat-icon> Annuler
+                            <mat-icon>cancel</mat-icon> {{ 'Annuler' | t }}
                           </button>
                           <button mat-stroked-button (click)="viewSignups(event)">
-                            <mat-icon>people</mat-icon> Inscrits
+                            <mat-icon>people</mat-icon> {{ 'Inscrits' | t }}
                           </button>
                         }
                         @if (event.status === 'COMPLETED') {
                           <button mat-stroked-button (click)="viewSignups(event)">
-                            <mat-icon>people</mat-icon> Participants
+                            <mat-icon>people</mat-icon> {{ 'Participants' | t }}
                           </button>
                         }
                       </div>
@@ -88,24 +89,24 @@ import { OrganizationService } from '../../../core/services/organization.service
             }
           </mat-tab>
 
-          <mat-tab label="📢 Annonces" [disabled]="!selectedEvent()">
+          <mat-tab [label]="'📢 ' + ('Annonces' | t)" [disabled]="!selectedEvent()">
             @if (selectedEvent()) {
               <div class="ann-section">
-                <h2>Annonces — {{ selectedEvent()!.title }}</h2>
+                <h2>{{ 'Annonces' | t }} — {{ selectedEvent()!.title }}</h2>
                 @if (selectedEvent()!.status === 'PUBLISHED') {
                   <div class="ann-form">
                     <mat-form-field appearance="outline" class="ann-input">
-                      <mat-label>Nouvelle annonce</mat-label>
+                      <mat-label>{{ 'Nouvelle annonce' | t }}</mat-label>
                       <textarea matInput [(ngModel)]="newAnnContent" rows="3" maxlength="1000"
-                        placeholder="Ex: Rendez-vous à 18h30 devant la gare — 3 voitures disponibles"></textarea>
+                        [placeholder]="'Ex: Rendez-vous à 18h30 devant la gare — 3 voitures disponibles' | t"></textarea>
                     </mat-form-field>
                     <div class="ann-form-actions">
                       <label class="pin-toggle">
-                        <input type="checkbox" [(ngModel)]="newAnnPinned" /> Épingler
+                        <input type="checkbox" [(ngModel)]="newAnnPinned" /> {{ 'Épingler' | t }}
                       </label>
                       <button mat-flat-button color="primary" (click)="postAnnouncement()"
                           [disabled]="newAnnContent.trim().length < 5">
-                        <mat-icon>campaign</mat-icon> Publier l'annonce
+                        <mat-icon>campaign</mat-icon> {{ 'Publier l\\'annonce' | t }}
                       </button>
                     </div>
                   </div>
@@ -114,33 +115,33 @@ import { OrganizationService } from '../../../core/services/organization.service
                   @for (ann of announcements(); track ann.id) {
                     <div class="ann-item" [class.pinned]="ann.pinned">
                       <div class="ann-item-header">
-                        @if (ann.pinned) { <span class="pin-tag">📌 Épinglée</span> }
+                        @if (ann.pinned) { <span class="pin-tag">📌 {{ 'Épinglée' | t }}</span> }
                         <span class="ann-date">{{ ann.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
-                        <button mat-icon-button color="warn" (click)="deleteAnnouncement(ann.id)" title="Supprimer">
+                        <button mat-icon-button color="warn" (click)="deleteAnnouncement(ann.id)" [title]="'Supprimer' | t">
                           <mat-icon>delete_outline</mat-icon>
                         </button>
                       </div>
                       <p class="ann-content">{{ ann.content }}</p>
                     </div>
                   } @empty {
-                    <p class="empty-ann">Aucune annonce pour cet événement.</p>
+                    <p class="empty-ann">{{ 'Aucune annonce pour cet événement.' | t }}</p>
                   }
                 </div>
               </div>
             }
           </mat-tab>
 
-          <mat-tab label="Inscrits" [disabled]="!selectedEvent()">
+          <mat-tab [label]="'Inscrits' | t" [disabled]="!selectedEvent()">
             @if (selectedEvent()) {
               <div class="signups-header">
-                <h2>Inscrits — {{ selectedEvent()!.title }}</h2>
+                <h2>{{ 'Inscrits' | t }} — {{ selectedEvent()!.title }}</h2>
                 <div class="signups-actions">
                   <button mat-stroked-button (click)="exportCsv()">
-                    <mat-icon>download</mat-icon> Export CSV
+                    <mat-icon>download</mat-icon> {{ 'Export CSV' | t }}
                   </button>
                   @if (selectedEvent()!.status !== 'DRAFT') {
                     <button mat-flat-button (click)="markSelectedAttended()" [disabled]="selectedUserIds.length === 0">
-                      <mat-icon>check_circle</mat-icon> Marquer présents
+                      <mat-icon>check_circle</mat-icon> {{ 'Marquer présents' | t }}
                     </button>
                   }
                 </div>
@@ -152,10 +153,10 @@ import { OrganizationService } from '../../../core/services/organization.service
                   <thead>
                     <tr>
                       <th><input type="checkbox" (change)="toggleAll($event)" /></th>
-                      <th>Nom</th>
-                      <th>Email</th>
-                      <th>Statut</th>
-                      <th>Inscrit le</th>
+                      <th>{{ 'Nom' | t }}</th>
+                      <th>{{ 'Email' | t }}</th>
+                      <th>{{ 'Statut' | t }}</th>
+                      <th>{{ 'Inscrit le' | t }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -193,10 +194,10 @@ import { OrganizationService } from '../../../core/services/organization.service
     .status-draft { background: #fff3e0 !important; color: #e65100 !important; }
     .status-published { background: #e8f5e9 !important; color: #2e7d32 !important; }
     .status-cancelled { background: #ffebee !important; color: #c62828 !important; }
-    .status-completed { background: #e3f2fd !important; color: #1565c0 !important; }
+    .status-completed { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
     .signup-registered { background: #e8f5e9 !important; color: #2e7d32 !important; }
     .signup-waitlisted { background: #fff3e0 !important; color: #e65100 !important; }
-    .signup-attended { background: #e3f2fd !important; color: #1565c0 !important; }
+    .signup-attended { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
     .signup-cancelled { background: #ffebee !important; color: #c62828 !important; }
     .signups-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; flex-wrap: wrap; gap: 12px; }
     .signups-header h2 { font-size: 1.2rem; font-weight: 600; margin: 0; }
@@ -212,9 +213,9 @@ import { OrganizationService } from '../../../core/services/organization.service
     .pin-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; }
     .ann-list { display: flex; flex-direction: column; gap: 12px; }
     .ann-item { border: 1px solid #eee; border-radius: 8px; padding: 12px 16px; }
-    .ann-item.pinned { border-color: #1976d2; background: #f3f8ff; }
+    .ann-item.pinned { border-color: var(--brand-primary); background: var(--brand-primary-soft); }
     .ann-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .pin-tag { font-size: 0.8rem; font-weight: 600; color: #1976d2; }
+    .pin-tag { font-size: 0.8rem; font-weight: 600; color: var(--brand-primary); }
     .ann-date { font-size: 0.8rem; color: #999; margin-left: auto; }
     .ann-content { margin: 0; white-space: pre-line; line-height: 1.6; }
     .empty-ann { color: #aaa; text-align: center; padding: 24px; }

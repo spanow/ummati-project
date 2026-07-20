@@ -20,7 +20,7 @@ import { MatIconModule } from '@angular/material/icon';
   styles: [`
     .stars { display: inline-flex; gap: 2px; }
     .star { cursor: pointer; color: #ccc; font-size: 28px; width: 28px; height: 28px; transition: color 0.15s; }
-    .star.filled { color: #ffc107; }
+    .star.filled { color: var(--brand-accent); }
     :host-context([readonly]) .star { cursor: default; }
   `],
 })

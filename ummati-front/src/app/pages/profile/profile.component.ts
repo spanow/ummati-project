@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { ProfileService, ProfileResponse } from '../../core/services/profile.service';
 import { SkillService, Skill } from '../../core/services/skill.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-profile',
@@ -19,7 +20,7 @@ import { SkillService, Skill } from '../../core/services/skill.service';
   imports: [
     ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatChipsModule, MatTabsModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule,
+    MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule, TPipe,
   ],
   template: `
     @if (loading()) {
@@ -36,7 +37,7 @@ import { SkillService, Skill } from '../../core/services/skill.service';
                 {{ profile()!.firstName[0] }}{{ profile()!.lastName[0] }}
               </div>
             }
-            <label class="avatar-upload" title="Changer la photo">
+            <label class="avatar-upload" [title]="'Changer la photo' | t">
               <mat-icon>photo_camera</mat-icon>
               <input type="file" accept="image/jpeg,image/png" (change)="onPhotoChange($event)" hidden />
             </label>
@@ -53,15 +54,15 @@ import { SkillService, Skill } from '../../core/services/skill.service';
           <div class="stats-row">
             <div class="stat">
               <span class="stat-val">{{ profile()!.stats.organizationCount }}</span>
-              <span class="stat-lbl">ONG</span>
+              <span class="stat-lbl">{{ 'ONG' | t }}</span>
             </div>
             <div class="stat">
               <span class="stat-val">{{ profile()!.stats.eventsAttended }}</span>
-              <span class="stat-lbl">Événements</span>
+              <span class="stat-lbl">{{ 'Événements' | t }}</span>
             </div>
             <div class="stat">
               <span class="stat-val">{{ profile()!.stats.volunteerHours }}</span>
-              <span class="stat-lbl">Heures</span>
+              <span class="stat-lbl">{{ 'Heures' | t }}</span>
             </div>
           </div>
         </div>
@@ -69,7 +70,7 @@ import { SkillService, Skill } from '../../core/services/skill.service';
         <!-- Skills -->
         @if (profile()!.skills.length > 0) {
           <div class="section">
-            <h3>Compétences</h3>
+            <h3>{{ 'Compétences' | t }}</h3>
             <div class="chips-row">
               @for (skill of profile()!.skills; track skill.id) {
                 <mat-chip>{{ skill.name }}</mat-chip>
@@ -82,40 +83,40 @@ import { SkillService, Skill } from '../../core/services/skill.service';
 
         <!-- Edit form -->
         <mat-tab-group class="edit-tabs">
-          <mat-tab label="Informations">
+          <mat-tab [label]="'Informations' | t">
             <form [formGroup]="infoForm" (ngSubmit)="saveInfo()" class="tab-form">
               <div class="form-row">
                 <mat-form-field appearance="outline">
-                  <mat-label>Prénom</mat-label>
+                  <mat-label>{{ 'Prénom' | t }}</mat-label>
                   <input matInput formControlName="firstName" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>Nom</mat-label>
+                  <mat-label>{{ 'Nom' | t }}</mat-label>
                   <input matInput formControlName="lastName" />
                 </mat-form-field>
               </div>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Téléphone</mat-label>
+                <mat-label>{{ 'Téléphone' | t }}</mat-label>
                 <input matInput formControlName="phone" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Bio</mat-label>
+                <mat-label>{{ 'Bio' | t }}</mat-label>
                 <textarea matInput formControlName="bio" rows="3"></textarea>
               </mat-form-field>
               <div class="form-row">
                 <mat-form-field appearance="outline" class="flex-2">
-                  <mat-label>Ville</mat-label>
+                  <mat-label>{{ 'Ville' | t }}</mat-label>
                   <input matInput formControlName="city" />
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Code postal</mat-label>
+                  <mat-label>{{ 'Code postal' | t }}</mat-label>
                   <input matInput formControlName="zip" />
                 </mat-form-field>
               </div>
 
               <div class="skills-edit">
-                <h4>Mes compétences</h4>
-                <p class="skills-hint">Sélectionnez les compétences que vous souhaitez mettre à disposition des associations.</p>
+                <h4>{{ 'Mes compétences' | t }}</h4>
+                <p class="skills-hint">{{ 'Sélectionnez les compétences que vous souhaitez mettre à disposition des associations.' | t }}</p>
                 <div class="skills-grid">
                   @for (skill of allSkills(); track skill.id) {
                     <mat-chip-option [selected]="selectedSkillIds.has(skill.id)" (click)="toggleSkill(skill.id)">
@@ -127,26 +128,26 @@ import { SkillService, Skill } from '../../core/services/skill.service';
 
               @if (infoError()) { <div class="error-banner">{{ infoError() }}</div> }
               <button mat-flat-button type="submit" [disabled]="savingInfo()">
-                @if (savingInfo()) { <mat-spinner diameter="18" /> } @else { Sauvegarder }
+                @if (savingInfo()) { <mat-spinner diameter="18" /> } @else { {{ 'Sauvegarder' | t }} }
               </button>
             </form>
           </mat-tab>
 
-          <mat-tab label="Mot de passe">
+          <mat-tab [label]="'Mot de passe' | t">
             <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="tab-form">
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Mot de passe actuel</mat-label>
+                <mat-label>{{ 'Mot de passe actuel' | t }}</mat-label>
                 <input matInput formControlName="currentPassword" type="password" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Nouveau mot de passe</mat-label>
+                <mat-label>{{ 'Nouveau mot de passe' | t }}</mat-label>
                 <input matInput formControlName="newPassword" type="password" />
-                <mat-hint>Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial</mat-hint>
+                <mat-hint>{{ 'Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial' | t }}</mat-hint>
               </mat-form-field>
               @if (pwdError()) { <div class="error-banner">{{ pwdError() }}</div> }
               @if (pwdSuccess()) { <div class="success-banner">{{ pwdSuccess() }}</div> }
               <button mat-flat-button type="submit" [disabled]="savingPwd()">
-                @if (savingPwd()) { <mat-spinner diameter="18" /> } @else { Changer le mot de passe }
+                @if (savingPwd()) { <mat-spinner diameter="18" /> } @else { {{ 'Changer le mot de passe' | t }} }
               </button>
             </form>
           </mat-tab>
@@ -160,7 +161,7 @@ import { SkillService, Skill } from '../../core/services/skill.service';
     .profile-hero { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
     .avatar-wrapper { position: relative; flex-shrink: 0; }
     .avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
-    .avatar-placeholder { width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg, #1976d2, #42a5f5); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 600; }
+    .avatar-placeholder { width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light)); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 600; }
     .avatar-upload { position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; background: white; border-radius: 50%; border: 2px solid #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
     .avatar-upload mat-icon { font-size: 16px; width: 16px; height: 16px; color: #555; }
     .hero-info { flex: 1; }
@@ -170,7 +171,7 @@ import { SkillService, Skill } from '../../core/services/skill.service';
     .bio { color: #555; line-height: 1.6; margin: 8px 0 0; font-size: 0.95rem; }
     .stats-row { display: flex; gap: 24px; margin-left: auto; }
     .stat { display: flex; flex-direction: column; align-items: center; padding: 12px 20px; background: #f8f9fa; border-radius: 10px; }
-    .stat-val { font-size: 1.5rem; font-weight: 700; color: #1976d2; }
+    .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--brand-primary); }
     .stat-lbl { font-size: 0.75rem; color: #888; margin-top: 2px; }
     .section { margin: 24px 0; }
     .section h3 { font-size: 1rem; font-weight: 600; margin: 0 0 12px; }

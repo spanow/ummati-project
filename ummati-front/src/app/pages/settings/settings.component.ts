@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 import { ProfileService } from '../../core/services/profile.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PushNotificationService } from '../../core/services/push-notification.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 function passwordMatch(control: AbstractControl): ValidationErrors | null {
   const pwd = control.get('newPassword')?.value;
@@ -29,63 +30,63 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
     ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
-    MatDividerModule, MatDialogModule, MatTabsModule, MatSlideToggleModule
+    MatDividerModule, MatDialogModule, MatTabsModule, MatSlideToggleModule, TPipe
   ],
   template: `
     <div class="settings-container" role="main">
       <div class="page-header">
-        <h1>Paramètres du compte</h1>
-        <p>Gérez votre sécurité et vos préférences</p>
+        <h1>{{ 'Paramètres du compte' | t }}</h1>
+        <p>{{ 'Gérez votre sécurité et vos préférences' | t }}</p>
       </div>
 
       <mat-tab-group animationDuration="200ms" aria-label="Sections des paramètres">
 
         <!-- Tab Mot de passe -->
-        <mat-tab label="Mot de passe">
+        <mat-tab [label]="'Mot de passe' | t">
           <ng-template matTabContent>
             <mat-card class="settings-card">
               <mat-card-header>
                 <mat-icon mat-card-avatar aria-hidden="true">lock</mat-icon>
-                <mat-card-title>Changer le mot de passe</mat-card-title>
-                <mat-card-subtitle>Votre mot de passe doit comporter au moins 8 caractères</mat-card-subtitle>
+                <mat-card-title>{{ 'Changer le mot de passe' | t }}</mat-card-title>
+                <mat-card-subtitle>{{ 'Votre mot de passe doit comporter au moins 8 caractères' | t }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" aria-label="Formulaire changement de mot de passe">
                   <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Mot de passe actuel</mat-label>
+                    <mat-label>{{ 'Mot de passe actuel' | t }}</mat-label>
                     <input matInput [type]="showCurrentPwd() ? 'text' : 'password'"
                            formControlName="currentPassword" autocomplete="current-password"
                            aria-required="true">
                     <button mat-icon-button matSuffix type="button" (click)="showCurrentPwd.set(!showCurrentPwd())"
-                            [attr.aria-label]="showCurrentPwd() ? 'Masquer' : 'Afficher'">
+                            [attr.aria-label]="(showCurrentPwd() ? 'Masquer' : 'Afficher') | t">
                       <mat-icon>{{ showCurrentPwd() ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
                     @if (passwordForm.get('currentPassword')?.hasError('required') && passwordForm.get('currentPassword')?.touched) {
-                      <mat-error role="alert">Le mot de passe actuel est requis</mat-error>
+                      <mat-error role="alert">{{ 'Le mot de passe actuel est requis' | t }}</mat-error>
                     }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Nouveau mot de passe</mat-label>
+                    <mat-label>{{ 'Nouveau mot de passe' | t }}</mat-label>
                     <input matInput [type]="showNewPwd() ? 'text' : 'password'"
                            formControlName="newPassword" autocomplete="new-password"
                            aria-required="true">
                     <button mat-icon-button matSuffix type="button" (click)="showNewPwd.set(!showNewPwd())"
-                            [attr.aria-label]="showNewPwd() ? 'Masquer' : 'Afficher'">
+                            [attr.aria-label]="(showNewPwd() ? 'Masquer' : 'Afficher') | t">
                       <mat-icon>{{ showNewPwd() ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
                     @if (passwordForm.get('newPassword')?.hasError('minlength') && passwordForm.get('newPassword')?.touched) {
-                      <mat-error role="alert">Minimum 8 caractères</mat-error>
+                      <mat-error role="alert">{{ 'Minimum 8 caractères' | t }}</mat-error>
                     }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Confirmer le nouveau mot de passe</mat-label>
+                    <mat-label>{{ 'Confirmer le nouveau mot de passe' | t }}</mat-label>
                     <input matInput [type]="showNewPwd() ? 'text' : 'password'"
                            formControlName="confirmPassword" autocomplete="new-password"
                            aria-required="true">
                     @if (passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched) {
-                      <mat-error role="alert">Les mots de passe ne correspondent pas</mat-error>
+                      <mat-error role="alert">{{ 'Les mots de passe ne correspondent pas' | t }}</mat-error>
                     }
                   </mat-form-field>
 
@@ -96,7 +97,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
                       <mat-spinner diameter="20"></mat-spinner>
                     } @else {
                       <ng-container>
-                        <mat-icon>save</mat-icon> Mettre à jour
+                        <mat-icon>save</mat-icon> {{ 'Mettre à jour' | t }}
                       </ng-container>
                     }
                   </button>
@@ -107,24 +108,24 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
         </mat-tab>
 
         <!-- Tab Notifications -->
-        <mat-tab label="Notifications">
+        <mat-tab [label]="'Notifications' | t">
           <ng-template matTabContent>
             <mat-card class="settings-card">
               <mat-card-header>
                 <mat-icon mat-card-avatar aria-hidden="true">notifications</mat-icon>
-                <mat-card-title>Notifications push</mat-card-title>
-                <mat-card-subtitle>Recevez une alerte dans votre navigateur pour les événements importants</mat-card-subtitle>
+                <mat-card-title>{{ 'Notifications push' | t }}</mat-card-title>
+                <mat-card-subtitle>{{ 'Recevez une alerte dans votre navigateur pour les événements importants' | t }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 @if (pushUnsupported()) {
-                  <p class="push-hint">Votre navigateur ne supporte pas les notifications push.</p>
+                  <p class="push-hint">{{ 'Votre navigateur ne supporte pas les notifications push.' | t }}</p>
                 } @else {
                   <div class="push-toggle-row">
                     <mat-slide-toggle [checked]="pushEnabled()" [disabled]="pushLoading()" (change)="togglePush($event.checked)">
-                      Activer les notifications push
+                      {{ 'Activer les notifications push' | t }}
                     </mat-slide-toggle>
                   </div>
-                  <p class="push-hint">Vous serez notifié pour les nouvelles annonces, inscriptions et mises à jour de vos événements.</p>
+                  <p class="push-hint">{{ 'Vous serez notifié pour les nouvelles annonces, inscriptions et mises à jour de vos événements.' | t }}</p>
                 }
               </mat-card-content>
             </mat-card>
@@ -132,23 +133,23 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
         </mat-tab>
 
         <!-- Tab Suppression compte -->
-        <mat-tab label="Supprimer le compte">
+        <mat-tab [label]="'Supprimer le compte' | t">
           <ng-template matTabContent>
             <mat-card class="settings-card danger-card">
               <mat-card-header>
                 <mat-icon mat-card-avatar color="warn" aria-hidden="true">warning</mat-icon>
-                <mat-card-title>Supprimer mon compte</mat-card-title>
-                <mat-card-subtitle>Cette action est irréversible. Toutes vos données seront anonymisées (RGPD).</mat-card-subtitle>
+                <mat-card-title>{{ 'Supprimer mon compte' | t }}</mat-card-title>
+                <mat-card-subtitle>{{ 'Cette action est irréversible. Toutes vos données seront anonymisées (RGPD).' | t }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <div class="danger-info" role="note">
                   <mat-icon aria-hidden="true">info</mat-icon>
-                  <p>La suppression de votre compte entraîne :</p>
+                  <p>{{ 'La suppression de votre compte entraîne :' | t }}</p>
                   <ul>
-                    <li>L'anonymisation de votre profil</li>
-                    <li>La perte de vos inscriptions aux événements</li>
-                    <li>La sortie de toutes vos associations</li>
-                    <li>La suppression définitive après 30 jours</li>
+                    <li>{{ 'L\\'anonymisation de votre profil' | t }}</li>
+                    <li>{{ 'La perte de vos inscriptions aux événements' | t }}</li>
+                    <li>{{ 'La sortie de toutes vos associations' | t }}</li>
+                    <li>{{ 'La suppression définitive après 30 jours' | t }}</li>
                   </ul>
                 </div>
 
@@ -157,22 +158,22 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
                           (click)="showDeleteForm.set(true)"
                           aria-label="Afficher le formulaire de suppression">
                     <mat-icon>delete_forever</mat-icon>
-                    Supprimer mon compte
+                    {{ 'Supprimer mon compte' | t }}
                   </button>
                 } @else {
                   <form [formGroup]="deleteForm" (ngSubmit)="deleteAccount()" aria-label="Formulaire suppression du compte">
-                    <p class="confirm-label"><strong>Entrez votre mot de passe pour confirmer :</strong></p>
+                    <p class="confirm-label"><strong>{{ 'Entrez votre mot de passe pour confirmer :' | t }}</strong></p>
                     <mat-form-field appearance="outline" class="full-width">
-                      <mat-label>Mot de passe</mat-label>
+                      <mat-label>{{ 'Mot de passe' | t }}</mat-label>
                       <input matInput type="password" formControlName="password"
                              autocomplete="current-password" aria-required="true">
                       @if (deleteForm.get('password')?.hasError('required') && deleteForm.get('password')?.touched) {
-                        <mat-error role="alert">Le mot de passe est requis</mat-error>
+                        <mat-error role="alert">{{ 'Le mot de passe est requis' | t }}</mat-error>
                       }
                     </mat-form-field>
                     <div class="delete-actions">
                       <button mat-button type="button" (click)="showDeleteForm.set(false)" aria-label="Annuler">
-                        Annuler
+                        {{ 'Annuler' | t }}
                       </button>
                       <button mat-flat-button color="warn" type="submit"
                               [disabled]="deleteForm.invalid || deleteLoading()"
@@ -180,7 +181,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
                       @if (deleteLoading()) {
                         <mat-spinner diameter="20"></mat-spinner>
                       } @else {
-                        Confirmer la suppression
+                        {{ 'Confirmer la suppression' | t }}
                       }
                       </button>
                     </div>
@@ -193,13 +194,13 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
             <mat-card class="settings-card">
               <mat-card-header>
                 <mat-icon mat-card-avatar aria-hidden="true">download</mat-icon>
-                <mat-card-title>Exporter mes données (RGPD)</mat-card-title>
-                <mat-card-subtitle>Téléchargez toutes vos données personnelles au format JSON</mat-card-subtitle>
+                <mat-card-title>{{ 'Exporter mes données (RGPD)' | t }}</mat-card-title>
+                <mat-card-subtitle>{{ 'Téléchargez toutes vos données personnelles au format JSON' | t }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <button mat-stroked-button (click)="exportData()" aria-label="Télécharger mes données">
                   <mat-icon>download</mat-icon>
-                  Télécharger mes données
+                  {{ 'Télécharger mes données' | t }}
                 </button>
               </mat-card-content>
             </mat-card>
@@ -212,7 +213,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
   styles: [`
     .settings-container { max-width: 700px; margin: 40px auto; padding: 0 20px; }
     .page-header { margin-bottom: 32px; }
-    .page-header h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 8px; color: #1a1a2e; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 8px; color: var(--brand-ink); }
     .page-header p { color: #666; margin: 0; }
     .settings-card { margin-top: 24px; border-radius: 12px !important; }
     .full-width { width: 100%; margin-bottom: 16px; display: block; }

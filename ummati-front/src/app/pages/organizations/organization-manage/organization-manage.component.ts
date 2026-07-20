@@ -22,6 +22,7 @@ import { MembershipService, MembershipResponse } from '../../../core/services/me
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { OrgDocumentsComponent } from '../org-documents/org-documents.component';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-organization-manage',
@@ -30,22 +31,22 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
     MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatChipsModule, MatMenuModule, MatProgressSpinnerModule, MatSnackBarModule,
     MatDialogModule, MatBadgeModule, MatFormFieldModule, MatInputModule, MatCheckboxModule,
-    MatSelectModule, DatePipe, RouterLink, FormsModule, OrgDocumentsComponent,
+    MatSelectModule, DatePipe, RouterLink, FormsModule, OrgDocumentsComponent, TPipe,
   ],
   template: `
     <div class="page-container">
       <header class="page-header">
         <div>
-          <h1>Gestion de l'organisation</h1>
+          <h1>{{ 'Gestion de l\\'organisation' | t }}</h1>
           <p class="subtitle">{{ orgSlug }}</p>
         </div>
         <div class="header-actions">
           <a mat-flat-button color="primary"
              [routerLink]="['/organizations', orgId, 'events', 'new']">
-            <mat-icon>add</mat-icon> Créer un événement
+            <mat-icon>add</mat-icon> {{ 'Créer un événement' | t }}
           </a>
           <a mat-stroked-button [routerLink]="['/organizations', orgId, 'events', 'manage']">
-            <mat-icon>event</mat-icon> Événements
+            <mat-icon>event</mat-icon> {{ 'Événements' | t }}
           </a>
         </div>
       </header>
@@ -55,7 +56,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
         <mat-tab>
           <ng-template matTabLabel>
             <mat-icon>pending</mat-icon>
-            En attente
+            {{ 'En attente' | t }}
             @if (pendingMembers().length > 0) {
               <span class="badge">{{ pendingMembers().length }}</span>
             }
@@ -66,7 +67,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
           } @else if (pendingMembers().length === 0) {
             <div class="empty-state">
               <mat-icon>check_circle</mat-icon>
-              <p>Aucune demande en attente</p>
+              <p>{{ 'Aucune demande en attente' | t }}</p>
             </div>
           } @else {
             <div class="member-list">
@@ -81,15 +82,15 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
                   </div>
                   <div class="member-info">
                     <strong>{{ m.firstName }} {{ m.lastName }}</strong>
-                    <span class="motivation">{{ m.motivation || 'Aucun message de motivation' }}</span>
-                    <span class="date">Demande reçue le {{ m.createdAt | date:'dd/MM/yyyy' }}</span>
+                    <span class="motivation">{{ m.motivation || ('Aucun message de motivation' | t) }}</span>
+                    <span class="date">{{ 'Demande reçue le' | t }} {{ m.createdAt | date:'dd/MM/yyyy' }}</span>
                   </div>
                   <div class="member-actions">
                     <button mat-flat-button color="primary" (click)="approve(m)">
-                      <mat-icon>check</mat-icon> Accepter
+                      <mat-icon>check</mat-icon> {{ 'Accepter' | t }}
                     </button>
                     <button mat-stroked-button (click)="reject(m)">
-                      <mat-icon>close</mat-icon> Refuser
+                      <mat-icon>close</mat-icon> {{ 'Refuser' | t }}
                     </button>
                   </div>
                 </div>
@@ -102,7 +103,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
         <mat-tab>
           <ng-template matTabLabel>
             <mat-icon>group</mat-icon>
-            Membres actifs ({{ activeMembers().length }})
+            {{ 'Membres actifs' | t }} ({{ activeMembers().length }})
           </ng-template>
 
           @if (loading()) {
@@ -110,7 +111,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
           } @else if (activeMembers().length === 0) {
             <div class="empty-state">
               <mat-icon>group_off</mat-icon>
-              <p>Aucun membre actif</p>
+              <p>{{ 'Aucun membre actif' | t }}</p>
             </div>
           } @else {
             <div class="member-list">
@@ -126,8 +127,8 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
                   <div class="member-info">
                     <strong>{{ m.firstName }} {{ m.lastName }}</strong>
                     <div class="role-row">
-                      <mat-chip [class]="'role-' + m.role.toLowerCase()">{{ roleLabel(m.role) }}</mat-chip>
-                      <span class="date">Membre depuis {{ m.joinedAt | date:'dd/MM/yyyy' }}</span>
+                      <mat-chip [class]="'role-' + m.role.toLowerCase()">{{ roleLabel(m.role) | t }}</mat-chip>
+                      <span class="date">{{ 'Membre depuis' | t }} {{ m.joinedAt | date:'dd/MM/yyyy' }}</span>
                     </div>
                   </div>
                   <button mat-icon-button [matMenuTriggerFor]="memberMenu">
@@ -136,16 +137,16 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
                   <mat-menu #memberMenu="matMenu">
                     @if (m.role !== 'ADMIN') {
                       <button mat-menu-item (click)="changeRole(m, 'ADMIN')">
-                        <mat-icon>admin_panel_settings</mat-icon> Promouvoir admin
+                        <mat-icon>admin_panel_settings</mat-icon> {{ 'Promouvoir admin' | t }}
                       </button>
                     }
                     @if (m.role === 'ADMIN') {
                       <button mat-menu-item (click)="changeRole(m, 'MEMBER')">
-                        <mat-icon>person</mat-icon> Rétrograder membre
+                        <mat-icon>person</mat-icon> {{ 'Rétrograder membre' | t }}
                       </button>
                     }
                     <button mat-menu-item class="danger-item" (click)="exclude(m)">
-                      <mat-icon>person_remove</mat-icon> Exclure
+                      <mat-icon>person_remove</mat-icon> {{ 'Exclure' | t }}
                     </button>
                   </mat-menu>
                 </div>
@@ -158,26 +159,26 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
         <mat-tab>
           <ng-template matTabLabel>
             <mat-icon>campaign</mat-icon>
-            Annonces ({{ orgAnnouncements().length }})
+            {{ 'Annonces' | t }} ({{ orgAnnouncements().length }})
           </ng-template>
 
           <div class="tab-section">
             <div class="announce-form">
-              <h3>Nouvelle annonce</h3>
+              <h3>{{ 'Nouvelle annonce' | t }}</h3>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Titre</mat-label>
-                <input matInput [(ngModel)]="newTitle" placeholder="Réunion mensuelle…" maxlength="200" />
+                <mat-label>{{ 'Titre' | t }}</mat-label>
+                <input matInput [(ngModel)]="newTitle" [placeholder]="'Réunion mensuelle…' | t" maxlength="200" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Contenu</mat-label>
+                <mat-label>{{ 'Contenu' | t }}</mat-label>
                 <textarea matInput [(ngModel)]="newContent" rows="4"
-                          placeholder="Message pour tous les membres…" maxlength="2000"></textarea>
+                          [placeholder]="'Message pour tous les membres…' | t" maxlength="2000"></textarea>
               </mat-form-field>
               <div class="announce-footer">
-                <mat-checkbox [(ngModel)]="newPinned">Épingler cette annonce</mat-checkbox>
+                <mat-checkbox [(ngModel)]="newPinned">{{ 'Épingler cette annonce' | t }}</mat-checkbox>
                 <button mat-flat-button color="primary" [disabled]="posting() || !newTitle.trim() || !newContent.trim()"
                         (click)="postAnnouncement()">
-                  <mat-icon>send</mat-icon> {{ posting() ? 'Envoi…' : 'Publier' }}
+                  <mat-icon>send</mat-icon> {{ (posting() ? 'Envoi…' : 'Publier') | t }}
                 </button>
               </div>
             </div>
@@ -187,14 +188,14 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
             } @else if (orgAnnouncements().length === 0) {
               <div class="empty-state">
                 <mat-icon>campaign</mat-icon>
-                <p>Aucune annonce publiée</p>
+                <p>{{ 'Aucune annonce publiée' | t }}</p>
               </div>
             } @else {
               <div class="announce-list">
                 @for (a of orgAnnouncements(); track a.id) {
                   <div class="announce-card" [class.pinned]="a.pinned">
                     @if (a.pinned) {
-                      <span class="pin-badge"><mat-icon>push_pin</mat-icon> Épinglé</span>
+                      <span class="pin-badge"><mat-icon>push_pin</mat-icon> {{ 'Épinglé' | t }}</span>
                     }
                     <div class="announce-header">
                       <strong>{{ a.title }}</strong>
@@ -215,7 +216,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
         <mat-tab>
           <ng-template matTabLabel>
             <mat-icon>edit</mat-icon>
-            Informations
+            {{ 'Informations' | t }}
           </ng-template>
 
           <div class="tab-section">
@@ -224,15 +225,15 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
             } @else {
               <form class="org-edit-form" (ngSubmit)="saveOrgInfo()">
                 <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Description</mat-label>
+                  <mat-label>{{ 'Description' | t }}</mat-label>
                   <textarea matInput [(ngModel)]="editModel.description" name="description" rows="4" maxlength="5000"></textarea>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Mission</mat-label>
+                  <mat-label>{{ 'Mission' | t }}</mat-label>
                   <textarea matInput [(ngModel)]="editModel.mission" name="mission" rows="3" maxlength="5000"></textarea>
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>Domaine</mat-label>
+                  <mat-label>{{ 'Domaine' | t }}</mat-label>
                   <mat-select [(ngModel)]="editModel.domain" name="domain">
                     @for (d of domains; track d) {
                       <mat-option [value]="d">{{ d }}</mat-option>
@@ -241,36 +242,36 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
                 </mat-form-field>
                 <div class="form-row">
                   <mat-form-field appearance="outline" class="flex-2">
-                    <mat-label>Adresse</mat-label>
+                    <mat-label>{{ 'Adresse' | t }}</mat-label>
                     <input matInput [(ngModel)]="editModel.addressStreet" name="addressStreet" />
                   </mat-form-field>
                 </div>
                 <div class="form-row">
                   <mat-form-field appearance="outline" class="flex-2">
-                    <mat-label>Ville</mat-label>
+                    <mat-label>{{ 'Ville' | t }}</mat-label>
                     <input matInput [(ngModel)]="editModel.addressCity" name="addressCity" />
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="flex-1">
-                    <mat-label>Code postal</mat-label>
+                    <mat-label>{{ 'Code postal' | t }}</mat-label>
                     <input matInput [(ngModel)]="editModel.addressZip" name="addressZip" />
                   </mat-form-field>
                 </div>
                 <div class="form-row">
                   <mat-form-field appearance="outline" class="flex-1">
-                    <mat-label>Email de contact</mat-label>
+                    <mat-label>{{ 'Email de contact' | t }}</mat-label>
                     <input matInput type="email" [(ngModel)]="editModel.email" name="email" />
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="flex-1">
-                    <mat-label>Téléphone</mat-label>
+                    <mat-label>{{ 'Téléphone' | t }}</mat-label>
                     <input matInput [(ngModel)]="editModel.phone" name="phone" />
                   </mat-form-field>
                 </div>
                 <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Site web</mat-label>
+                  <mat-label>{{ 'Site web' | t }}</mat-label>
                   <input matInput [(ngModel)]="editModel.website" name="website" placeholder="https://…" />
                 </mat-form-field>
                 <button mat-flat-button color="primary" type="submit" [disabled]="savingInfo()">
-                  {{ savingInfo() ? 'Sauvegarde…' : 'Sauvegarder les modifications' }}
+                  {{ (savingInfo() ? 'Sauvegarde…' : 'Sauvegarder les modifications') | t }}
                 </button>
               </form>
             }
@@ -281,7 +282,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
         <mat-tab>
           <ng-template matTabLabel>
             <mat-icon>folder</mat-icon>
-            Documents
+            {{ 'Documents' | t }}
           </ng-template>
 
           <div class="tab-section">
@@ -310,7 +311,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
     .member-avatar { flex-shrink: 0; }
     .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
     .avatar-placeholder { width: 44px; height: 44px; border-radius: 50%;
-      background: #e3f2fd; color: #1976d2; display: flex; align-items: center;
+      background: var(--brand-primary-100); color: var(--brand-primary); display: flex; align-items: center;
       justify-content: center; font-weight: 600; font-size: 0.9rem; }
     .member-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
     .member-info strong { font-size: 0.95rem; }
@@ -320,7 +321,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
     .member-actions { display: flex; gap: 8px; flex-shrink: 0; }
     .badge { background: #e53935; color: white; border-radius: 10px; padding: 1px 7px;
       font-size: 11px; margin-left: 6px; }
-    .role-admin { --mdc-chip-label-text-color: #1565c0; background: #e3f2fd; }
+    .role-admin { --mdc-chip-label-text-color: var(--brand-primary-dark); background: var(--brand-primary-100); }
     .role-member { --mdc-chip-label-text-color: #2e7d32; background: #e8f5e9; }
     .role-accountant { --mdc-chip-label-text-color: #f57f17; background: #fff8e1; }
     .danger-item { color: #d32f2f; }
@@ -332,8 +333,8 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
     .announce-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
     .announce-list { display: flex; flex-direction: column; gap: 14px; }
     .announce-card { padding: 18px 20px; border-radius: 10px; border: 1px solid #e0e0e0; background: white; }
-    .announce-card.pinned { border-left: 4px solid #1976d2; background: #f5f9ff; }
-    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #1976d2; font-weight: 600; margin-bottom: 6px; }
+    .announce-card.pinned { border-left: 4px solid var(--brand-primary); background: var(--brand-primary-soft); }
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-primary); font-weight: 600; margin-bottom: 6px; }
     .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .announce-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
     .announce-header strong { font-size: 0.95rem; }

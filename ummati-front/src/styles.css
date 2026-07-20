@@ -1,36 +1,123 @@
 @use '@angular/material' as mat;
 
+/* ============================================================
+   Ummati Design System
+   Palette émeraude (solidarité, confiance) + accent ambre chaleureux.
+   Typographie : Plus Jakarta Sans (latin) / Tajawal (arabe).
+   ============================================================ */
+
+:root {
+  /* Brand */
+  --brand-primary: #0f766e;        /* teal-700 — texte/boutons sur fond clair */
+  --brand-primary-dark: #115e59;   /* teal-800 */
+  --brand-primary-light: #14b8a6;  /* teal-500 — gradients, hover */
+  --brand-primary-100: #ccfbf1;    /* teal-100 — fonds de badges/blocs */
+  --brand-primary-soft: #f0fdfa;   /* teal-50 — fonds très légers */
+  --brand-accent: #f59e0b;         /* amber-500 — CTA secondaires, étoiles */
+  --brand-accent-soft: #fef3c7;    /* amber-100 */
+  --brand-ink: #1e293b;            /* slate-800 — titres */
+  --brand-text: #334155;           /* slate-700 — corps de texte */
+  --brand-text-soft: #64748b;      /* slate-500 — texte secondaire */
+  --brand-bg: #f8fafc;             /* slate-50 — fond de page */
+  --brand-surface: #ffffff;
+  --brand-border: #e2e8f0;         /* slate-200 */
+  --brand-gradient: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  --brand-gradient-deep: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
+  --brand-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --brand-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --brand-shadow-lg: 0 12px 32px rgba(15, 118, 110, 0.16);
+
+  /* Police par langue (surchargée par html[lang="ar"]) */
+  --app-font: 'Plus Jakarta Sans', 'Segoe UI', Roboto, sans-serif;
+}
+
+html[lang='ar'] {
+  --app-font: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+}
+
 html,
 body {
   height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: var(--app-font);
+  background: var(--brand-bg);
+  color: var(--brand-text);
+}
+
+/* Applique la police partout sauf sur les icônes Material (ligatures) */
+body *:not(mat-icon):not(.material-icons) {
+  font-family: var(--app-font);
 }
 
 @include mat.theme((
   color: (
-    primary: mat.$azure-palette,
-    tertiary: mat.$blue-palette,
+    primary: mat.$cyan-palette,
+    tertiary: mat.$orange-palette,
   ),
-  typography: Roboto,
+  typography: (
+    plain-family: 'Plus Jakarta Sans',
+    brand-family: 'Plus Jakarta Sans',
+  ),
   density: 0,
 ));
 
+/* Aligne les tokens système Material sur la marque */
+html {
+  --mat-sys-primary: var(--brand-primary);
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: var(--brand-primary-100);
+  --mat-sys-on-primary-container: var(--brand-primary-dark);
+  --mat-sys-secondary: var(--brand-primary-dark);
+  --mat-sys-on-secondary: #ffffff;
+  --mat-sys-secondary-container: var(--brand-primary-soft);
+  --mat-sys-on-secondary-container: var(--brand-primary-dark);
+  --mat-sys-tertiary: var(--brand-accent);
+  --mat-sys-tertiary-container: var(--brand-accent-soft);
+  --mat-sys-surface-tint: var(--brand-primary);
+  --mat-sys-inverse-primary: var(--brand-primary-light);
+  --mat-sys-background: var(--brand-bg);
+  --mat-sys-surface: var(--brand-surface);
+  --mat-sys-on-surface: var(--brand-ink);
+  --mat-sys-outline: #94a3b8;
+  --mat-sys-outline-variant: var(--brand-border);
+
+  /* Arrondis plus généreux */
+  --mat-sys-corner-extra-small: 8px;
+  --mat-sys-corner-small: 10px;
+  --mat-sys-corner-medium: 14px;
+  --mat-sys-corner-large: 18px;
+}
+
+/* Titres */
+h1, h2, h3, h4 {
+  color: var(--brand-ink);
+}
+
+/* Cartes : ombre douce homogène */
+mat-card {
+  --mat-card-elevated-container-elevation: var(--brand-shadow-sm);
+  border: 1px solid var(--brand-border);
+}
+
+/* ===== RTL (arabe) — les layouts flex/grid s'inversent avec dir,
+   on corrige les quelques propriétés physiques restantes ===== */
+html[dir='rtl'] body {
+  letter-spacing: 0;
+}
+
 /* ===== T-137 : Accessibilité WCAG 2.1 AA ===== */
 
-/* Focus visible pour la navigation clavier */
 :focus-visible {
-  outline: 3px solid #1565c0;
+  outline: 3px solid var(--brand-primary);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-/* Skip to main content link (navigation clavier) */
 .skip-link {
   position: absolute;
   top: -40px;
   left: 0;
-  background: #1565c0;
+  background: var(--brand-primary-dark);
   color: white;
   padding: 8px 16px;
   z-index: 9999;
@@ -44,7 +131,6 @@ body {
   top: 0;
 }
 
-/* Texte de remplacement pour les éléments visuels */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -57,12 +143,10 @@ body {
   border: 0;
 }
 
-/* Contraste suffisant pour les textes secondaires */
 .text-secondary {
-  color: #595959; /* ratio 7:1 sur fond blanc */
+  color: #595959;
 }
 
-/* Animations réduites pour les utilisateurs sensibles */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -72,17 +156,14 @@ body {
   }
 }
 
-/* Liens visibles même sans couleur */
 a:not([mat-button]):not([mat-flat-button]):not([mat-stroked-button]):not([mat-icon-button]) {
   text-decoration: underline;
 }
 
-/* Boutons désactivés — curseur explicite */
 [disabled], [aria-disabled="true"] {
   cursor: not-allowed;
 }
 
-/* High contrast mode support */
 @media (forced-colors: active) {
   mat-toolbar, .hero, .stats-section, .cta-section {
     border: 1px solid ButtonText;

@@ -8,35 +8,36 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  imports: [ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe],
   template: `
     <div class="auth-container">
       <mat-card class="auth-card">
         <mat-card-header>
-          <mat-card-title>Nouveau mot de passe</mat-card-title>
+          <mat-card-title>{{ 'Nouveau mot de passe' | t }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           @if (successMessage()) {
-            <div class="success-banner">{{ successMessage() }} <a routerLink="/login">Se connecter</a></div>
+            <div class="success-banner">{{ successMessage() }} <a routerLink="/login">{{ 'Se connecter' | t }}</a></div>
           }
           @if (errorMessage()) {
             <div class="error-banner">{{ errorMessage() }}</div>
           }
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Nouveau mot de passe</mat-label>
+              <mat-label>{{ 'Nouveau mot de passe' | t }}</mat-label>
               <input matInput formControlName="newPassword" [type]="hidePassword() ? 'password' : 'text'" />
-              <mat-hint>Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial</mat-hint>
+              <mat-hint>{{ 'Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial' | t }}</mat-hint>
               <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())">
                 <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </mat-form-field>
             <button mat-flat-button color="primary" type="submit" class="full-width" [disabled]="loading()" style="margin-top:16px">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { Réinitialiser }
+              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Réinitialiser' | t }} }
             </button>
           </form>
         </mat-card-content>

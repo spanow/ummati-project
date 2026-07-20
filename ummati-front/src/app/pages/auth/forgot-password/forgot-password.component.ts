@@ -7,34 +7,35 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatProgressSpinnerModule],
+  imports: [ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatProgressSpinnerModule, TPipe],
   template: `
     <div class="auth-container">
       <mat-card class="auth-card">
         <mat-card-header>
-          <mat-card-title>Mot de passe oublié</mat-card-title>
-          <mat-card-subtitle>Entrez votre email pour recevoir un lien de réinitialisation</mat-card-subtitle>
+          <mat-card-title>{{ 'Mot de passe oublié' | t }}</mat-card-title>
+          <mat-card-subtitle>{{ 'Entrez votre email pour recevoir un lien de réinitialisation' | t }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @if (sent()) {
-            <div class="success-banner">Si ce compte existe, un email de réinitialisation a été envoyé.</div>
+            <div class="success-banner">{{ 'Si ce compte existe, un email de réinitialisation a été envoyé.' | t }}</div>
           }
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Email</mat-label>
+              <mat-label>{{ 'Email' | t }}</mat-label>
               <input matInput formControlName="email" type="email" />
             </mat-form-field>
             <button mat-flat-button color="primary" type="submit" class="full-width" [disabled]="loading()">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { Envoyer le lien }
+              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Envoyer le lien' | t }} }
             </button>
           </form>
         </mat-card-content>
         <mat-card-actions align="end">
-          <a routerLink="/login">Retour à la connexion</a>
+          <a routerLink="/login">{{ 'Retour à la connexion' | t }}</a>
         </mat-card-actions>
       </mat-card>
     </div>
