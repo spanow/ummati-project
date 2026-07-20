@@ -5,21 +5,22 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { NotificationService, NotificationItem } from '../../core/services/notification.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-notifications',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatBadgeModule,
-    MatPaginatorModule, MatProgressSpinnerModule, RouterLink, DatePipe],
+    MatPaginatorModule, MatProgressSpinnerModule, DatePipe, TPipe],
   template: `
     <div class="page-container">
       <header class="page-header">
-        <h1>Notifications</h1>
+        <h1>{{ 'Notifications' | t }}</h1>
         <button mat-stroked-button (click)="markAllRead()" [disabled]="unreadCount() === 0">
-          <mat-icon>done_all</mat-icon> Tout marquer comme lu
+          <mat-icon>done_all</mat-icon> {{ 'Tout marquer comme lu' | t }}
         </button>
       </header>
 
@@ -28,8 +29,8 @@ import { NotificationService, NotificationItem } from '../../core/services/notif
       } @else if (notifications().length === 0) {
         <div class="empty-state">
           <mat-icon class="empty-icon">notifications_none</mat-icon>
-          <h3>Aucune notification</h3>
-          <p>Vous êtes à jour !</p>
+          <h3>{{ 'Aucune notification' | t }}</h3>
+          <p>{{ 'Vous êtes à jour !' | t }}</p>
         </div>
       } @else {
         <div class="notif-list">
@@ -67,15 +68,15 @@ import { NotificationService, NotificationItem } from '../../core/services/notif
     .notif-list { display: flex; flex-direction: column; gap: 8px; }
     .notif-card { border-radius: 10px; cursor: pointer; transition: background 0.2s; }
     .notif-card:hover { background: #f5f5f5; }
-    .notif-card.unread { border-left: 3px solid #1976d2; }
+    .notif-card.unread { border-left: 3px solid var(--brand-primary); }
     .notif-row { display: flex; gap: 16px; align-items: flex-start; }
     .notif-icon { color: #888; margin-top: 2px; }
-    .unread-icon { color: #1976d2; }
+    .unread-icon { color: var(--brand-primary); }
     .notif-body { flex: 1; }
     .notif-body strong { display: block; margin-bottom: 4px; }
     .notif-body p { margin: 0; color: #555; font-size: 0.9rem; }
     .notif-date { font-size: 0.8rem; color: #999; }
-    .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: #1976d2; margin-top: 6px; flex-shrink: 0; }
+    .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand-primary); margin-top: 6px; flex-shrink: 0; }
   `],
 })
 export class NotificationsComponent implements OnInit {

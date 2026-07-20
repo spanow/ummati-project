@@ -14,39 +14,40 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { EventService, EventSummary } from '../../../core/services/event.service';
 import { EVENT_TYPES } from '../../../core/constants/event-types';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-event-list',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule, MatCheckboxModule,
-    RouterLink, FormsModule, DatePipe],
+    RouterLink, FormsModule, DatePipe, TPipe],
   template: `
     <div class="page-container">
       <header class="page-header">
         <div>
-          <h1>Événements</h1>
-          <p class="subtitle">Trouvez une mission de bénévolat près de chez vous</p>
+          <h1>{{ 'Événements' | t }}</h1>
+          <p class="subtitle">{{ 'Trouvez une mission de bénévolat près de chez vous' | t }}</p>
         </div>
       </header>
 
       <div class="filters">
         <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Ville</mat-label>
+          <mat-label>{{ 'Ville' | t }}</mat-label>
           <input matInput [(ngModel)]="cityFilter" (keyup.enter)="loadEvents()"
                  placeholder="Lyon, Paris..." />
           <mat-icon matSuffix>location_on</mat-icon>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Type</mat-label>
+          <mat-label>{{ 'Type' | t }}</mat-label>
           <mat-select [(ngModel)]="typeFilter" (selectionChange)="loadEvents()">
-            <mat-option [value]="null">Tous</mat-option>
+            <mat-option [value]="null">{{ 'Tous' | t }}</mat-option>
             @for (t of eventTypes; track t.value) {
               <mat-option [value]="t.value">{{ t.label }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
-        <mat-checkbox [(ngModel)]="onlineOnly" (change)="loadEvents()">En ligne uniquement</mat-checkbox>
+        <mat-checkbox [(ngModel)]="onlineOnly" (change)="loadEvents()">{{ 'En ligne uniquement' | t }}</mat-checkbox>
       </div>
 
       @if (loading()) {
@@ -54,8 +55,8 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
       } @else if (events().length === 0) {
         <div class="empty-state">
           <mat-icon class="empty-icon">event_busy</mat-icon>
-          <h3>Aucun événement trouvé</h3>
-          <p>Essayez d'ajuster vos filtres ou revenez plus tard !</p>
+          <h3>{{ 'Aucun événement trouvé' | t }}</h3>
+          <p>{{ 'Essayez d\\'ajuster vos filtres ou revenez plus tard !' | t }}</p>
         </div>
       } @else {
         <div class="event-grid">
@@ -65,7 +66,7 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
                 <div class="event-top">
                   <mat-chip class="type-chip">{{ event.type }}</mat-chip>
                   @if (event.online) {
-                    <mat-chip class="online-chip">🌐 En ligne</mat-chip>
+                    <mat-chip class="online-chip">🌐 {{ 'En ligne' | t }}</mat-chip>
                   }
                 </div>
                 <h3 class="event-title">{{ event.title }}</h3>
@@ -82,15 +83,15 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
                       <div class="progress-bar" [style.width.%]="(event.registeredCount / event.maxParticipants) * 100"></div>
                     </div>
                     <span class="spots-text">
-                      {{ event.registeredCount }}/{{ event.maxParticipants }} inscrits
+                      {{ event.registeredCount }}/{{ event.maxParticipants }} {{ 'inscrits' | t }}
                       @if (event.registeredCount >= event.maxParticipants) {
-                        <span class="full-badge">Complet</span>
+                        <span class="full-badge">{{ 'Complet' | t }}</span>
                       } @else if (event.registeredCount >= event.maxParticipants * 0.8) {
-                        <span class="almost-full-badge">Presque complet</span>
+                        <span class="almost-full-badge">{{ 'Presque complet' | t }}</span>
                       }
                     </span>
                   } @else {
-                    <span class="spots-text">{{ event.registeredCount }} inscrits</span>
+                    <span class="spots-text">{{ event.registeredCount }} {{ 'inscrits' | t }}</span>
                   }
                 </div>
               </mat-card-content>
@@ -130,7 +131,7 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
     .progress-bar { height: 100%; background: #4caf50; border-radius: 3px; transition: width 0.3s; }
     .spots-text { font-size: 0.8rem; color: #888; }
     .full-badge { background: #f44336; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
-    .almost-full-badge { background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
+    .almost-full-badge { background: var(--brand-accent); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
   `],
 })
 export class EventListComponent implements OnInit {

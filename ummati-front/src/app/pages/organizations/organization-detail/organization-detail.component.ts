@@ -16,12 +16,13 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
 import { EventService, EventSummary } from '../../../core/services/event.service';
 import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink],
+    MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink, TPipe],
   template: `
     @if (loading()) {
       <div class="loading"><mat-spinner diameter="40" /></div>
@@ -44,12 +45,12 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
               </div>
             </div>
             @if (isLoggedIn()) {
-              <button mat-icon-button class="more-btn" [matMenuTriggerFor]="orgMenu" aria-label="Plus d'options">
+              <button mat-icon-button class="more-btn" [matMenuTriggerFor]="orgMenu" [attr.aria-label]="'Plus d\\'options' | t">
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #orgMenu="matMenu">
                 <button mat-menu-item (click)="reportOrg()">
-                  <mat-icon>flag</mat-icon> Signaler cette organisation
+                  <mat-icon>flag</mat-icon> {{ 'Signaler cette organisation' | t }}
                 </button>
               </mat-menu>
             }
@@ -60,48 +61,48 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
           <div class="stats-bar">
             <div class="stat">
               <span class="stat-value">{{ org()!.stats.memberCount }}</span>
-              <span class="stat-label">Membres</span>
+              <span class="stat-label">{{ 'Membres' | t }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ org()!.stats.eventCount }}</span>
-              <span class="stat-label">Événements</span>
+              <span class="stat-label">{{ 'Événements' | t }}</span>
             </div>
             <div class="stat">
               <span class="stat-value">{{ org()!.stats.averageRating ? (org()!.stats.averageRating | number:'1.1-1') : '—' }}</span>
-              <span class="stat-label">Note moyenne</span>
+              <span class="stat-label">{{ 'Note moyenne' | t }}</span>
             </div>
             @if (membershipRole() === 'ADMIN') {
               <div class="admin-actions">
                 <a mat-flat-button color="primary"
                    [routerLink]="['/organizations', org()!.id, 'events', 'new']">
-                  <mat-icon>add</mat-icon> Créer un événement
+                  <mat-icon>add</mat-icon> {{ 'Créer un événement' | t }}
                 </a>
                 <a mat-stroked-button
                    [routerLink]="['/organizations', org()!.slug, 'manage']"
                    [queryParams]="{ orgId: org()!.id }">
-                  <mat-icon>settings</mat-icon> Gérer
+                  <mat-icon>settings</mat-icon> {{ 'Gérer' | t }}
                 </a>
               </div>
             } @else if (membershipStatus() === 'ACTIVE') {
-              <button mat-stroked-button class="join-btn" disabled>Membre</button>
+              <button mat-stroked-button class="join-btn" disabled>{{ 'Membre' | t }}</button>
             } @else if (membershipStatus() === 'PENDING') {
-              <button mat-stroked-button class="join-btn" disabled>En attente</button>
+              <button mat-stroked-button class="join-btn" disabled>{{ 'En attente' | t }}</button>
             } @else if (!isLoggedIn()) {
-              <a mat-flat-button class="join-btn" routerLink="/login">Rejoindre</a>
+              <a mat-flat-button class="join-btn" routerLink="/login">{{ 'Rejoindre' | t }}</a>
             } @else {
               <button mat-flat-button class="join-btn" [disabled]="joining()" (click)="joinOrg()">
-                {{ joining() ? 'Envoi…' : 'Rejoindre' }}
+                {{ (joining() ? 'Envoi…' : 'Rejoindre') | t }}
               </button>
             }
           </div>
 
           <mat-tab-group>
-            <mat-tab label="À propos">
+            <mat-tab [label]="'À propos' | t">
               <div class="tab-content">
-                <h3>Description</h3>
+                <h3>{{ 'Description' | t }}</h3>
                 <p class="description">{{ org()!.description }}</p>
                 @if (org()!.mission) {
-                  <h3>Mission</h3>
+                  <h3>{{ 'Mission' | t }}</h3>
                   <p>{{ org()!.mission }}</p>
                 }
                 <div class="contact-info">
@@ -114,7 +115,7 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
 
             <mat-tab>
               <ng-template matTabLabel>
-                Événements
+                {{ 'Événements' | t }}
                 @if (orgEvents().length > 0) {
                   <span class="tab-badge">{{ orgEvents().length }}</span>
                 }
@@ -124,17 +125,17 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
                   <div class="events-admin-bar">
                     <a mat-flat-button color="primary"
                        [routerLink]="['/organizations', org()!.id, 'events', 'new']">
-                      <mat-icon>add</mat-icon> Créer un événement
+                      <mat-icon>add</mat-icon> {{ 'Créer un événement' | t }}
                     </a>
                     <a mat-stroked-button [routerLink]="['/organizations', org()!.id, 'events', 'manage']">
-                      <mat-icon>list</mat-icon> Gérer les événements
+                      <mat-icon>list</mat-icon> {{ 'Gérer les événements' | t }}
                     </a>
                   </div>
                 }
                 @if (loadingEvents()) {
                   <div class="loading-inline"><mat-spinner diameter="28" /></div>
                 } @else if (orgEvents().length === 0) {
-                  <p class="placeholder-text">Aucun événement à venir pour le moment.</p>
+                  <p class="placeholder-text">{{ 'Aucun événement à venir pour le moment.' | t }}</p>
                 } @else {
                   <div class="org-event-list">
                     @for (e of orgEvents(); track e.id) {
@@ -148,7 +149,7 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
                           <div class="event-meta">
                             <span><mat-icon>schedule</mat-icon> {{ e.startDate | date:'HH:mm' }}</span>
                             @if (e.online) {
-                              <span><mat-icon>videocam</mat-icon> En ligne</span>
+                              <span><mat-icon>videocam</mat-icon> {{ 'En ligne' | t }}</span>
                             } @else {
                               <span><mat-icon>location_on</mat-icon> {{ e.locationCity }}</span>
                             }
@@ -159,7 +160,7 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
                           <div class="event-spots"
                                [class.almost-full]="e.registeredCount / e.maxParticipants >= 0.8">
                             {{ e.registeredCount }}/{{ e.maxParticipants }}
-                            <span class="spots-label">inscrits</span>
+                            <span class="spots-label">{{ 'inscrits' | t }}</span>
                           </div>
                         }
                       </a>
@@ -171,7 +172,7 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
 
             <mat-tab>
               <ng-template matTabLabel>
-                Annonces
+                {{ 'Annonces' | t }}
                 @if (announcements().length > 0) {
                   <span class="tab-badge">{{ announcements().length }}</span>
                 }
@@ -180,13 +181,13 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
                 @if (loadingAnnouncements()) {
                   <div class="loading-inline"><mat-spinner diameter="28" /></div>
                 } @else if (announcements().length === 0) {
-                  <p class="placeholder-text">Aucune annonce pour le moment.</p>
+                  <p class="placeholder-text">{{ 'Aucune annonce pour le moment.' | t }}</p>
                 } @else {
                   <div class="announcement-list">
                     @for (a of announcements(); track a.id) {
                       <div class="announcement-card" [class.pinned]="a.pinned">
                         @if (a.pinned) {
-                          <span class="pin-badge"><mat-icon>push_pin</mat-icon> Épinglé</span>
+                          <span class="pin-badge"><mat-icon>push_pin</mat-icon> {{ 'Épinglé' | t }}</span>
                         }
                         <h4 class="announcement-title">{{ a.title }}</h4>
                         <p class="announcement-content">{{ a.content }}</p>
@@ -208,7 +209,7 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
     .loading { display: flex; justify-content: center; padding: 120px 0; }
     .loading-inline { display: flex; justify-content: center; padding: 32px; }
     .detail-page { max-width: 960px; margin: 0 auto; }
-    .banner { height: 200px; background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%); position: relative; }
+    .banner { height: 200px; background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%); position: relative; }
     .banner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); display: flex; align-items: flex-end; padding: 24px 32px; }
     .more-btn { position: absolute; top: 16px; right: 16px; color: white; }
     .org-identity { display: flex; align-items: center; gap: 20px; color: white; }
@@ -221,7 +222,7 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
     .content-container { padding: 0 32px 48px; }
     .stats-bar { display: flex; align-items: center; gap: 40px; padding: 24px 0; border-bottom: 1px solid #eee; margin-bottom: 24px; }
     .stat { display: flex; flex-direction: column; align-items: center; }
-    .stat-value { font-size: 1.5rem; font-weight: 700; color: #1976d2; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--brand-primary); }
     .stat-label { font-size: 0.8rem; color: #888; margin-top: 2px; }
     .join-btn { margin-left: auto; height: 44px; padding: 0 32px; }
     .admin-actions { margin-left: auto; display: flex; gap: 8px; }
@@ -231,13 +232,13 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
     .description { line-height: 1.7; color: #444; white-space: pre-line; }
     .contact-info { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
     .contact-info div { display: flex; align-items: center; gap: 8px; color: #555; }
-    .contact-info a { color: #1976d2; text-decoration: none; }
+    .contact-info a { color: var(--brand-primary); text-decoration: none; }
     .placeholder-text { color: #888; font-style: italic; padding: 40px 0; text-align: center; }
-    .tab-badge { background: #1976d2; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
+    .tab-badge { background: var(--brand-primary); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
     .announcement-list { display: flex; flex-direction: column; gap: 16px; }
     .announcement-card { padding: 20px 24px; border-radius: 10px; border: 1px solid #e0e0e0; background: white; }
-    .announcement-card.pinned { border-left: 4px solid #1976d2; background: #f5f9ff; }
-    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #1976d2; font-weight: 600; margin-bottom: 8px; }
+    .announcement-card.pinned { border-left: 4px solid var(--brand-primary); background: var(--brand-primary-soft); }
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-primary); font-weight: 600; margin-bottom: 8px; }
     .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .announcement-title { margin: 0 0 8px; font-size: 1rem; font-weight: 600; color: #222; }
     .announcement-content { margin: 0 0 12px; color: #444; line-height: 1.6; white-space: pre-line; }
@@ -245,9 +246,9 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
     .org-event-list { display: flex; flex-direction: column; gap: 12px; }
     .org-event-card { display: flex; align-items: center; gap: 20px; padding: 16px 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: white; text-decoration: none; color: inherit; transition: box-shadow 0.15s, transform 0.15s; }
     .org-event-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
-    .event-date-block { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 56px; background: #e3f2fd; border-radius: 10px; flex-shrink: 0; }
-    .event-day { font-size: 1.3rem; font-weight: 700; color: #1565c0; line-height: 1.1; }
-    .event-month { font-size: 0.7rem; text-transform: uppercase; color: #1976d2; font-weight: 600; }
+    .event-date-block { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 56px; background: var(--brand-primary-100); border-radius: 10px; flex-shrink: 0; }
+    .event-day { font-size: 1.3rem; font-weight: 700; color: var(--brand-primary-dark); line-height: 1.1; }
+    .event-month { font-size: 0.7rem; text-transform: uppercase; color: var(--brand-primary); font-weight: 600; }
     .event-info { flex: 1; min-width: 0; }
     .event-title { margin: 0 0 6px; font-size: 1rem; font-weight: 600; color: #222; }
     .event-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: #666; font-size: 0.85rem; }

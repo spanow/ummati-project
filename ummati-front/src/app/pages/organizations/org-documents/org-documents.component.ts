@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DocumentItem, DocumentService } from '../../../core/services/document.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { environment } from '../../../../environments/environment';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-org-documents',
@@ -17,21 +18,21 @@ import { environment } from '../../../../environments/environment';
   imports: [
     CommonModule, MatCardModule, MatButtonModule, MatIconModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatTableModule,
-    MatTooltipModule, EmptyStateComponent
+    MatTooltipModule, EmptyStateComponent, TPipe
   ],
   template: `
     <mat-card class="docs-card">
       <mat-card-header>
         <mat-icon mat-card-avatar aria-hidden="true">folder</mat-icon>
-        <mat-card-title>Documents</mat-card-title>
-        <mat-card-subtitle>Fichiers partagés de l'organisation (PDF, JPG, PNG, DOCX — max 10 Mo)</mat-card-subtitle>
+        <mat-card-title>{{ 'Documents' | t }}</mat-card-title>
+        <mat-card-subtitle>{{ 'Fichiers partagés de l\\'organisation (PDF, JPG, PNG, DOCX — max 10 Mo)' | t }}</mat-card-subtitle>
         <span class="header-spacer"></span>
         @if (canUpload) {
           <button mat-flat-button color="primary" (click)="fileInput.click()"
-                  [disabled]="uploading()" aria-label="Ajouter un document">
+                  [disabled]="uploading()" [attr.aria-label]="'Ajouter un document' | t">
             @if (uploading()) { <mat-spinner diameter="18"></mat-spinner> }
             @else { <mat-icon>upload</mat-icon> }
-            Ajouter
+            {{ 'Ajouter' | t }}
           </button>
           <input #fileInput type="file" hidden accept=".pdf,.jpg,.jpeg,.png,.docx"
                  (change)="onFileSelected($event)" aria-label="Sélectionner un fichier">
@@ -46,9 +47,9 @@ import { environment } from '../../../../environments/environment';
         } @else if (documents().length === 0) {
           <app-empty-state
             icon="description"
-            title="Aucun document"
-            [description]="canUpload ? 'Ajoutez des documents pour les partager avec les membres.' : 'Aucun document disponible pour cette organisation.'"
-            [ctaLabel]="canUpload ? 'Ajouter un document' : undefined"
+            [title]="'Aucun document' | t"
+            [description]="(canUpload ? 'Ajoutez des documents pour les partager avec les membres.' : 'Aucun document disponible pour cette organisation.') | t"
+            [ctaLabel]="canUpload ? ('Ajouter un document' | t) : undefined"
             [ctaIcon]="'upload'"
             [ctaClick]="canUpload ? onAddClick : undefined">
           </app-empty-state>
@@ -56,7 +57,7 @@ import { environment } from '../../../../environments/environment';
           <table mat-table [dataSource]="documents()" aria-label="Liste des documents" class="docs-table">
             <!-- Nom -->
             <ng-container matColumnDef="name">
-              <th mat-header-cell *matHeaderCellDef scope="col">Nom</th>
+              <th mat-header-cell *matHeaderCellDef scope="col">{{ 'Nom' | t }}</th>
               <td mat-cell *matCellDef="let doc">
                 <div class="doc-name">
                   <mat-icon aria-hidden="true">{{ getFileIcon(doc.fileType) }}</mat-icon>
@@ -66,32 +67,32 @@ import { environment } from '../../../../environments/environment';
             </ng-container>
             <!-- Type -->
             <ng-container matColumnDef="type">
-              <th mat-header-cell *matHeaderCellDef scope="col">Type</th>
+              <th mat-header-cell *matHeaderCellDef scope="col">{{ 'Type' | t }}</th>
               <td mat-cell *matCellDef="let doc">
                 <span class="type-badge">{{ getTypeLabel(doc.fileType) }}</span>
               </td>
             </ng-container>
             <!-- Taille -->
             <ng-container matColumnDef="size">
-              <th mat-header-cell *matHeaderCellDef scope="col">Taille</th>
+              <th mat-header-cell *matHeaderCellDef scope="col">{{ 'Taille' | t }}</th>
               <td mat-cell *matCellDef="let doc">{{ formatSize(doc.fileSize) }}</td>
             </ng-container>
             <!-- Date -->
             <ng-container matColumnDef="date">
-              <th mat-header-cell *matHeaderCellDef scope="col">Ajouté le</th>
+              <th mat-header-cell *matHeaderCellDef scope="col">{{ 'Ajouté le' | t }}</th>
               <td mat-cell *matCellDef="let doc">{{ doc.createdAt | date:'dd/MM/yyyy' }}</td>
             </ng-container>
             <!-- Actions -->
             <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef scope="col">Actions</th>
+              <th mat-header-cell *matHeaderCellDef scope="col">{{ 'Actions' | t }}</th>
               <td mat-cell *matCellDef="let doc">
                 <a mat-icon-button [href]="getDownloadUrl(doc.id)" target="_blank"
-                   [matTooltip]="'Télécharger ' + doc.name" [attr.aria-label]="'Télécharger ' + doc.name">
+                   [matTooltip]="('Télécharger' | t) + ' ' + doc.name" [attr.aria-label]="('Télécharger' | t) + ' ' + doc.name">
                   <mat-icon>download</mat-icon>
                 </a>
                 @if (canUpload) {
                   <button mat-icon-button color="warn" (click)="deleteDoc(doc)"
-                          [matTooltip]="'Supprimer ' + doc.name" [attr.aria-label]="'Supprimer ' + doc.name">
+                          [matTooltip]="('Supprimer' | t) + ' ' + doc.name" [attr.aria-label]="('Supprimer' | t) + ' ' + doc.name">
                     <mat-icon>delete</mat-icon>
                   </button>
                 }
@@ -112,9 +113,9 @@ import { environment } from '../../../../environments/environment';
     .loading-center { display: flex; justify-content: center; padding: 40px; }
     .docs-table { width: 100%; }
     .doc-name { display: flex; align-items: center; gap: 8px; }
-    .doc-name mat-icon { color: #3f51b5; font-size: 20px !important; width: 20px !important; height: 20px !important; }
+    .doc-name mat-icon { color: var(--brand-primary); font-size: 20px !important; width: 20px !important; height: 20px !important; }
     .type-badge {
-      background: #e8eaf6; color: #3f51b5; padding: 2px 8px;
+      background: var(--brand-primary-100); color: var(--brand-primary); padding: 2px 8px;
       border-radius: 10px; font-size: 0.75rem; font-weight: 600;
     }
     mat-spinner { display: inline-block; }

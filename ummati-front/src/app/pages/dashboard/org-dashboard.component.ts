@@ -7,11 +7,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { DashboardService, OrgAdminDashboard } from '../../core/services/dashboard.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-org-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatChipsModule, RouterLink, DatePipe, DecimalPipe],
+  imports: [MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatChipsModule, RouterLink, DatePipe, DecimalPipe, TPipe],
   template: `
     <div class="page-container">
       @if (loading()) {
@@ -20,10 +21,10 @@ import { DashboardService, OrgAdminDashboard } from '../../core/services/dashboa
         <header class="page-header">
           <div>
             <h1>{{ dashboard()!.organizationName }}</h1>
-            <p class="subtitle">Tableau de bord administrateur</p>
+            <p class="subtitle">{{ 'Tableau de bord administrateur' | t }}</p>
           </div>
           <a mat-stroked-button [routerLink]="['/organizations', orgId, 'events', 'manage']">
-            <mat-icon>event</mat-icon> Gérer les événements
+            <mat-icon>event</mat-icon> {{ 'Gérer les événements' | t }}
           </a>
         </header>
 
@@ -32,28 +33,28 @@ import { DashboardService, OrgAdminDashboard } from '../../core/services/dashboa
             <mat-card-content>
               <mat-icon>people</mat-icon>
               <div class="val">{{ dashboard()!.activeMembers }}</div>
-              <div class="lbl">Membres actifs</div>
+              <div class="lbl">{{ 'Membres actifs' | t }}</div>
             </mat-card-content>
           </mat-card>
           <mat-card class="stat-card" [class.alert]="dashboard()!.pendingRequests > 0">
             <mat-card-content>
               <mat-icon>person_add</mat-icon>
               <div class="val">{{ dashboard()!.pendingRequests }}</div>
-              <div class="lbl">Demandes en attente</div>
+              <div class="lbl">{{ 'Demandes en attente' | t }}</div>
             </mat-card-content>
           </mat-card>
           <mat-card class="stat-card">
             <mat-card-content>
               <mat-icon>event</mat-icon>
               <div class="val">{{ dashboard()!.eventsThisMonth }}</div>
-              <div class="lbl">Événements ce mois</div>
+              <div class="lbl">{{ 'Événements ce mois' | t }}</div>
             </mat-card-content>
           </mat-card>
           <mat-card class="stat-card">
             <mat-card-content>
               <mat-icon>bar_chart</mat-icon>
               <div class="val">{{ dashboard()!.totalEvents }}</div>
-              <div class="lbl">Total événements</div>
+              <div class="lbl">{{ 'Total événements' | t }}</div>
             </mat-card-content>
           </mat-card>
           @if (dashboard()!.averageFeedbackRating) {
@@ -61,7 +62,7 @@ import { DashboardService, OrgAdminDashboard } from '../../core/services/dashboa
               <mat-card-content>
                 <mat-icon>star</mat-icon>
                 <div class="val">{{ dashboard()!.averageFeedbackRating! | number:'1.1-1' }}/5</div>
-                <div class="lbl">Note moyenne</div>
+                <div class="lbl">{{ 'Note moyenne' | t }}</div>
               </mat-card-content>
             </mat-card>
           }
@@ -71,15 +72,15 @@ import { DashboardService, OrgAdminDashboard } from '../../core/services/dashboa
           <mat-card class="alert-banner">
             <mat-card-content>
               <mat-icon>notifications_active</mat-icon>
-              <span>{{ dashboard()!.pendingRequests }} demande(s) d'adhésion en attente</span>
-              <a mat-stroked-button [routerLink]="['/organizations', orgId, 'manage']">Gérer</a>
+              <span>{{ dashboard()!.pendingRequests }} {{ 'demande(s) d\\'adhésion en attente' | t }}</span>
+              <a mat-stroked-button [routerLink]="['/organizations', orgId, 'manage']">{{ 'Gérer' | t }}</a>
             </mat-card-content>
           </mat-card>
         }
 
         @if (dashboard()!.recentMembers.length > 0) {
           <section>
-            <h2>Derniers membres</h2>
+            <h2>{{ 'Derniers membres' | t }}</h2>
             <div class="members-list">
               @for (m of dashboard()!.recentMembers; track m.joinedAt) {
                 <div class="member-row">
@@ -103,10 +104,10 @@ import { DashboardService, OrgAdminDashboard } from '../../core/services/dashboa
     .subtitle { color: #666; margin-top: 4px; }
     .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
     .stat-card { flex: 1; min-width: 140px; border-radius: 10px; text-align: center; }
-    .stat-card mat-icon { color: #1976d2; margin-bottom: 8px; }
+    .stat-card mat-icon { color: var(--brand-primary); margin-bottom: 8px; }
     .stat-card .val { font-size: 1.8rem; font-weight: 700; }
     .stat-card .lbl { color: #888; font-size: 0.8rem; }
-    .stat-card.alert { border: 2px solid #ff9800; }
+    .stat-card.alert { border: 2px solid var(--brand-accent); }
     .alert-banner { border-radius: 10px; background: #fff3e0; margin-bottom: 24px; }
     .alert-banner mat-card-content { display: flex; align-items: center; gap: 12px; }
     .alert-banner mat-icon { color: #e65100; }

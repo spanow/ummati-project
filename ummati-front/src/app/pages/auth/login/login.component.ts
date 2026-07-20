@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-login',
@@ -15,14 +16,14 @@ import { AuthService } from '../../../core/services/auth.service';
   imports: [
     ReactiveFormsModule, RouterLink,
     MatCardModule, MatFormFieldModule, MatInputModule,
-    MatButtonModule, MatIconModule, MatProgressSpinnerModule,
+    MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe,
   ],
   template: `
     <div class="auth-container">
       <mat-card class="auth-card">
         <mat-card-header>
-          <mat-card-title>Connexion</mat-card-title>
-          <mat-card-subtitle>Accédez à votre espace Ummati</mat-card-subtitle>
+          <mat-card-title>{{ 'Connexion' | t }}</mat-card-title>
+          <mat-card-subtitle>{{ 'Accédez à votre espace Ummati' | t }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @if (successMessage()) {
@@ -36,28 +37,28 @@ import { AuthService } from '../../../core/services/auth.service';
           }
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Email</mat-label>
+              <mat-label>{{ 'Email' | t }}</mat-label>
               <input matInput formControlName="email" type="email" />
               <mat-icon matSuffix>email</mat-icon>
             </mat-form-field>
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Mot de passe</mat-label>
+              <mat-label>{{ 'Mot de passe' | t }}</mat-label>
               <input matInput formControlName="password" [type]="hidePassword() ? 'password' : 'text'" />
               <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())">
                 <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </mat-form-field>
             <div class="forgot-link">
-              <a routerLink="/forgot-password">Mot de passe oublié ?</a>
+              <a routerLink="/forgot-password">{{ 'Mot de passe oublié ?' | t }}</a>
             </div>
             <button mat-flat-button color="primary" type="submit" class="full-width submit-btn"
                     [disabled]="loading()">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { Se connecter }
+              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Se connecter' | t }} }
             </button>
           </form>
         </mat-card-content>
         <mat-card-actions align="end">
-          <span>Pas encore de compte ? <a routerLink="/register">S'inscrire</a></span>
+          <span>{{ 'Pas encore de compte ?' | t }} <a routerLink="/register">{{ 'S\\'inscrire' | t }}</a></span>
         </mat-card-actions>
       </mat-card>
     </div>

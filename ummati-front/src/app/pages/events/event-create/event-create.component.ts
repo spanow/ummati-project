@@ -16,99 +16,100 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EventService } from '../../../core/services/event.service';
 import { SkillService } from '../../../core/services/skill.service';
 import { EVENT_TYPES } from '../../../core/constants/event-types';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-event-create',
   standalone: true,
   imports: [ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
-    MatChipsModule, MatSnackBarModule, MatProgressSpinnerModule, RouterLink],
+    MatChipsModule, MatSnackBarModule, MatProgressSpinnerModule, RouterLink, TPipe],
   template: `
     <div class="page-container">
-      <h1>{{ isEdit ? 'Modifier' : 'Créer' }} un événement</h1>
+      <h1>{{ (isEdit ? 'Modifier un événement' : 'Créer un événement') | t }}</h1>
       <mat-card class="form-card">
         <mat-card-content>
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Titre</mat-label>
+              <mat-label>{{ 'Titre' | t }}</mat-label>
               <input matInput formControlName="title" />
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Description</mat-label>
+              <mat-label>{{ 'Description' | t }}</mat-label>
               <textarea matInput formControlName="description" rows="5"></textarea>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Objectifs (optionnel)</mat-label>
+              <mat-label>{{ 'Objectifs (optionnel)' | t }}</mat-label>
               <textarea matInput formControlName="objectives" rows="3"></textarea>
             </mat-form-field>
 
             <div class="row">
               <mat-form-field appearance="outline">
-                <mat-label>Type</mat-label>
+                <mat-label>{{ 'Type' | t }}</mat-label>
                 <mat-select formControlName="type">
                   @for (t of eventTypes; track t.value) {
-                    <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                    <mat-option [value]="t.value">{{ t.label | t }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Ville</mat-label>
+                <mat-label>{{ 'Ville' | t }}</mat-label>
                 <input matInput formControlName="locationCity" />
               </mat-form-field>
             </div>
 
             <div class="row">
               <mat-form-field appearance="outline">
-                <mat-label>Nom du lieu</mat-label>
+                <mat-label>{{ 'Nom du lieu' | t }}</mat-label>
                 <input matInput formControlName="locationName" />
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Adresse</mat-label>
+                <mat-label>{{ 'Adresse' | t }}</mat-label>
                 <input matInput formControlName="locationAddress" />
               </mat-form-field>
             </div>
 
-            <mat-checkbox formControlName="online" class="online-check">Événement en ligne</mat-checkbox>
+            <mat-checkbox formControlName="online" class="online-check">{{ 'Événement en ligne' | t }}</mat-checkbox>
             @if (form.get('online')?.value) {
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Lien en ligne</mat-label>
+                <mat-label>{{ 'Lien en ligne' | t }}</mat-label>
                 <input matInput formControlName="onlineLink" />
               </mat-form-field>
             }
 
             <div class="row">
               <mat-form-field appearance="outline">
-                <mat-label>Date de début</mat-label>
+                <mat-label>{{ 'Date de début' | t }}</mat-label>
                 <input matInput type="datetime-local" formControlName="startDate" />
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Date de fin</mat-label>
+                <mat-label>{{ 'Date de fin' | t }}</mat-label>
                 <input matInput type="datetime-local" formControlName="endDate" />
               </mat-form-field>
             </div>
 
             <div class="row">
               <mat-form-field appearance="outline">
-                <mat-label>Date limite d'inscription</mat-label>
+                <mat-label>{{ 'Date limite d\\'inscription' | t }}</mat-label>
                 <input matInput type="datetime-local" formControlName="registrationDeadline" />
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Max participants</mat-label>
+                <mat-label>{{ 'Max participants' | t }}</mat-label>
                 <input matInput type="number" formControlName="maxParticipants" />
               </mat-form-field>
             </div>
 
             <mat-form-field appearance="outline">
-              <mat-label>Âge minimum</mat-label>
+              <mat-label>{{ 'Âge minimum' | t }}</mat-label>
               <input matInput type="number" formControlName="minAge" />
             </mat-form-field>
 
             @if (skills().length > 0) {
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Compétences requises</mat-label>
+                <mat-label>{{ 'Compétences requises' | t }}</mat-label>
                 <mat-select formControlName="requiredSkillIds" multiple>
                   @for (skill of skills(); track skill.id) {
                     <mat-option [value]="skill.id">{{ skill.name }}</mat-option>
@@ -124,9 +125,9 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
             <div class="actions">
               <button mat-flat-button type="submit" [disabled]="submitting()">
                 @if (submitting()) { <mat-spinner diameter="20" /> }
-                {{ isEdit ? 'Enregistrer' : 'Créer l\'événement' }}
+                {{ (isEdit ? 'Enregistrer' : 'Créer l\\'événement') | t }}
               </button>
-              <button mat-button type="button" routerLink="..">Annuler</button>
+              <button mat-button type="button" routerLink="..">{{ 'Annuler' | t }}</button>
             </div>
           </form>
         </mat-card-content>

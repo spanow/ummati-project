@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/services/auth.service';
+import { TPipe } from '../../shared/pipes/t.pipe';
 
 interface Skill { id: string; name: string; category: string; }
 
@@ -19,36 +20,36 @@ interface Skill { id: string; name: string; category: string; }
   selector: 'app-onboarding',
   standalone: true,
   imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule,
-    MatButtonModule, MatIconModule, MatChipsModule, MatStepperModule, MatProgressSpinnerModule],
+    MatButtonModule, MatIconModule, MatChipsModule, MatStepperModule, MatProgressSpinnerModule, TPipe],
   template: `
     <div class="onboarding-container">
       <div class="onboarding-header">
         <mat-icon class="welcome-icon">waving_hand</mat-icon>
-        <h1>Bienvenue sur Ummati !</h1>
-        <p>Complétez votre profil en quelques étapes</p>
+        <h1>{{ 'Bienvenue sur Ummati !' | t }}</h1>
+        <p>{{ 'Complétez votre profil en quelques étapes' | t }}</p>
       </div>
 
       <mat-stepper linear #stepper class="onboarding-stepper">
         <mat-step [stepControl]="step1">
-          <ng-template matStepLabel>À propos de vous</ng-template>
+          <ng-template matStepLabel>{{ 'À propos de vous' | t }}</ng-template>
           <form [formGroup]="step1">
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Bio (optionnel)</mat-label>
-              <textarea matInput formControlName="bio" rows="3" placeholder="Présentez-vous en quelques mots..."></textarea>
+              <mat-label>{{ 'Bio (optionnel)' | t }}</mat-label>
+              <textarea matInput formControlName="bio" rows="3" [placeholder]="'Présentez-vous en quelques mots...' | t"></textarea>
             </mat-form-field>
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Ville</mat-label>
-              <input matInput formControlName="city" placeholder="Votre ville" />
+              <mat-label>{{ 'Ville' | t }}</mat-label>
+              <input matInput formControlName="city" [placeholder]="'Votre ville' | t" />
             </mat-form-field>
             <div class="step-actions">
-              <button mat-flat-button matStepperNext>Suivant</button>
+              <button mat-flat-button matStepperNext>{{ 'Suivant' | t }}</button>
             </div>
           </form>
         </mat-step>
 
         <mat-step>
-          <ng-template matStepLabel>Compétences</ng-template>
-          <p class="step-hint">Sélectionnez vos compétences pour être mieux orienté :</p>
+          <ng-template matStepLabel>{{ 'Compétences' | t }}</ng-template>
+          <p class="step-hint">{{ 'Sélectionnez vos compétences pour être mieux orienté :' | t }}</p>
           <div class="skills-grid">
             @for (skill of skills(); track skill.id) {
               <mat-chip-option [selected]="selectedSkillIds.has(skill.id)" (click)="toggleSkill(skill.id)">
@@ -57,19 +58,19 @@ interface Skill { id: string; name: string; category: string; }
             }
           </div>
           <div class="step-actions">
-            <button mat-stroked-button matStepperPrevious>Retour</button>
-            <button mat-flat-button matStepperNext>Suivant</button>
+            <button mat-stroked-button matStepperPrevious>{{ 'Retour' | t }}</button>
+            <button mat-flat-button matStepperNext>{{ 'Suivant' | t }}</button>
           </div>
         </mat-step>
 
         <mat-step>
-          <ng-template matStepLabel>Terminé !</ng-template>
+          <ng-template matStepLabel>{{ 'Terminé !' | t }}</ng-template>
           <div class="finish-step">
             <mat-icon class="finish-icon">celebration</mat-icon>
-            <h3>Votre profil est prêt !</h3>
-            <p>Vous pouvez maintenant découvrir les organisations et événements.</p>
+            <h3>{{ 'Votre profil est prêt !' | t }}</h3>
+            <p>{{ 'Vous pouvez maintenant découvrir les organisations et événements.' | t }}</p>
             <button mat-flat-button (click)="complete()" [disabled]="loading()" class="finish-btn">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { Commencer }
+              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Commencer' | t }} }
             </button>
           </div>
         </mat-step>

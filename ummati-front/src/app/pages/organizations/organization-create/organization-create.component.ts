@@ -10,73 +10,74 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatStepperModule } from '@angular/material/stepper';
 import { OrganizationService } from '../../../core/services/organization.service';
+import { TPipe } from '../../../shared/pipes/t.pipe';
 
 @Component({
   selector: 'app-organization-create',
   standalone: true,
   imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule,
-    MatSelectModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatStepperModule],
+    MatSelectModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatStepperModule, TPipe],
   template: `
     <div class="page-container">
-      <h1>Créer une organisation</h1>
-      <p class="subtitle">Enregistrez votre association sur Ummati</p>
+      <h1>{{ 'Créer une organisation' | t }}</h1>
+      <p class="subtitle">{{ 'Enregistrez votre association sur Ummati' | t }}</p>
 
       @if (errorMessage()) { <div class="error-banner">{{ errorMessage() }}</div> }
 
       <mat-card class="form-card">
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <h3>Informations générales</h3>
+          <h3>{{ 'Informations générales' | t }}</h3>
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Nom de l'organisation</mat-label>
+            <mat-label>{{ 'Nom de l\\'organisation' | t }}</mat-label>
             <input matInput formControlName="name" />
           </mat-form-field>
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Description</mat-label>
+            <mat-label>{{ 'Description' | t }}</mat-label>
             <textarea matInput formControlName="description" rows="4"></textarea>
           </mat-form-field>
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Mission (optionnel)</mat-label>
+            <mat-label>{{ 'Mission (optionnel)' | t }}</mat-label>
             <textarea matInput formControlName="mission" rows="3"></textarea>
           </mat-form-field>
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Domaine</mat-label>
+            <mat-label>{{ 'Domaine' | t }}</mat-label>
             <mat-select formControlName="domain">
               @for (d of domains; track d.value) {
-                <mat-option [value]="d.value">{{ d.label }}</mat-option>
+                <mat-option [value]="d.value">{{ d.label | t }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
 
-          <h3>Localisation</h3>
+          <h3>{{ 'Localisation' | t }}</h3>
           <div class="row">
             <mat-form-field appearance="outline" class="flex-2">
-              <mat-label>Ville</mat-label>
+              <mat-label>{{ 'Ville' | t }}</mat-label>
               <input matInput formControlName="addressCity" />
             </mat-form-field>
             <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Code postal</mat-label>
+              <mat-label>{{ 'Code postal' | t }}</mat-label>
               <input matInput formControlName="addressZip" />
             </mat-form-field>
           </div>
 
-          <h3>Contact</h3>
+          <h3>{{ 'Contact' | t }}</h3>
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Email de contact</mat-label>
+            <mat-label>{{ 'Email de contact' | t }}</mat-label>
             <input matInput formControlName="email" type="email" />
           </mat-form-field>
           <div class="row">
             <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Téléphone (optionnel)</mat-label>
+              <mat-label>{{ 'Téléphone (optionnel)' | t }}</mat-label>
               <input matInput formControlName="phone" />
             </mat-form-field>
             <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Site web (optionnel)</mat-label>
+              <mat-label>{{ 'Site web (optionnel)' | t }}</mat-label>
               <input matInput formControlName="website" />
             </mat-form-field>
           </div>
 
           <button mat-flat-button type="submit" class="full-width submit-btn" [disabled]="loading()">
-            @if (loading()) { <mat-spinner diameter="20" /> } @else { Soumettre l'organisation }
+            @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Soumettre l\\'organisation' | t }} }
           </button>
         </form>
       </mat-card>
