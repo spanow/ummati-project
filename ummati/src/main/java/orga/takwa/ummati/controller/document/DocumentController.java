@@ -45,6 +45,25 @@ public class DocumentController {
         return ResponseEntity.ok(ApiResponse.ok(documentService.list(userId, orgId)));
     }
 
+    // Upload document for an event (org admin only)
+    @PostMapping("/events/{eventId}/documents")
+    public ResponseEntity<ApiResponse<DocumentResponse>> uploadEventDoc(
+            @CurrentUser UUID userId,
+            @PathVariable UUID eventId,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(documentService.uploadForEvent(userId, eventId, name, file)));
+    }
+
+    // List documents of an event (org members or platform admin)
+    @GetMapping("/events/{eventId}/documents")
+    public ResponseEntity<ApiResponse<List<DocumentResponse>>> listEventDocs(
+            @CurrentUser UUID userId,
+            @PathVariable UUID eventId) {
+        return ResponseEntity.ok(ApiResponse.ok(documentService.listForEvent(userId, eventId)));
+    }
+
     // T-110: Download document
     @GetMapping("/documents/{id}/download")
     public ResponseEntity<Resource> download(

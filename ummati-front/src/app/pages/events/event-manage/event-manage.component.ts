@@ -20,6 +20,7 @@ import { EventService, EventSummary, SignupResponse } from '../../../core/servic
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
 
 @Component({
   selector: 'app-event-manage',
@@ -27,7 +28,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
-    RouterLink, DatePipe, FormsModule, TPipe],
+    RouterLink, DatePipe, FormsModule, TPipe, OrgDocumentsComponent],
   template: `
     <div class="page-container">
       <header class="page-header">
@@ -40,7 +41,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
       @if (loading()) {
         <div class="loading"><mat-spinner diameter="40" /></div>
       } @else {
-        <mat-tab-group>
+        <mat-tab-group [selectedIndex]="tabIndex()" (selectedIndexChange)="tabIndex.set($event)">
           <mat-tab [label]="'Tous les événements' | t">
             @if (events().length === 0) {
               <div class="empty">
@@ -81,6 +82,9 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                             <mat-icon>people</mat-icon> {{ 'Participants' | t }}
                           </button>
                         }
+                        <button mat-stroked-button (click)="openDocuments(event)">
+                          <mat-icon>folder</mat-icon> {{ 'Documents' | t }}
+                        </button>
                       </div>
                     </div>
                   </mat-card-content>
@@ -176,6 +180,18 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
               }
             }
           </mat-tab>
+
+          <mat-tab [label]="'Documents' | t" [disabled]="!selectedEvent()">
+            @if (selectedEvent()) {
+              <div class="tab-section-docs">
+                <p class="docs-intro">
+                  <mat-icon>info</mat-icon>
+                  {{ 'Ajoutez ici les pièces justificatives de l\\'événement. Elles pourront être examinées par un administrateur de la plateforme.' | t }}
+                </p>
+                <app-org-documents [eventId]="selectedEvent()!.id" [canUpload]="true" />
+              </div>
+            }
+          </mat-tab>
         </mat-tab-group>
       }
     </div>
@@ -219,6 +235,10 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .ann-date { font-size: 0.8rem; color: #999; margin-left: auto; }
     .ann-content { margin: 0; white-space: pre-line; line-height: 1.6; }
     .empty-ann { color: #aaa; text-align: center; padding: 24px; }
+    .tab-section-docs { padding: 20px 0; }
+    .docs-intro { display: flex; align-items: center; gap: 8px; color: #666; font-size: 0.9rem;
+      background: var(--brand-primary-soft, #f0f4ff); border-radius: 8px; padding: 10px 14px; margin: 0 0 16px; }
+    .docs-intro mat-icon { color: var(--brand-primary); font-size: 20px; width: 20px; height: 20px; }
   `],
 })
 export class EventManageComponent implements OnInit {
@@ -234,6 +254,7 @@ export class EventManageComponent implements OnInit {
   announcements = signal<AnnouncementResponse[]>([]);
   newAnnContent = '';
   newAnnPinned = false;
+  tabIndex = signal(0);
 
   constructor(
     private route: ActivatedRoute,
@@ -275,6 +296,12 @@ export class EventManageComponent implements OnInit {
     this.selectedEvent.set(event);
     this.loadSignups(0);
     this.loadAnnouncements(event.id);
+    this.tabIndex.set(2); // onglet « Inscrits »
+  }
+
+  openDocuments(event: EventSummary) {
+    this.selectedEvent.set(event);
+    this.tabIndex.set(3); // onglet « Documents »
   }
 
   loadAnnouncements(eventId: string) {

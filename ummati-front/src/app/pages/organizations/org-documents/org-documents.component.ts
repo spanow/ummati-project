@@ -25,7 +25,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
       <mat-card-header>
         <mat-icon mat-card-avatar aria-hidden="true">folder</mat-icon>
         <mat-card-title>{{ 'Documents' | t }}</mat-card-title>
-        <mat-card-subtitle>{{ 'Fichiers partagés de l\\'organisation (PDF, JPG, PNG, DOCX — max 10 Mo)' | t }}</mat-card-subtitle>
+        <mat-card-subtitle>{{ (eventId ? 'Documents de l\\'événement (PDF, JPG, PNG, DOCX — max 10 Mo)' : 'Fichiers partagés de l\\'organisation (PDF, JPG, PNG, DOCX — max 10 Mo)') | t }}</mat-card-subtitle>
         <span class="header-spacer"></span>
         @if (canUpload) {
           <button mat-flat-button color="primary" (click)="fileInput.click()"
@@ -122,7 +122,9 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
   `]
 })
 export class OrgDocumentsComponent implements OnInit {
-  @Input({ required: true }) orgId!: string;
+  /** Propriétaire : organisation (orgId) OU événement (eventId). eventId a la priorité. */
+  @Input() orgId?: string;
+  @Input() eventId?: string;
   @Input() canUpload = false;
 
   private docService = inject(DocumentService);
@@ -140,7 +142,10 @@ export class OrgDocumentsComponent implements OnInit {
 
   loadDocs() {
     this.loading.set(true);
-    this.docService.listByOrg(this.orgId).subscribe({
+    const src$ = this.eventId
+      ? this.docService.listByEvent(this.eventId)
+      : this.docService.listByOrg(this.orgId!);
+    src$.subscribe({
       next: (res) => { this.documents.set(res.data ?? []); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
@@ -154,7 +159,10 @@ export class OrgDocumentsComponent implements OnInit {
       return;
     }
     this.uploading.set(true);
-    this.docService.upload(this.orgId, file).subscribe({
+    const up$ = this.eventId
+      ? this.docService.uploadToEvent(this.eventId, file)
+      : this.docService.upload(this.orgId!, file);
+    up$.subscribe({
       next: (res) => {
         this.documents.update(docs => [res.data, ...docs]);
         this.snackBar.open('Document ajouté avec succès', 'OK', { duration: 3000 });
@@ -169,7 +177,7 @@ export class OrgDocumentsComponent implements OnInit {
 
   deleteDoc(doc: DocumentItem) {
     if (!confirm(`Supprimer le document "${doc.name}" ?`)) return;
-    this.docService.delete(this.orgId, doc.id).subscribe({
+    this.docService.delete(doc.id).subscribe({
       next: () => {
         this.documents.update(docs => docs.filter(d => d.id !== doc.id));
         this.snackBar.open('Document supprimé', 'OK', { duration: 3000 });

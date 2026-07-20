@@ -9,6 +9,8 @@ public record EventSummary(
         String type,
         String locationCity,
         boolean online,
+        java.math.BigDecimal locationLat,
+        java.math.BigDecimal locationLng,
         LocalDateTime startDate,
         LocalDateTime endDate,
         Integer maxParticipants,

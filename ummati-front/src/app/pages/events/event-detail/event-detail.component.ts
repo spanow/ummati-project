@@ -58,6 +58,14 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
             @if (event()!.online) { <mat-chip>🌐 {{ 'En ligne' | t }}</mat-chip> }
             <mat-chip [class]="'status-' + event()!.status.toLowerCase()">{{ event()!.status }}</mat-chip>
           </div>
+          <div class="event-quick-actions">
+            <button mat-stroked-button type="button" (click)="addToCalendar()">
+              <mat-icon>calendar_add_on</mat-icon> {{ 'Ajouter à mon agenda' | t }}
+            </button>
+            <button mat-stroked-button type="button" (click)="shareEvent()">
+              <mat-icon>share</mat-icon> {{ 'Partager' | t }}
+            </button>
+          </div>
         </div>
 
         <div class="event-content">
@@ -280,6 +288,8 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     .org-link { color: var(--brand-primary); margin-bottom: 8px; }
     .event-header h1 { font-size: 2rem; font-weight: 700; margin: 8px 0 16px; }
     .event-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .event-quick-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .event-quick-actions mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .status-published { background: #e8f5e9 !important; color: #2e7d32 !important; }
     .status-cancelled { background: #ffebee !important; color: #c62828 !important; }
     .status-completed { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
@@ -505,6 +515,56 @@ export class EventDetailComponent implements OnInit {
     this.dialog.open(ReportDialogComponent, {
       data: { targetType: 'EVENT', targetId: this.eventId, targetLabel: e.title },
     });
+  }
+
+  /** Télécharge un fichier .ics standard (compatible Google/Apple/Outlook). */
+  addToCalendar() {
+    const e = this.event()!;
+    const fmt = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const location = e.online
+      ? 'En ligne'
+      : [e.locationName, e.locationAddress, e.locationCity, e.locationZip].filter(Boolean).join(', ');
+    const esc = (s: string) => (s ?? '').replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+    const url = window.location.href;
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ummati//Events//FR', 'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${this.eventId}@ummati`,
+      `DTSTAMP:${fmt(new Date().toISOString())}`,
+      `DTSTART:${fmt(e.startDate)}`,
+      `DTEND:${fmt(e.endDate)}`,
+      `SUMMARY:${esc(e.title)}`,
+      `DESCRIPTION:${esc(e.description)}`,
+      `LOCATION:${esc(location)}`,
+      `URL:${url}`,
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = `${e.title.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40) || 'evenement'}.ics`;
+    a.click();
+    URL.revokeObjectURL(href);
+  }
+
+  /** Partage natif (Web Share API) avec repli sur copie du lien. */
+  async shareEvent() {
+    const e = this.event()!;
+    const shareData = { title: e.title, text: e.title, url: window.location.href };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch { return; /* annulé par l'utilisateur */ }
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      this.snackBar.open('Lien copié dans le presse-papiers', 'OK', { duration: 3000 });
+    } catch {
+      this.snackBar.open('Impossible de partager sur cet appareil', 'OK', { duration: 3000 });
+    }
   }
 
   toggleSignup() {

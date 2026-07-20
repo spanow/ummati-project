@@ -1,4 +1,5 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -48,7 +49,13 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
           </mat-select>
         </mat-form-field>
         <mat-checkbox [(ngModel)]="onlineOnly" (change)="loadEvents()">{{ 'En ligne uniquement' | t }}</mat-checkbox>
+        <button mat-stroked-button type="button" class="near-btn" [class.active]="userLoc()"
+                [disabled]="locating()" (click)="toggleNearMe()">
+          @if (locating()) { <mat-spinner diameter="18" /> } @else { <mat-icon>my_location</mat-icon> }
+          {{ (userLoc() ? 'Trié par distance' : 'Près de chez moi') | t }}
+        </button>
       </div>
+      @if (geoError()) { <p class="geo-error">{{ geoError() }}</p> }
 
       @if (loading()) {
         <div class="loading"><mat-spinner diameter="40" /></div>
@@ -60,13 +67,16 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
         </div>
       } @else {
         <div class="event-grid">
-          @for (event of events(); track event.id) {
+          @for (event of displayedEvents(); track event.id) {
             <mat-card class="event-card" [routerLink]="['/events', event.id]">
               <mat-card-content>
                 <div class="event-top">
                   <mat-chip class="type-chip">{{ event.type }}</mat-chip>
                   @if (event.online) {
                     <mat-chip class="online-chip">🌐 {{ 'En ligne' | t }}</mat-chip>
+                  }
+                  @if (distanceKm(event) !== null) {
+                    <mat-chip class="dist-chip"><mat-icon>near_me</mat-icon> {{ distanceLabel(event) }}</mat-chip>
                   }
                 </div>
                 <h3 class="event-title">{{ event.title }}</h3>
@@ -110,6 +120,10 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .subtitle { color: #666; margin-top: 4px; font-size: 1.05rem; }
     .filters { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
     .search-field { flex: 1; min-width: 200px; }
+    .near-btn.active { background: var(--brand-primary-100); color: var(--brand-primary-dark); border-color: var(--brand-primary); }
+    .geo-error { color: #c62828; font-size: 0.85rem; margin: -12px 0 16px; }
+    .dist-chip { font-size: 11px; background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
+    .dist-chip mat-icon { font-size: 14px; width: 14px; height: 14px; vertical-align: middle; }
     .loading { display: flex; justify-content: center; padding: 80px 0; }
     .empty-state { text-align: center; padding: 80px 24px; }
     .empty-icon { font-size: 64px; width: 64px; height: 64px; color: #ccc; }
@@ -144,11 +158,63 @@ export class EventListComponent implements OnInit {
   typeFilter: string | null = null;
   onlineOnly = false;
 
+  // « Près de chez moi » — géolocalisation navigateur + tri par distance (côté client)
+  userLoc = signal<{ lat: number; lng: number } | null>(null);
+  locating = signal(false);
+  geoError = signal('');
+  private platformId = inject(PLATFORM_ID);
+
+  /** Événements affichés : triés par distance croissante quand la position est connue. */
+  displayedEvents = computed(() => {
+    const list = this.events();
+    if (!this.userLoc()) return list;
+    return [...list].sort((a, b) => {
+      const da = this.distanceKm(a), db = this.distanceKm(b);
+      if (da === null) return 1;
+      if (db === null) return -1;
+      return da - db;
+    });
+  });
+
   readonly eventTypes = EVENT_TYPES;
 
   constructor(private eventService: EventService) {}
 
   ngOnInit() { this.loadEvents(); }
+
+  toggleNearMe() {
+    if (this.userLoc()) { this.userLoc.set(null); return; }
+    if (!isPlatformBrowser(this.platformId) || !navigator.geolocation) {
+      this.geoError.set('La géolocalisation n\'est pas disponible sur cet appareil.');
+      return;
+    }
+    this.locating.set(true);
+    this.geoError.set('');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        this.userLoc.set({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        this.locating.set(false);
+      },
+      () => {
+        this.geoError.set('Impossible d\'obtenir votre position. Autorisez la géolocalisation pour trier par distance.');
+        this.locating.set(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+    );
+  }
+
+  /** Distance à vol d'oiseau (km) entre l'utilisateur et l'événement, ou null si non calculable. */
+  distanceKm(event: EventSummary): number | null {
+    const u = this.userLoc();
+    if (!u || event.online || event.locationLat == null || event.locationLng == null) return null;
+    return haversineKm(u.lat, u.lng, +event.locationLat, +event.locationLng);
+  }
+
+  distanceLabel(event: EventSummary): string {
+    const d = this.distanceKm(event);
+    if (d === null) return '';
+    return d < 1 ? `${Math.round(d * 1000)} m` : `${d < 10 ? d.toFixed(1) : Math.round(d)} km`;
+  }
 
   loadEvents() {
     this.loading.set(true);
@@ -171,4 +237,15 @@ export class EventListComponent implements OnInit {
     this.currentPage.set(event.pageIndex);
     this.loadEvents();
   }
+}
+
+/** Distance à vol d'oiseau en km (formule de Haversine). */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

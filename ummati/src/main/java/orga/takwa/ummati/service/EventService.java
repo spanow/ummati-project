@@ -476,7 +476,8 @@ public class EventService {
         long registeredCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.REGISTERED);
         Organization org = event.getOrganization();
         return new EventSummary(event.getId(), event.getTitle(), event.getType().name(),
-                event.getLocationCity(), event.isOnline(), event.getStartDate(), event.getEndDate(),
+                event.getLocationCity(), event.isOnline(), event.getLocationLat(), event.getLocationLng(),
+                event.getStartDate(), event.getEndDate(),
                 event.getMaxParticipants(), registeredCount, event.getStatus().name(),
                 org.getName(), org.getSlug());
     }

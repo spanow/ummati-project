@@ -6,7 +6,8 @@ import { ApiResponse, PageResponse } from '../models/api.models';
 
 export interface EventSummary {
   id: string; title: string; type: string; locationCity: string;
-  online: boolean; startDate: string; endDate: string;
+  online: boolean; locationLat: number | null; locationLng: number | null;
+  startDate: string; endDate: string;
   maxParticipants: number | null; registeredCount: number;
   status: string; organizationName: string; organizationSlug: string;
 }

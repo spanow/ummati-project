@@ -24,8 +24,19 @@ export class DocumentService {
     return this.http.post<ApiResponse<DocumentItem>>(`${this.base}/organizations/${orgId}/documents`, form);
   }
 
-  delete(orgId: string, docId: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/organizations/${orgId}/documents/${docId}`);
+  listByEvent(eventId: string): Observable<ApiResponse<DocumentItem[]>> {
+    return this.http.get<ApiResponse<DocumentItem[]>>(`${this.base}/events/${eventId}/documents`);
+  }
+
+  uploadToEvent(eventId: string, file: File): Observable<ApiResponse<DocumentItem>> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ApiResponse<DocumentItem>>(`${this.base}/events/${eventId}/documents`, form);
+  }
+
+  /** Suppression : endpoint générique par id de document (org & event). */
+  delete(docId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/documents/${docId}`);
   }
 
   downloadUrl(docId: string): string {

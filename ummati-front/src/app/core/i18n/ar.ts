@@ -285,6 +285,10 @@ export const AR: Record<string, string> = {
   // ===== Documents =====
   'Fichiers partagés de l\'organisation (PDF, JPG, PNG, DOCX — max 10 Mo)':
     'الملفات المشتركة للجمعية (PDF، JPG، PNG، DOCX — بحد أقصى 10 ميغابايت)',
+  'Documents de l\'événement (PDF, JPG, PNG, DOCX — max 10 Mo)':
+    'مستندات الفعالية (PDF، JPG، PNG، DOCX — بحد أقصى 10 ميغابايت)',
+  'Ajoutez ici les pièces justificatives de l\'événement. Elles pourront être examinées par un administrateur de la plateforme.':
+    'أضف هنا الوثائق الداعمة للفعالية. يمكن أن يفحصها أحد مسؤولي المنصة.',
   'Ajouter un document': 'إضافة مستند',
   'Ajouter': 'إضافة',
   'Aucun document': 'لا توجد مستندات',
@@ -412,6 +416,12 @@ export const AR: Record<string, string> = {
   'Itinéraire': 'الاتجاهات',
   'Localiser sur la carte': 'حدّد الموقع على الخريطة',
   'Localiser le bureau sur la carte': 'حدّد موقع المكتب على الخريطة',
+
+  // ===== Parcours bénévole =====
+  'Près de chez moi': 'بالقرب مني',
+  'Trié par distance': 'مرتّب حسب المسافة',
+  'Ajouter à mon agenda': 'أضف إلى مفكرتي',
+  'Partager': 'مشاركة',
 
   // ===== Navbar (divers) =====
   'Ouvrir le menu': 'فتح القائمة',
