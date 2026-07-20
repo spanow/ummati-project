@@ -17,12 +17,14 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
 import { EventService, EventSummary } from '../../../core/services/event.service';
 import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink, TPipe],
+    MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink, TPipe,
+    LocationPickerComponent],
   template: `
     @if (loading()) {
       <div class="loading"><mat-spinner diameter="40" /></div>
@@ -109,7 +111,14 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                   @if (org()!.email) { <div><mat-icon>email</mat-icon> {{ org()!.email }}</div> }
                   @if (org()!.phone) { <div><mat-icon>phone</mat-icon> {{ org()!.phone }}</div> }
                   @if (org()!.website) { <div><mat-icon>language</mat-icon> <a [href]="org()!.website" target="_blank">{{ org()!.website }}</a></div> }
+                  @if (org()!.addressCity) { <div><mat-icon>place</mat-icon> {{ org()!.addressStreet ? org()!.addressStreet + ', ' : '' }}{{ org()!.addressZip }} {{ org()!.addressCity }}</div> }
                 </div>
+                @if (org()!.addressLat && org()!.addressLng) {
+                  <div class="org-map">
+                    <app-location-picker [editable]="false"
+                      [lat]="+org()!.addressLat!" [lng]="+org()!.addressLng!" />
+                  </div>
+                }
               </div>
             </mat-tab>
 
@@ -233,6 +242,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .contact-info { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
     .contact-info div { display: flex; align-items: center; gap: 8px; color: #555; }
     .contact-info a { color: var(--brand-primary); text-decoration: none; }
+    .org-map { margin-top: 20px; }
     .placeholder-text { color: #888; font-style: italic; padding: 40px 0; text-align: center; }
     .tab-badge { background: var(--brand-primary); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
     .announcement-list { display: flex; flex-direction: column; gap: 16px; }

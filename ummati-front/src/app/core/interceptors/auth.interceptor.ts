@@ -7,6 +7,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.getAccessToken();
 
+  // Ne jamais envoyer le JWT à des services tiers (géocodage OpenStreetMap/Nominatim, etc.)
+  if (req.url.includes('nominatim.openstreetmap.org')) {
+    return next(req);
+  }
+
   // Don't add token to auth endpoints (except logout)
   if (req.url.includes('/auth/') && !req.url.includes('/auth/logout')) {
     return next(req);

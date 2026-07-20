@@ -23,6 +23,8 @@ import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/s
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { OrgDocumentsComponent } from '../org-documents/org-documents.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
+import { GeoResult } from '../../../core/services/geocoding.service';
 
 @Component({
   selector: 'app-organization-manage',
@@ -32,6 +34,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     MatChipsModule, MatMenuModule, MatProgressSpinnerModule, MatSnackBarModule,
     MatDialogModule, MatBadgeModule, MatFormFieldModule, MatInputModule, MatCheckboxModule,
     MatSelectModule, DatePipe, RouterLink, FormsModule, OrgDocumentsComponent, TPipe,
+    LocationPickerComponent,
   ],
   template: `
     <div class="page-container">
@@ -256,6 +259,13 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                     <input matInput [(ngModel)]="editModel.addressZip" name="addressZip" />
                   </mat-form-field>
                 </div>
+                <div class="map-block">
+                  <label class="map-label">{{ 'Localiser le bureau sur la carte' | t }}</label>
+                  <app-location-picker
+                    [lat]="editModel.addressLat" [lng]="editModel.addressLng"
+                    (coordsChange)="onCoords($event)"
+                    (addressResolved)="onAddressResolved($event)" />
+                </div>
                 <div class="form-row">
                   <mat-form-field appearance="outline" class="flex-1">
                     <mat-label>{{ 'Email de contact' | t }}</mat-label>
@@ -342,6 +352,8 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .announce-body { margin: 0 0 10px; color: #444; line-height: 1.6; white-space: pre-line; font-size: 0.9rem; }
     .announce-date { font-size: 0.78rem; color: #aaa; }
     .org-edit-form { display: flex; flex-direction: column; gap: 4px; max-width: 640px; padding: 16px 0; }
+    .map-block { margin: 8px 0; }
+    .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
     .form-row { display: flex; gap: 16px; }
     .flex-1 { flex: 1; }
     .flex-2 { flex: 2; }
@@ -365,9 +377,15 @@ export class OrganizationManageComponent implements OnInit {
   savingInfo = signal(false);
   domains = ['EDUCATION', 'SANTE', 'ENVIRONNEMENT', 'SOCIAL', 'CULTURE', 'SPORT',
     'HUMANITAIRE', 'DROITS_HUMAINS', 'AIDE_URGENCE', 'AUTRE'];
-  editModel = {
+  editModel: {
+    description: string; mission: string; domain: string; addressStreet: string;
+    addressCity: string; addressZip: string;
+    addressLat: number | null; addressLng: number | null;
+    email: string; phone: string; website: string;
+  } = {
     description: '', mission: '', domain: '', addressStreet: '',
-    addressCity: '', addressZip: '', email: '', phone: '', website: '',
+    addressCity: '', addressZip: '', addressLat: null, addressLng: null,
+    email: '', phone: '', website: '',
   };
 
   constructor(
@@ -391,6 +409,8 @@ export class OrganizationManageComponent implements OnInit {
           addressStreet: res.data.addressStreet ?? '',
           addressCity: res.data.addressCity ?? '',
           addressZip: res.data.addressZip ?? '',
+          addressLat: res.data.addressLat ?? null,
+          addressLng: res.data.addressLng ?? null,
           email: res.data.email ?? '',
           phone: res.data.phone ?? '',
           website: res.data.website ?? '',
@@ -408,6 +428,17 @@ export class OrganizationManageComponent implements OnInit {
       this.loadMembers();
       this.loadAnnouncements();
     }
+  }
+
+  onCoords(c: { lat: number; lng: number }) {
+    this.editModel.addressLat = c.lat;
+    this.editModel.addressLng = c.lng;
+  }
+
+  onAddressResolved(r: GeoResult) {
+    if (r.city && !this.editModel.addressCity) this.editModel.addressCity = r.city;
+    if (r.zip && !this.editModel.addressZip) this.editModel.addressZip = r.zip;
+    if (r.street && !this.editModel.addressStreet) this.editModel.addressStreet = r.street;
   }
 
   saveOrgInfo() {

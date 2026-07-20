@@ -13,6 +13,7 @@ export interface OrganizationDetail {
   id: string; name: string; slug: string; description: string; mission: string;
   domain: string; logoUrl: string; bannerUrl: string;
   addressStreet: string; addressCity: string; addressZip: string; addressCountry: string;
+  addressLat: number | null; addressLng: number | null;
   phone: string; email: string; website: string;
   status: string; rejectionReason: string;
   stats: { memberCount: number; eventCount: number; averageRating: number | null };

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import orga.takwa.ummati.entity.enums.OrganizationDomain;
 import orga.takwa.ummati.entity.enums.OrganizationStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,6 +49,12 @@ public class Organization {
 
     @Column(name = "address_country", length = 100)
     private String addressCountry = "France";
+
+    @Column(name = "address_lat", precision = 10, scale = 8)
+    private BigDecimal addressLat;
+
+    @Column(name = "address_lng", precision = 11, scale = 8)
+    private BigDecimal addressLng;
 
     @Column(length = 20)
     private String phone;
@@ -130,6 +137,12 @@ public class Organization {
 
     public String getAddressCountry() { return addressCountry; }
     public void setAddressCountry(String addressCountry) { this.addressCountry = addressCountry; }
+
+    public BigDecimal getAddressLat() { return addressLat; }
+    public void setAddressLat(BigDecimal addressLat) { this.addressLat = addressLat; }
+
+    public BigDecimal getAddressLng() { return addressLng; }
+    public void setAddressLng(BigDecimal addressLng) { this.addressLng = addressLng; }
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }

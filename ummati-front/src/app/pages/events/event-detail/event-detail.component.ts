@@ -22,6 +22,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ReportDialogComponent } from '../../../shared/components/report-dialog/report-dialog.component';
 import { StarRatingComponent } from '../../../shared/components/star-rating/star-rating.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
 @Component({
   selector: 'app-event-detail',
@@ -29,7 +30,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
     MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, MatFormFieldModule, MatInputModule,
     MatMenuModule, MatDialogModule, MatCheckboxModule, FormsModule, RouterLink, DatePipe, DecimalPipe,
-    StarRatingComponent, TPipe],
+    StarRatingComponent, TPipe, LocationPickerComponent],
   template: `
     <div class="page-container">
       @if (loading()) {
@@ -245,6 +246,11 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                 }
               </mat-card-content>
             </mat-card>
+
+            @if (!event()!.online && event()!.locationLat && event()!.locationLng) {
+              <app-location-picker [editable]="false"
+                [lat]="+event()!.locationLat" [lng]="+event()!.locationLng" />
+            }
 
             @if (event()!.status === 'PUBLISHED') {
               <button mat-flat-button class="signup-btn" (click)="toggleSignup()" [disabled]="signingUp()">

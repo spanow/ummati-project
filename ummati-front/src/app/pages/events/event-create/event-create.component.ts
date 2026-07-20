@@ -17,13 +17,15 @@ import { EventService } from '../../../core/services/event.service';
 import { SkillService } from '../../../core/services/skill.service';
 import { EVENT_TYPES } from '../../../core/constants/event-types';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
+import { GeoResult } from '../../../core/services/geocoding.service';
 
 @Component({
   selector: 'app-event-create',
   standalone: true,
   imports: [ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
-    MatChipsModule, MatSnackBarModule, MatProgressSpinnerModule, RouterLink, TPipe],
+    MatChipsModule, MatSnackBarModule, MatProgressSpinnerModule, RouterLink, TPipe, LocationPickerComponent],
   template: `
     <div class="page-container">
       <h1>{{ (isEdit ? 'Modifier un événement' : 'Créer un événement') | t }}</h1>
@@ -71,6 +73,17 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                 <input matInput formControlName="locationAddress" />
               </mat-form-field>
             </div>
+
+            @if (!form.get('online')?.value) {
+              <div class="map-block">
+                <label class="map-label">{{ 'Localiser sur la carte' | t }}</label>
+                <app-location-picker
+                  [lat]="form.get('locationLat')?.value"
+                  [lng]="form.get('locationLng')?.value"
+                  (coordsChange)="onCoords($event)"
+                  (addressResolved)="onAddressResolved($event)" />
+              </div>
+            }
 
             <mat-checkbox formControlName="online" class="online-check">{{ 'Événement en ligne' | t }}</mat-checkbox>
             @if (form.get('online')?.value) {
@@ -142,6 +155,8 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .row { display: flex; gap: 16px; }
     .row mat-form-field { flex: 1; }
     .online-check { margin-bottom: 16px; display: block; }
+    .map-block { margin-bottom: 16px; }
+    .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
     .error { color: #d32f2f; font-size: 0.9rem; margin-bottom: 16px; }
     .actions { display: flex; gap: 12px; margin-top: 16px; }
     .actions button[type="submit"] { min-width: 180px; height: 44px; }
@@ -181,6 +196,8 @@ export class EventCreateComponent implements OnInit {
       locationCity: ['', Validators.required],
       locationName: [''],
       locationAddress: [''],
+      locationLat: [null],
+      locationLng: [null],
       online: [false],
       onlineLink: [''],
       startDate: ['', Validators.required],
@@ -212,6 +229,18 @@ export class EventCreateComponent implements OnInit {
     this.skillService.getAll().subscribe(res => {
       this.skills.set(res.data.map((s: any) => ({ id: s.id, name: s.name })));
     });
+  }
+
+  onCoords(c: { lat: number; lng: number }) {
+    this.form.patchValue({ locationLat: c.lat, locationLng: c.lng });
+  }
+
+  onAddressResolved(r: GeoResult) {
+    // Autofill des champs texte laissés vides (sans écraser la saisie manuelle)
+    const patch: any = {};
+    if (r.city && !this.form.value.locationCity) patch.locationCity = r.city;
+    if (r.street && !this.form.value.locationAddress) patch.locationAddress = r.street;
+    if (Object.keys(patch).length) this.form.patchValue(patch);
   }
 
   onSubmit() {

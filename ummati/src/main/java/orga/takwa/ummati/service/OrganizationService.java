@@ -63,6 +63,8 @@ public class OrganizationService {
         org.setAddressStreet(request.addressStreet());
         org.setAddressCity(request.addressCity());
         org.setAddressZip(request.addressZip());
+        org.setAddressLat(request.addressLat());
+        org.setAddressLng(request.addressLng());
         org.setEmail(request.email());
         org.setPhone(request.phone());
         org.setWebsite(request.website());
@@ -124,6 +126,8 @@ public class OrganizationService {
         if (request.addressStreet() != null) org.setAddressStreet(request.addressStreet());
         if (request.addressCity() != null) org.setAddressCity(request.addressCity());
         if (request.addressZip() != null) org.setAddressZip(request.addressZip());
+        if (request.addressLat() != null) org.setAddressLat(request.addressLat());
+        if (request.addressLng() != null) org.setAddressLng(request.addressLng());
         if (request.email() != null) org.setEmail(request.email());
         if (request.phone() != null) org.setPhone(request.phone());
         if (request.website() != null) org.setWebsite(request.website());
@@ -205,6 +209,7 @@ public class OrganizationService {
                 organization.getDescription(), organization.getMission(), organization.getDomain().name(),
                 organization.getLogoUrl(), organization.getBannerUrl(),
                 organization.getAddressStreet(), organization.getAddressCity(), organization.getAddressZip(), organization.getAddressCountry(),
+                organization.getAddressLat(), organization.getAddressLng(),
                 organization.getPhone(), organization.getEmail(), organization.getWebsite(),
                 organization.getStatus().name(), organization.getRejectionReason(),
                 new OrganizationDetail.StatsDto(memberCount, eventCount, null),

@@ -66,7 +66,7 @@ class OrganizationServiceTest {
         when(userRepository.findById(unverifiedUser.getId())).thenReturn(Optional.of(unverifiedUser));
 
         var request = new CreateOrganizationRequest("Test ONG", "Description", null,
-                "EDUCATION", null, "Paris", "75001", "org@test.com", null, null);
+                "EDUCATION", null, "Paris", "75001", null, null, "org@test.com", null, null);
 
         assertThatThrownBy(() -> organizationService.create(unverifiedUser.getId(), request))
                 .isInstanceOf(ForbiddenException.class)
@@ -80,7 +80,7 @@ class OrganizationServiceTest {
         when(organizationRepository.existsByName("Test ONG")).thenReturn(true);
 
         var request = new CreateOrganizationRequest("Test ONG", "Description", null,
-                "EDUCATION", null, "Paris", "75001", "org@test.com", null, null);
+                "EDUCATION", null, "Paris", "75001", null, null, "org@test.com", null, null);
 
         assertThatThrownBy(() -> organizationService.create(verifiedUser.getId(), request))
                 .isInstanceOf(ConflictException.class);
@@ -122,12 +122,39 @@ class OrganizationServiceTest {
                 .thenReturn(org.springframework.data.domain.Page.empty());
 
         var request = new CreateOrganizationRequest("Les Restos du Cœur", "Aide alimentaire", null,
-                "SOCIAL", null, "Paris", "75001", "org@test.com", null, null);
+                "SOCIAL", null, "Paris", "75001", null, null, "org@test.com", null, null);
 
         var result = organizationService.create(verifiedUser.getId(), request);
 
         assert result.slug().equals("les-restos-du-coeur") || result.slug().startsWith("les-restos-du-c");
         assert result.status().equals("PENDING");
+    }
+
+    // Coordonnées du bureau (géocodées côté front) persistées et renvoyées dans le détail
+    @Test
+    void create_shouldPersistCoordinates_whenProvided() {
+        when(userRepository.findById(verifiedUser.getId())).thenReturn(Optional.of(verifiedUser));
+        when(organizationRepository.existsByName(any())).thenReturn(false);
+        when(organizationRepository.existsBySlug(any())).thenReturn(false);
+        when(organizationRepository.save(any())).thenAnswer(inv -> {
+            Organization o = inv.getArgument(0);
+            o.setId(UUID.randomUUID());
+            return o;
+        });
+        when(membershipRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findAll()).thenReturn(List.of());
+        when(eventRepository.findByOrganizationId(any(), any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
+        var lat = new java.math.BigDecimal("48.85661400");
+        var lng = new java.math.BigDecimal("2.35222190");
+        var request = new CreateOrganizationRequest("ONG Géo", "Description", null,
+                "SOCIAL", "10 rue de Paris", "Paris", "75001", lat, lng, "geo@test.com", null, null);
+
+        var result = organizationService.create(verifiedUser.getId(), request);
+
+        assert result.addressLat().compareTo(lat) == 0;
+        assert result.addressLng().compareTo(lng) == 0;
     }
 
     // --- changeStatus ---

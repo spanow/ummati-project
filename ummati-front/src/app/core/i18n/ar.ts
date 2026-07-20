@@ -403,6 +403,16 @@ export const AR: Record<string, string> = {
   'Description (optionnel)': 'الوصف (اختياري)',
   'Précisez le contexte du signalement...': 'حدّد سياق البلاغ...',
 
+  // ===== Carte / localisation =====
+  'Rechercher une adresse…': 'ابحث عن عنوان…',
+  'Rechercher une adresse': 'ابحث عن عنوان',
+  'Carte de localisation': 'خريطة الموقع',
+  'Cliquez sur la carte ou déplacez le marqueur pour définir la position.':
+    'انقر على الخريطة أو حرّك العلامة لتحديد الموقع.',
+  'Itinéraire': 'الاتجاهات',
+  'Localiser sur la carte': 'حدّد الموقع على الخريطة',
+  'Localiser le bureau sur la carte': 'حدّد موقع المكتب على الخريطة',
+
   // ===== Navbar (divers) =====
   'Ouvrir le menu': 'فتح القائمة',
 

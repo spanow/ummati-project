@@ -11,12 +11,15 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatStepperModule } from '@angular/material/stepper';
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
+import { GeoResult } from '../../../core/services/geocoding.service';
 
 @Component({
   selector: 'app-organization-create',
   standalone: true,
   imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule,
-    MatSelectModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatStepperModule, TPipe],
+    MatSelectModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatStepperModule, TPipe,
+    LocationPickerComponent],
   template: `
     <div class="page-container">
       <h1>{{ 'Créer une organisation' | t }}</h1>
@@ -60,6 +63,15 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
             </mat-form-field>
           </div>
 
+          <div class="map-block">
+            <label class="map-label">{{ 'Localiser le bureau sur la carte' | t }}</label>
+            <app-location-picker
+              [lat]="form.get('addressLat')?.value"
+              [lng]="form.get('addressLng')?.value"
+              (coordsChange)="onCoords($event)"
+              (addressResolved)="onAddressResolved($event)" />
+          </div>
+
           <h3>{{ 'Contact' | t }}</h3>
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>{{ 'Email de contact' | t }}</mat-label>
@@ -93,6 +105,8 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .row { display: flex; gap: 16px; }
     .flex-1 { flex: 1; }
     .flex-2 { flex: 2; }
+    .map-block { margin: 8px 0 8px; }
+    .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
     .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; }
     .error-banner { background: #fdecea; color: #d32f2f; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
   `],
@@ -118,10 +132,24 @@ export class OrganizationCreateComponent {
       domain: ['', Validators.required],
       addressCity: ['', Validators.required],
       addressZip: ['', Validators.required],
+      addressLat: [null],
+      addressLng: [null],
       email: ['', [Validators.required, Validators.email]],
       phone: [''],
       website: [''],
     });
+  }
+
+  onCoords(c: { lat: number; lng: number }) {
+    this.form.patchValue({ addressLat: c.lat, addressLng: c.lng });
+  }
+
+  onAddressResolved(r: GeoResult) {
+    const patch: any = {};
+    if (r.city && !this.form.value.addressCity) patch.addressCity = r.city;
+    if (r.zip && !this.form.value.addressZip) patch.addressZip = r.zip;
+    if (r.street && !this.form.value.addressStreet) patch.addressStreet = r.street;
+    if (Object.keys(patch).length) this.form.patchValue(patch);
   }
 
   onSubmit() {
