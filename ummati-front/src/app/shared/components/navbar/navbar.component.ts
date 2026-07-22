@@ -155,14 +155,14 @@ import { TPipe } from '../../pipes/t.pipe';
       border-bottom: 1px solid var(--brand-border);
     }
     .nav-inner {
-      max-width: 1280px; margin: 0 auto; height: 64px;
+      max-width: var(--page-max); margin: 0 auto; height: 66px;
       display: flex; align-items: center; gap: 8px; padding: 0 24px;
     }
     .brand { display: flex; align-items: center; gap: 10px; text-decoration: none !important; }
     .brand-mark {
       width: 38px; height: 38px; border-radius: 12px;
       background: var(--brand-gradient); display: flex; align-items: center; justify-content: center;
-      box-shadow: var(--brand-shadow-lg);
+      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.28);
     }
     .brand-mark mat-icon { color: white; font-size: 22px; width: 22px; height: 22px; }
     .brand-name { font-size: 1.25rem; font-weight: 800; color: var(--brand-primary-dark); letter-spacing: -0.02em; }
@@ -195,7 +195,7 @@ import { TPipe } from '../../pipes/t.pipe';
     .mobile-menu-btn { display: none !important; color: var(--brand-ink); }
 
     .mobile-menu {
-      position: fixed; top: 64px; inset-inline: 0; bottom: 0;
+      position: fixed; top: 66px; inset-inline: 0; bottom: 0;
       background: white; z-index: 99; padding: 16px;
       display: flex; flex-direction: column; gap: 4px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);

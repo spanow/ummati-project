@@ -14,9 +14,9 @@ import { TPipe } from '../../shared/pipes/t.pipe';
   standalone: true,
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatChipsModule, RouterLink, DatePipe, DecimalPipe, TPipe],
   template: `
-    <div class="page-container">
+    <div class="page">
       @if (loading()) {
-        <div class="loading"><mat-spinner diameter="40" /></div>
+        <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (dashboard()) {
         <header class="page-header">
           <div>
@@ -97,27 +97,25 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
-    .loading { display: flex; justify-content: center; padding: 80px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-    .page-header h1 { font-size: 1.8rem; font-weight: 700; margin: 0; }
-    .subtitle { color: #666; margin-top: 4px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; gap: 16px; flex-wrap: wrap; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .subtitle { color: var(--brand-text-soft); margin-top: 4px; }
     .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-    .stat-card { flex: 1; min-width: 140px; border-radius: 10px; text-align: center; }
+    .stat-card { flex: 1; min-width: 140px; text-align: center; }
     .stat-card mat-icon { color: var(--brand-primary); margin-bottom: 8px; }
-    .stat-card .val { font-size: 1.8rem; font-weight: 700; }
-    .stat-card .lbl { color: #888; font-size: 0.8rem; }
+    .stat-card .val { font-size: 1.8rem; font-weight: 800; color: var(--brand-ink); }
+    .stat-card .lbl { color: var(--brand-text-soft); font-size: 0.8rem; }
     .stat-card.alert { border: 2px solid var(--brand-accent); }
-    .alert-banner { border-radius: 10px; background: #fff3e0; margin-bottom: 24px; }
-    .alert-banner mat-card-content { display: flex; align-items: center; gap: 12px; }
-    .alert-banner mat-icon { color: #e65100; }
+    .alert-banner { background: var(--brand-accent-soft); margin-bottom: 24px; }
+    .alert-banner mat-card-content { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .alert-banner mat-icon { color: var(--brand-warn); }
     .alert-banner span { flex: 1; }
-    section h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 12px; }
+    section h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; }
     .members-list { display: flex; flex-direction: column; gap: 8px; }
-    .member-row { display: flex; align-items: center; gap: 12px; padding: 10px; background: #fafafa; border-radius: 8px; }
-    .member-row mat-icon { color: #888; }
+    .member-row { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--brand-surface-2); border: 1px solid var(--brand-border); border-radius: var(--radius-sm); }
+    .member-row mat-icon { color: var(--brand-text-soft); }
     .member-row span:first-of-type { flex: 1; font-weight: 500; }
-    .date { color: #999; font-size: 0.8rem; }
+    .date { color: var(--brand-text-faint); font-size: 0.8rem; }
   `],
 })
 export class OrgDashboardComponent implements OnInit {

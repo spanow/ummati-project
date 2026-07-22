@@ -27,7 +27,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     LocationPickerComponent],
   template: `
     @if (loading()) {
-      <div class="loading"><mat-spinner diameter="40" /></div>
+      <div class="state-center"><mat-spinner diameter="40" /></div>
     } @else if (org()) {
       <div class="detail-page">
         <div class="banner" [style.background-image]="org()!.bannerUrl ? 'url(' + org()!.bannerUrl + ')' : ''">
@@ -215,59 +215,58 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     }
   `,
   styles: [`
-    .loading { display: flex; justify-content: center; padding: 120px 0; }
     .loading-inline { display: flex; justify-content: center; padding: 32px; }
     .detail-page { max-width: 960px; margin: 0 auto; }
-    .banner { height: 200px; background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%); position: relative; }
-    .banner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); display: flex; align-items: flex-end; padding: 24px 32px; }
+    .banner { height: 200px; background: var(--brand-gradient); position: relative; background-size: cover; background-position: center; }
+    .banner-overlay { position: absolute; inset: 0; background: rgba(15,23,42,0.28); display: flex; align-items: flex-end; padding: 24px 32px; }
     .more-btn { position: absolute; top: 16px; right: 16px; color: white; }
     .org-identity { display: flex; align-items: center; gap: 20px; color: white; }
     .logo { width: 72px; height: 72px; border-radius: 14px; border: 3px solid white; object-fit: cover; }
     .logo-placeholder { width: 72px; height: 72px; border-radius: 14px; border: 3px solid white; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
     .logo-placeholder mat-icon { font-size: 36px; width: 36px; height: 36px; color: white; }
-    h1 { margin: 0 0 6px; font-size: 1.8rem; font-weight: 600; }
-    .meta-row { display: flex; align-items: center; gap: 12px; }
-    .location { display: flex; align-items: center; gap: 4px; font-size: 0.9rem; opacity: 0.9; }
+    h1 { margin: 0 0 6px; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
+    .meta-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .location { display: flex; align-items: center; gap: 4px; font-size: 0.9rem; opacity: 0.92; }
     .content-container { padding: 0 32px 48px; }
-    .stats-bar { display: flex; align-items: center; gap: 40px; padding: 24px 0; border-bottom: 1px solid #eee; margin-bottom: 24px; }
+    .stats-bar { display: flex; align-items: center; gap: 40px; padding: 24px 0; border-bottom: 1px solid var(--brand-border); margin-bottom: 24px; flex-wrap: wrap; }
     .stat { display: flex; flex-direction: column; align-items: center; }
-    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--brand-primary); }
-    .stat-label { font-size: 0.8rem; color: #888; margin-top: 2px; }
+    .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--brand-primary); }
+    .stat-label { font-size: 0.8rem; color: var(--brand-text-soft); margin-top: 2px; }
     .join-btn { margin-left: auto; height: 44px; padding: 0 32px; }
-    .admin-actions { margin-left: auto; display: flex; gap: 8px; }
-    .events-admin-bar { display: flex; gap: 8px; margin-bottom: 24px; }
+    .admin-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    .events-admin-bar { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
     .tab-content { padding: 24px 0; }
-    .tab-content h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 12px; }
-    .description { line-height: 1.7; color: #444; white-space: pre-line; }
+    .tab-content h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 12px; }
+    .description { line-height: 1.7; color: var(--brand-text); white-space: pre-line; }
     .contact-info { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
-    .contact-info div { display: flex; align-items: center; gap: 8px; color: #555; }
+    .contact-info div { display: flex; align-items: center; gap: 8px; color: var(--brand-text); }
     .contact-info a { color: var(--brand-primary); text-decoration: none; }
     .org-map { margin-top: 20px; }
-    .placeholder-text { color: #888; font-style: italic; padding: 40px 0; text-align: center; }
+    .placeholder-text { color: var(--brand-text-soft); font-style: italic; padding: 40px 0; text-align: center; }
     .tab-badge { background: var(--brand-primary); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
     .announcement-list { display: flex; flex-direction: column; gap: 16px; }
-    .announcement-card { padding: 20px 24px; border-radius: 10px; border: 1px solid #e0e0e0; background: white; }
+    .announcement-card { padding: 20px 24px; border-radius: var(--radius-md); border: 1px solid var(--brand-border); background: var(--brand-surface); }
     .announcement-card.pinned { border-left: 4px solid var(--brand-primary); background: var(--brand-primary-soft); }
-    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-primary); font-weight: 600; margin-bottom: 8px; }
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-primary); font-weight: 700; margin-bottom: 8px; }
     .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
-    .announcement-title { margin: 0 0 8px; font-size: 1rem; font-weight: 600; color: #222; }
-    .announcement-content { margin: 0 0 12px; color: #444; line-height: 1.6; white-space: pre-line; }
-    .announcement-meta { font-size: 0.8rem; color: #999; }
+    .announcement-title { margin: 0 0 8px; font-size: 1rem; font-weight: 700; color: var(--brand-ink); }
+    .announcement-content { margin: 0 0 12px; color: var(--brand-text); line-height: 1.6; white-space: pre-line; }
+    .announcement-meta { font-size: 0.8rem; color: var(--brand-text-faint); }
     .org-event-list { display: flex; flex-direction: column; gap: 12px; }
-    .org-event-card { display: flex; align-items: center; gap: 20px; padding: 16px 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: white; text-decoration: none; color: inherit; transition: box-shadow 0.15s, transform 0.15s; }
-    .org-event-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+    .org-event-card { display: flex; align-items: center; gap: 20px; padding: 16px 20px; border: 1px solid var(--brand-border); border-radius: var(--radius-md); background: var(--brand-surface); text-decoration: none; color: inherit; transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease; }
+    .org-event-card:hover { box-shadow: var(--brand-shadow-md); transform: translateY(-2px); border-color: var(--brand-primary-100); }
     .event-date-block { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 56px; background: var(--brand-primary-100); border-radius: 10px; flex-shrink: 0; }
-    .event-day { font-size: 1.3rem; font-weight: 700; color: var(--brand-primary-dark); line-height: 1.1; }
-    .event-month { font-size: 0.7rem; text-transform: uppercase; color: var(--brand-primary); font-weight: 600; }
+    .event-day { font-size: 1.3rem; font-weight: 800; color: var(--brand-primary-dark); line-height: 1.1; }
+    .event-month { font-size: 0.7rem; text-transform: uppercase; color: var(--brand-primary); font-weight: 700; }
     .event-info { flex: 1; min-width: 0; }
-    .event-title { margin: 0 0 6px; font-size: 1rem; font-weight: 600; color: #222; }
-    .event-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: #666; font-size: 0.85rem; }
+    .event-title { margin: 0 0 6px; font-size: 1rem; font-weight: 700; color: var(--brand-ink); }
+    .event-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--brand-text-soft); font-size: 0.85rem; }
     .event-meta span { display: inline-flex; align-items: center; gap: 4px; }
     .event-meta mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .event-type-chip { font-size: 0.7rem !important; min-height: 22px !important; }
-    .event-spots { display: flex; flex-direction: column; align-items: center; font-weight: 700; color: #2e7d32; flex-shrink: 0; }
-    .event-spots.almost-full { color: #e65100; }
-    .spots-label { font-size: 0.7rem; font-weight: 400; color: #999; }
+    .event-spots { display: flex; flex-direction: column; align-items: center; font-weight: 800; color: var(--brand-success); flex-shrink: 0; }
+    .event-spots.almost-full { color: var(--brand-warn); }
+    .spots-label { font-size: 0.7rem; font-weight: 400; color: var(--brand-text-faint); }
   `],
 })
 export class OrganizationDetailComponent implements OnInit {

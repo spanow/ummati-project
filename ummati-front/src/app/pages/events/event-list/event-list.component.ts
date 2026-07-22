@@ -24,15 +24,15 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule, MatCheckboxModule,
     RouterLink, FormsModule, DatePipe, TPipe],
   template: `
-    <div class="page-container">
-      <header class="page-header">
+    <div class="page">
+      <header class="page-head">
         <div>
-          <h1>{{ 'Événements' | t }}</h1>
-          <p class="subtitle">{{ 'Trouvez une mission de bénévolat près de chez vous' | t }}</p>
+          <h1 class="page-title">{{ 'Événements' | t }}</h1>
+          <p class="page-sub">{{ 'Trouvez une mission de bénévolat près de chez vous' | t }}</p>
         </div>
       </header>
 
-      <div class="filters">
+      <div class="filters-row">
         <mat-form-field appearance="outline" class="search-field">
           <mat-label>{{ 'Ville' | t }}</mat-label>
           <input matInput [(ngModel)]="cityFilter" (keyup.enter)="loadEvents()"
@@ -58,7 +58,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
       @if (geoError()) { <p class="geo-error">{{ geoError() }}</p> }
 
       @if (loading()) {
-        <div class="loading"><mat-spinner diameter="40" /></div>
+        <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (events().length === 0) {
         <div class="empty-state">
           <mat-icon class="empty-icon">event_busy</mat-icon>
@@ -68,7 +68,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
       } @else {
         <div class="event-grid">
           @for (event of displayedEvents(); track event.id) {
-            <mat-card class="event-card" [routerLink]="['/events', event.id]">
+            <mat-card class="event-card hover-lift" [routerLink]="['/events', event.id]">
               <mat-card-content>
                 <div class="event-top">
                   <mat-chip class="type-chip">{{ event.type }}</mat-chip>
@@ -114,37 +114,30 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
-    .page-header { margin-bottom: 32px; }
-    .page-header h1 { font-size: 2rem; font-weight: 600; margin: 0; }
-    .subtitle { color: #666; margin-top: 4px; font-size: 1.05rem; }
-    .filters { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
     .search-field { flex: 1; min-width: 200px; }
     .near-btn.active { background: var(--brand-primary-100); color: var(--brand-primary-dark); border-color: var(--brand-primary); }
-    .geo-error { color: #c62828; font-size: 0.85rem; margin: -12px 0 16px; }
+    .geo-error { color: var(--brand-danger); font-size: 0.85rem; margin: -12px 0 16px; }
     .dist-chip { font-size: 11px; background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
     .dist-chip mat-icon { font-size: 14px; width: 14px; height: 14px; vertical-align: middle; }
-    .loading { display: flex; justify-content: center; padding: 80px 0; }
     .empty-state { text-align: center; padding: 80px 24px; }
-    .empty-icon { font-size: 64px; width: 64px; height: 64px; color: #ccc; }
+    .empty-icon { font-size: 64px; width: 64px; height: 64px; color: var(--brand-text-faint); }
     .empty-state h3 { margin-top: 16px; font-size: 1.3rem; }
-    .empty-state p { color: #666; }
+    .empty-state p { color: var(--brand-text-soft); }
     .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
-    .event-card { cursor: pointer; transition: box-shadow 0.2s, transform 0.2s; border-radius: 12px; }
-    .event-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }
-    .event-top { display: flex; gap: 8px; margin-bottom: 12px; }
+    .event-card { cursor: pointer; }
+    .event-top { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
     .type-chip { font-size: 11px; }
     .online-chip { font-size: 11px; }
-    .event-title { font-size: 1.15rem; font-weight: 600; margin: 0 0 12px; }
-    .event-meta { display: flex; flex-direction: column; gap: 6px; color: #666; font-size: 0.85rem; margin-bottom: 8px; }
+    .event-title { font-size: 1.15rem; font-weight: 700; margin: 0 0 12px; color: var(--brand-ink); }
+    .event-meta { display: flex; flex-direction: column; gap: 6px; color: var(--brand-text-soft); font-size: 0.85rem; margin-bottom: 8px; }
     .event-meta span { display: flex; align-items: center; gap: 6px; }
-    .event-org { display: flex; align-items: center; gap: 6px; color: #888; font-size: 0.85rem; margin-bottom: 12px; }
+    .event-org { display: flex; align-items: center; gap: 6px; color: var(--brand-text-faint); font-size: 0.85rem; margin-bottom: 12px; }
     .meta-icon { font-size: 16px; width: 16px; height: 16px; }
     .event-spots { margin-top: 8px; }
-    .progress-container { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
-    .progress-bar { height: 100%; background: #4caf50; border-radius: 3px; transition: width 0.3s; }
-    .spots-text { font-size: 0.8rem; color: #888; }
-    .full-badge { background: #f44336; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
+    .progress-container { height: 6px; background: var(--brand-border); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+    .progress-bar { height: 100%; background: var(--brand-success); border-radius: 3px; transition: width 0.3s; }
+    .spots-text { font-size: 0.8rem; color: var(--brand-text-soft); }
+    .full-badge { background: var(--brand-danger); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
     .almost-full-badge { background: var(--brand-accent); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
   `],
 })

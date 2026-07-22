@@ -69,15 +69,16 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .auth-container { display: flex; justify-content: center; padding: 48px 16px; }
+    .auth-container { display: flex; justify-content: center; align-items: flex-start; padding: 56px 16px; }
     .auth-card { max-width: 480px; width: 100%; }
     .full-width { width: 100%; }
     .name-row { display: flex; gap: 16px; }
     .name-row mat-form-field { flex: 1; }
-    .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; }
-    .error-banner { background: #fdecea; color: #d32f2f; padding: 12px; border-radius: 4px; margin-bottom: 16px; }
-    .success-banner { background: #e8f5e9; color: #2e7d32; padding: 12px; border-radius: 4px; margin-bottom: 16px; }
+    .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; border-radius: var(--radius-md); }
+    .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
+    .success-banner { background: var(--brand-success-soft); color: var(--brand-success); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
     mat-card-actions span { font-size: 14px; }
+    @media (max-width: 480px) { .name-row { flex-direction: column; gap: 0; } }
   `],
 })
 export class RegisterComponent {

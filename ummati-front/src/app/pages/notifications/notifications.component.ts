@@ -16,7 +16,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatBadgeModule,
     MatPaginatorModule, MatProgressSpinnerModule, DatePipe, TPipe],
   template: `
-    <div class="page-container">
+    <div class="page page-narrow">
       <header class="page-header">
         <h1>{{ 'Notifications' | t }}</h1>
         <button mat-stroked-button (click)="markAllRead()" [disabled]="unreadCount() === 0">
@@ -25,7 +25,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
       </header>
 
       @if (loading()) {
-        <div class="loading"><mat-spinner diameter="40" /></div>
+        <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (notifications().length === 0) {
         <div class="empty-state">
           <mat-icon class="empty-icon">notifications_none</mat-icon>
@@ -59,23 +59,21 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .page-header h1 { font-size: 1.8rem; font-weight: 600; margin: 0; }
-    .loading { display: flex; justify-content: center; padding: 80px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
     .empty-state { text-align: center; padding: 80px 24px; }
-    .empty-icon { font-size: 64px; width: 64px; height: 64px; color: #ccc; }
+    .empty-icon { font-size: 64px; width: 64px; height: 64px; color: var(--brand-text-faint); }
     .notif-list { display: flex; flex-direction: column; gap: 8px; }
-    .notif-card { border-radius: 10px; cursor: pointer; transition: background 0.2s; }
-    .notif-card:hover { background: #f5f5f5; }
+    .notif-card { border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+    .notif-card:hover { background: var(--brand-surface-2); }
     .notif-card.unread { border-left: 3px solid var(--brand-primary); }
     .notif-row { display: flex; gap: 16px; align-items: flex-start; }
-    .notif-icon { color: #888; margin-top: 2px; }
+    .notif-icon { color: var(--brand-text-soft); margin-top: 2px; }
     .unread-icon { color: var(--brand-primary); }
     .notif-body { flex: 1; }
-    .notif-body strong { display: block; margin-bottom: 4px; }
-    .notif-body p { margin: 0; color: #555; font-size: 0.9rem; }
-    .notif-date { font-size: 0.8rem; color: #999; }
+    .notif-body strong { display: block; margin-bottom: 4px; color: var(--brand-ink); }
+    .notif-body p { margin: 0; color: var(--brand-text); font-size: 0.9rem; }
+    .notif-date { font-size: 0.8rem; color: var(--brand-text-faint); }
     .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand-primary); margin-top: 6px; flex-shrink: 0; }
   `],
 })

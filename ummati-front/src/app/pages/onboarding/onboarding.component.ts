@@ -80,17 +80,17 @@ interface Skill { id: string; name: string; category: string; }
   styles: [`
     .onboarding-container { max-width: 600px; margin: 0 auto; padding: 48px 24px; }
     .onboarding-header { text-align: center; margin-bottom: 40px; }
-    .welcome-icon { font-size: 48px; width: 48px; height: 48px; color: #f9a825; }
-    h1 { font-size: 1.8rem; font-weight: 600; margin: 12px 0 4px; }
-    .onboarding-header p { color: #666; font-size: 1.05rem; }
+    .welcome-icon { font-size: 48px; width: 48px; height: 48px; color: var(--brand-accent); }
+    h1 { font-size: 1.8rem; font-weight: 800; margin: 12px 0 4px; letter-spacing: -0.02em; }
+    .onboarding-header p { color: var(--brand-text-soft); font-size: 1.05rem; }
     .full-width { width: 100%; }
-    .step-hint { color: #666; margin-bottom: 16px; }
+    .step-hint { color: var(--brand-text-soft); margin-bottom: 16px; }
     .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
     .step-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
     .finish-step { text-align: center; padding: 32px 0; }
-    .finish-icon { font-size: 56px; width: 56px; height: 56px; color: #43a047; }
+    .finish-icon { font-size: 56px; width: 56px; height: 56px; color: var(--brand-success); }
     .finish-step h3 { font-size: 1.3rem; margin: 16px 0 8px; }
-    .finish-step p { color: #666; margin-bottom: 24px; }
+    .finish-step p { color: var(--brand-text-soft); margin-bottom: 24px; }
     .finish-btn { height: 48px; padding: 0 40px; font-size: 16px; }
   `],
 })

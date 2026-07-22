@@ -37,7 +37,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     LocationPickerComponent,
   ],
   template: `
-    <div class="page-container">
+    <div class="page page-narrow">
       <header class="page-header">
         <div>
           <h1>{{ 'Gestion de l\\'organisation' | t }}</h1>
@@ -66,7 +66,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
           </ng-template>
 
           @if (loading()) {
-            <div class="loading"><mat-spinner diameter="36" /></div>
+            <div class="state-center"><mat-spinner diameter="36" /></div>
           } @else if (pendingMembers().length === 0) {
             <div class="empty-state">
               <mat-icon>check_circle</mat-icon>
@@ -110,7 +110,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
           </ng-template>
 
           @if (loading()) {
-            <div class="loading"><mat-spinner diameter="36" /></div>
+            <div class="state-center"><mat-spinner diameter="36" /></div>
           } @else if (activeMembers().length === 0) {
             <div class="empty-state">
               <mat-icon>group_off</mat-icon>
@@ -187,7 +187,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
             </div>
 
             @if (loadingAnnouncements()) {
-              <div class="loading"><mat-spinner diameter="28" /></div>
+              <div class="state-center"><mat-spinner diameter="28" /></div>
             } @else if (orgAnnouncements().length === 0) {
               <div class="empty-state">
                 <mat-icon>campaign</mat-icon>
@@ -224,7 +224,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
 
           <div class="tab-section">
             @if (!org()) {
-              <div class="loading"><mat-spinner diameter="28" /></div>
+              <div class="state-center"><mat-spinner diameter="28" /></div>
             } @else {
               <form class="org-edit-form" (ngSubmit)="saveOrgInfo()">
                 <mat-form-field appearance="outline" class="full-width">
@@ -305,59 +305,56 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
-    .page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
-    .page-header h1 { font-size: 1.8rem; font-weight: 600; margin: 0; }
-    .header-actions { display: flex; gap: 8px; }
-    .subtitle { color: #666; margin-top: 4px; }
-    .loading { display: flex; justify-content: center; padding: 48px; }
-    .empty-state { text-align: center; padding: 48px 24px; color: #999; }
+    .page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .subtitle { color: var(--brand-text-soft); margin-top: 4px; }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--brand-text-soft); }
     .empty-state mat-icon { font-size: 48px; width: 48px; height: 48px; display: block; margin: 0 auto 12px; }
     .member-list { padding: 16px 0; display: flex; flex-direction: column; gap: 12px; }
     .member-row { display: flex; align-items: center; gap: 16px; padding: 16px 20px;
-      background: #fafafa; border-radius: 10px; border: 1px solid #f0f0f0;
-      transition: box-shadow 0.2s; }
-    .member-row:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+      background: var(--brand-surface); border-radius: var(--radius-md); border: 1px solid var(--brand-border);
+      transition: box-shadow 0.2s, border-color 0.2s; }
+    .member-row:hover { box-shadow: var(--brand-shadow-sm); border-color: var(--brand-border-strong); }
     .member-avatar { flex-shrink: 0; }
     .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
     .avatar-placeholder { width: 44px; height: 44px; border-radius: 50%;
       background: var(--brand-primary-100); color: var(--brand-primary); display: flex; align-items: center;
-      justify-content: center; font-weight: 600; font-size: 0.9rem; }
+      justify-content: center; font-weight: 700; font-size: 0.9rem; }
     .member-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-    .member-info strong { font-size: 0.95rem; }
-    .motivation { font-size: 0.85rem; color: #666; font-style: italic; }
-    .date { font-size: 0.8rem; color: #aaa; }
-    .role-row { display: flex; align-items: center; gap: 12px; }
-    .member-actions { display: flex; gap: 8px; flex-shrink: 0; }
-    .badge { background: #e53935; color: white; border-radius: 10px; padding: 1px 7px;
+    .member-info strong { font-size: 0.95rem; color: var(--brand-ink); }
+    .motivation { font-size: 0.85rem; color: var(--brand-text-soft); font-style: italic; }
+    .date { font-size: 0.8rem; color: var(--brand-text-faint); }
+    .role-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .member-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+    .badge { background: var(--brand-danger); color: white; border-radius: 10px; padding: 1px 7px;
       font-size: 11px; margin-left: 6px; }
     .role-admin { --mdc-chip-label-text-color: var(--brand-primary-dark); background: var(--brand-primary-100); }
-    .role-member { --mdc-chip-label-text-color: #2e7d32; background: #e8f5e9; }
-    .role-accountant { --mdc-chip-label-text-color: #f57f17; background: #fff8e1; }
-    .danger-item { color: #d32f2f; }
+    .role-member { --mdc-chip-label-text-color: var(--brand-success); background: var(--brand-success-soft); }
+    .role-accountant { --mdc-chip-label-text-color: var(--brand-warn); background: var(--brand-accent-soft); }
+    .danger-item { color: var(--brand-danger); }
     .tab-section { padding: 24px 0; }
-    .announce-form { background: #fafafa; border: 1px solid #eeeeee; border-radius: 12px;
+    .announce-form { background: var(--brand-surface-2); border: 1px solid var(--brand-border); border-radius: var(--radius-md);
       padding: 20px 24px; margin-bottom: 28px; }
-    .announce-form h3 { margin: 0 0 16px; font-size: 1rem; font-weight: 600; color: #333; }
+    .announce-form h3 { margin: 0 0 16px; font-size: 1rem; font-weight: 700; color: var(--brand-ink); }
     .full-width { width: 100%; }
-    .announce-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+    .announce-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; flex-wrap: wrap; gap: 12px; }
     .announce-list { display: flex; flex-direction: column; gap: 14px; }
-    .announce-card { padding: 18px 20px; border-radius: 10px; border: 1px solid #e0e0e0; background: white; }
+    .announce-card { padding: 18px 20px; border-radius: var(--radius-md); border: 1px solid var(--brand-border); background: var(--brand-surface); }
     .announce-card.pinned { border-left: 4px solid var(--brand-primary); background: var(--brand-primary-soft); }
-    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-primary); font-weight: 600; margin-bottom: 6px; }
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-primary); font-weight: 700; margin-bottom: 6px; }
     .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .announce-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .announce-header strong { font-size: 0.95rem; }
-    .delete-btn { color: #d32f2f; }
-    .announce-body { margin: 0 0 10px; color: #444; line-height: 1.6; white-space: pre-line; font-size: 0.9rem; }
-    .announce-date { font-size: 0.78rem; color: #aaa; }
+    .announce-header strong { font-size: 0.95rem; color: var(--brand-ink); }
+    .delete-btn { color: var(--brand-danger); }
+    .announce-body { margin: 0 0 10px; color: var(--brand-text); line-height: 1.6; white-space: pre-line; font-size: 0.9rem; }
+    .announce-date { font-size: 0.78rem; color: var(--brand-text-faint); }
     .org-edit-form { display: flex; flex-direction: column; gap: 4px; max-width: 640px; padding: 16px 0; }
     .map-block { margin: 8px 0; }
-    .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
-    .form-row { display: flex; gap: 16px; }
-    .flex-1 { flex: 1; }
-    .flex-2 { flex: 2; }
-    .full-width { width: 100%; }
+    .map-label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--brand-ink); margin-bottom: 8px; }
+    .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .flex-1 { flex: 1; min-width: 140px; }
+    .flex-2 { flex: 2; min-width: 180px; }
     .org-edit-form button { align-self: flex-start; margin-top: 8px; }
   `],
 })

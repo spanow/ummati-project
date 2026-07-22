@@ -30,7 +30,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
     RouterLink, DatePipe, FormsModule, TPipe, OrgDocumentsComponent],
   template: `
-    <div class="page-container">
+    <div class="page">
       <header class="page-header">
         <h1>{{ 'Gestion des événements' | t }}</h1>
         <a mat-flat-button [routerLink]="['/organizations', orgId, 'events', 'new']">
@@ -39,7 +39,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
       </header>
 
       @if (loading()) {
-        <div class="loading"><mat-spinner diameter="40" /></div>
+        <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else {
         <mat-tab-group [selectedIndex]="tabIndex()" (selectedIndexChange)="tabIndex.set($event)">
           <mat-tab [label]="'Tous les événements' | t">
@@ -151,7 +151,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                 </div>
               </div>
               @if (signupsLoading()) {
-                <div class="loading"><mat-spinner diameter="30" /></div>
+                <div class="state-center"><mat-spinner diameter="30" /></div>
               } @else {
                 <table class="signups-table">
                   <thead>
@@ -197,47 +197,45 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     </div>
   `,
   styles: [`
-    .page-container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .page-header h1 { font-size: 1.8rem; font-weight: 600; margin: 0; }
-    .loading { display: flex; justify-content: center; padding: 40px; }
-    .empty { text-align: center; padding: 40px; color: #888; }
-    .event-manage-card { margin: 12px 0; border-radius: 10px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .empty { text-align: center; padding: 40px; color: var(--brand-text-soft); }
+    .event-manage-card { margin: 12px 0; }
     .em-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-    .em-info h3 { margin: 0 0 8px; font-weight: 600; }
-    .em-meta { display: flex; gap: 12px; align-items: center; font-size: 0.85rem; color: #666; }
-    .em-actions { display: flex; gap: 8px; }
-    .status-draft { background: #fff3e0 !important; color: #e65100 !important; }
-    .status-published { background: #e8f5e9 !important; color: #2e7d32 !important; }
-    .status-cancelled { background: #ffebee !important; color: #c62828 !important; }
+    .em-info h3 { margin: 0 0 8px; font-weight: 700; color: var(--brand-ink); }
+    .em-meta { display: flex; gap: 12px; align-items: center; font-size: 0.85rem; color: var(--brand-text-soft); flex-wrap: wrap; }
+    .em-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .status-draft { background: var(--brand-accent-soft) !important; color: var(--brand-warn) !important; }
+    .status-published { background: var(--brand-success-soft) !important; color: var(--brand-success) !important; }
+    .status-cancelled { background: var(--brand-danger-soft) !important; color: var(--brand-danger) !important; }
     .status-completed { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
-    .signup-registered { background: #e8f5e9 !important; color: #2e7d32 !important; }
-    .signup-waitlisted { background: #fff3e0 !important; color: #e65100 !important; }
+    .signup-registered { background: var(--brand-success-soft) !important; color: var(--brand-success) !important; }
+    .signup-waitlisted { background: var(--brand-accent-soft) !important; color: var(--brand-warn) !important; }
     .signup-attended { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
-    .signup-cancelled { background: #ffebee !important; color: #c62828 !important; }
+    .signup-cancelled { background: var(--brand-danger-soft) !important; color: var(--brand-danger) !important; }
     .signups-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; flex-wrap: wrap; gap: 12px; }
-    .signups-header h2 { font-size: 1.2rem; font-weight: 600; margin: 0; }
-    .signups-actions { display: flex; gap: 8px; }
+    .signups-header h2 { font-size: 1.2rem; font-weight: 700; margin: 0; }
+    .signups-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .signups-table { width: 100%; border-collapse: collapse; }
-    .signups-table th, .signups-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
-    .signups-table th { font-size: 0.8rem; color: #888; text-transform: uppercase; }
+    .signups-table th, .signups-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--brand-border); }
+    .signups-table th { font-size: 0.8rem; color: var(--brand-text-soft); text-transform: uppercase; }
     .ann-section { padding: 16px 0; }
-    .ann-section h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 16px; }
-    .ann-form { background: #f9f9f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .ann-section h2 { font-size: 1.2rem; font-weight: 700; margin: 0 0 16px; }
+    .ann-form { background: var(--brand-surface-2); border: 1px solid var(--brand-border); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 24px; }
     .ann-input { width: 100%; }
-    .ann-form-actions { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+    .ann-form-actions { display: flex; align-items: center; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
     .pin-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; }
     .ann-list { display: flex; flex-direction: column; gap: 12px; }
-    .ann-item { border: 1px solid #eee; border-radius: 8px; padding: 12px 16px; }
+    .ann-item { border: 1px solid var(--brand-border); border-radius: var(--radius-sm); padding: 12px 16px; }
     .ann-item.pinned { border-color: var(--brand-primary); background: var(--brand-primary-soft); }
     .ann-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .pin-tag { font-size: 0.8rem; font-weight: 600; color: var(--brand-primary); }
-    .ann-date { font-size: 0.8rem; color: #999; margin-left: auto; }
+    .pin-tag { font-size: 0.8rem; font-weight: 700; color: var(--brand-primary); }
+    .ann-date { font-size: 0.8rem; color: var(--brand-text-faint); margin-left: auto; }
     .ann-content { margin: 0; white-space: pre-line; line-height: 1.6; }
-    .empty-ann { color: #aaa; text-align: center; padding: 24px; }
+    .empty-ann { color: var(--brand-text-faint); text-align: center; padding: 24px; }
     .tab-section-docs { padding: 20px 0; }
-    .docs-intro { display: flex; align-items: center; gap: 8px; color: #666; font-size: 0.9rem;
-      background: var(--brand-primary-soft, #f0f4ff); border-radius: 8px; padding: 10px 14px; margin: 0 0 16px; }
+    .docs-intro { display: flex; align-items: center; gap: 8px; color: var(--brand-text-soft); font-size: 0.9rem;
+      background: var(--brand-primary-soft); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 16px; }
     .docs-intro mat-icon { color: var(--brand-primary); font-size: 20px; width: 20px; height: 20px; }
   `],
 })

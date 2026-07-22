@@ -64,14 +64,14 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .auth-container { display: flex; justify-content: center; padding: 48px 16px; }
+    .auth-container { display: flex; justify-content: center; align-items: flex-start; padding: 56px 16px; }
     .auth-card { max-width: 440px; width: 100%; }
     .full-width { width: 100%; }
-    .submit-btn { height: 48px; font-size: 16px; margin-top: 8px; }
+    .submit-btn { height: 48px; font-size: 16px; margin-top: 8px; border-radius: var(--radius-md); }
     .forgot-link { text-align: right; margin: -8px 0 16px; }
     .forgot-link a { font-size: 14px; }
-    .error-banner { background: #fdecea; color: #d32f2f; padding: 12px; border-radius: 4px; margin-bottom: 16px; }
-    .success-banner { background: #e8f5e9; color: #2e7d32; padding: 12px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
+    .success-banner { background: var(--brand-success-soft); color: var(--brand-success); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
     mat-card-actions span { font-size: 14px; }
   `],
 })

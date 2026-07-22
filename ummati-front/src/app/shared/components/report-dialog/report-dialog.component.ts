@@ -50,7 +50,7 @@ export interface ReportDialogData {
   `,
   styles: [`
     .full-width { width: 100%; margin-bottom: 8px; }
-    .hint { color: #666; font-size: 0.9rem; margin: 0 0 16px; }
+    .hint { color: var(--brand-text-soft); font-size: 0.9rem; margin: 0 0 16px; }
     mat-dialog-content { min-width: 380px; }
   `],
 })

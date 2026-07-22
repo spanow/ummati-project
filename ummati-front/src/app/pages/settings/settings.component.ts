@@ -33,7 +33,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
     MatDividerModule, MatDialogModule, MatTabsModule, MatSlideToggleModule, TPipe
   ],
   template: `
-    <div class="settings-container" role="main">
+    <div class="page page-narrow" role="main">
       <div class="page-header">
         <h1>{{ 'Paramètres du compte' | t }}</h1>
         <p>{{ 'Gérez votre sécurité et vos préférences' | t }}</p>
@@ -211,19 +211,18 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
     </div>
   `,
   styles: [`
-    .settings-container { max-width: 700px; margin: 40px auto; padding: 0 20px; }
     .page-header { margin-bottom: 32px; }
-    .page-header h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 8px; color: var(--brand-ink); }
-    .page-header p { color: #666; margin: 0; }
-    .settings-card { margin-top: 24px; border-radius: 12px !important; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 800; margin: 0 0 8px; color: var(--brand-ink); letter-spacing: -0.02em; }
+    .page-header p { color: var(--brand-text-soft); margin: 0; }
+    .settings-card { margin-top: 24px; }
     .full-width { width: 100%; margin-bottom: 16px; display: block; }
     form { padding-top: 16px; }
-    .danger-card { border-left: 4px solid #f44336; }
+    .danger-card { border-left: 4px solid var(--brand-danger); }
     .danger-info {
-      background: #fff3e0; border-radius: 8px; padding: 16px; margin-bottom: 24px;
+      background: var(--brand-accent-soft); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 24px;
       display: flex; flex-direction: column; gap: 8px;
     }
-    .danger-info mat-icon { color: #f57c00; }
+    .danger-info mat-icon { color: var(--brand-warn); }
     .danger-info ul { margin: 0; padding-left: 20px; }
     .danger-info li { margin-bottom: 4px; font-size: 0.9rem; }
     .confirm-label { margin-bottom: 12px; }
@@ -231,7 +230,7 @@ function passwordMatch(control: AbstractControl): ValidationErrors | null {
     button[disabled] { opacity: 0.6; }
     mat-spinner { display: inline-block; margin-right: 8px; }
     .push-toggle-row { margin-bottom: 12px; }
-    .push-hint { color: #666; font-size: 0.9rem; margin: 0; }
+    .push-hint { color: var(--brand-text-soft); font-size: 0.9rem; margin: 0; }
   `]
 })
 export class SettingsComponent implements OnInit {

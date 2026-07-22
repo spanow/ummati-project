@@ -24,7 +24,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     MatInputModule, MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, FormsModule, DatePipe, RouterLink, TPipe],
   template: `
-    <div class="page-container">
+    <div class="page">
       <h1>{{ 'Administration' | t }}</h1>
 
       @if (stats()) {
@@ -57,7 +57,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
               </mat-form-field>
             </div>
             @if (usersLoading()) {
-              <div class="loading"><mat-spinner diameter="30" /></div>
+              <div class="state-center"><mat-spinner diameter="30" /></div>
             } @else {
               <table class="data-table">
                 <thead><tr><th>{{ 'Nom' | t }}</th><th>{{ 'Email' | t }}</th><th>{{ 'Rôle' | t }}</th><th>{{ 'Statut' | t }}</th><th>{{ 'Inscrit le' | t }}</th><th>{{ 'Actions' | t }}</th></tr></thead>
@@ -100,7 +100,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
               </mat-form-field>
             </div>
             @if (orgsLoading()) {
-              <div class="loading"><mat-spinner diameter="30" /></div>
+              <div class="state-center"><mat-spinner diameter="30" /></div>
             } @else {
               <table class="data-table">
                 <thead><tr><th>{{ 'Nom' | t }}</th><th>{{ 'Domaine' | t }}</th><th>{{ 'Ville' | t }}</th><th>{{ 'Statut' | t }}</th><th>{{ 'Membres' | t }}</th><th>{{ 'Actions' | t }}</th></tr></thead>
@@ -148,7 +148,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
               </mat-form-field>
             </div>
             @if (reportsLoading()) {
-              <div class="loading"><mat-spinner diameter="30" /></div>
+              <div class="state-center"><mat-spinner diameter="30" /></div>
             } @else if (reports().length === 0) {
               <p class="empty-hint">{{ 'Aucun signalement.' | t }}</p>
             } @else {
@@ -190,36 +190,33 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
-    h1 { font-size: 2rem; font-weight: 600; margin-bottom: 24px; }
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 24px; letter-spacing: -0.02em; }
     .stats-row { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
-    .stat { flex: 1; min-width: 140px; border-radius: 10px; text-align: center; }
-    .stat .val { font-size: 1.8rem; font-weight: 700; }
-    .stat .lbl { color: #888; font-size: 0.8rem; }
+    .stat { flex: 1; min-width: 140px; text-align: center; }
+    .stat .val { font-size: 1.8rem; font-weight: 800; color: var(--brand-ink); }
+    .stat .lbl { color: var(--brand-text-soft); font-size: 0.8rem; }
     .stat.highlight { border: 2px solid var(--brand-accent); }
     .tab-content { padding: 16px 0; }
     .filters { margin-bottom: 16px; }
-    .search-field { width: 300px; }
-    .loading { display: flex; justify-content: center; padding: 40px; }
+    .search-field { width: 300px; max-width: 100%; }
     .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
-    .data-table th { font-size: 0.8rem; color: #888; text-transform: uppercase; }
-    .active { background: #e8f5e9 !important; color: #2e7d32 !important; }
-    .disabled { background: #ffebee !important; color: #c62828 !important; }
-    .tab-badge { background: #f44336; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
-    .empty-hint { color: #888; font-style: italic; padding: 40px 0; text-align: center; }
+    .data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--brand-border); }
+    .data-table th { font-size: 0.8rem; color: var(--brand-text-soft); text-transform: uppercase; }
+    .active { background: var(--brand-success-soft) !important; color: var(--brand-success) !important; }
+    .disabled { background: var(--brand-danger-soft) !important; color: var(--brand-danger) !important; }
+    .tab-badge { background: var(--brand-danger); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
+    .empty-hint { color: var(--brand-text-soft); font-style: italic; padding: 40px 0; text-align: center; }
     .report-list { display: flex; flex-direction: column; gap: 12px; }
-    .report-card { border-radius: 10px; }
-    .report-header { display: flex; gap: 8px; margin-bottom: 8px; }
-    .status-pending { background: #fff3e0 !important; color: #e65100 !important; }
+    .report-header { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .status-pending { background: var(--brand-accent-soft) !important; color: var(--brand-warn) !important; }
     .status-reviewed { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
-    .status-dismissed { background: #f5f5f5 !important; color: #757575 !important; }
-    .status-action_taken { background: #ffebee !important; color: #c62828 !important; }
+    .status-dismissed { background: var(--brand-surface-2) !important; color: var(--brand-text-soft) !important; }
+    .status-action_taken { background: var(--brand-danger-soft) !important; color: var(--brand-danger) !important; }
     .report-target { margin: 4px 0; }
-    .report-reporter { color: #888; font-size: 0.85rem; margin: 4px 0; }
-    .report-description { background: #fafafa; border-radius: 6px; padding: 10px 12px; margin: 8px 0; color: #444; }
-    .report-actions { display: flex; gap: 8px; margin-top: 12px; }
-    .report-resolution { color: #666; font-size: 0.85rem; margin: 8px 0 0; font-style: italic; }
+    .report-reporter { color: var(--brand-text-soft); font-size: 0.85rem; margin: 4px 0; }
+    .report-description { background: var(--brand-surface-2); border-radius: var(--radius-xs); padding: 10px 12px; margin: 8px 0; color: var(--brand-text); }
+    .report-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .report-resolution { color: var(--brand-text-soft); font-size: 0.85rem; margin: 8px 0 0; font-style: italic; }
   `],
 })
 export class AdminComponent implements OnInit {

@@ -43,7 +43,7 @@ import { CommonModule } from '@angular/common';
     }
     .empty-icon mat-icon { font-size: 40px !important; width: 40px !important; height: 40px !important; color: var(--brand-primary); }
     h3 { font-size: 1.2rem; font-weight: 600; color: var(--brand-ink); margin: 0; }
-    p { color: #666; max-width: 360px; line-height: 1.6; margin: 0; }
+    p { color: var(--brand-text-soft); max-width: 360px; line-height: 1.6; margin: 0; }
     .cta-btn { border-radius: 20px !important; margin-top: 8px; }
   `]
 })

@@ -24,9 +24,9 @@ import { TPipe } from '../../shared/pipes/t.pipe';
   ],
   template: `
     @if (loading()) {
-      <div class="loading"><mat-spinner diameter="40" /></div>
+      <div class="state-center"><mat-spinner diameter="40" /></div>
     } @else if (profile()) {
-      <div class="page-container">
+      <div class="page page-narrow">
         <!-- Profile header -->
         <div class="profile-hero">
           <div class="avatar-wrapper">
@@ -156,25 +156,23 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     }
   `,
   styles: [`
-    .loading { display: flex; justify-content: center; padding: 120px 0; }
-    .page-container { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
     .profile-hero { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
     .avatar-wrapper { position: relative; flex-shrink: 0; }
-    .avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
-    .avatar-placeholder { width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light)); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 600; }
-    .avatar-upload { position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; background: white; border-radius: 50%; border: 2px solid #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
-    .avatar-upload mat-icon { font-size: 16px; width: 16px; height: 16px; color: #555; }
+    .avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid var(--brand-surface); box-shadow: var(--brand-shadow-md); }
+    .avatar-placeholder { width: 88px; height: 88px; border-radius: 50%; background: var(--brand-gradient); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; }
+    .avatar-upload { position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; background: var(--brand-surface); border-radius: 50%; border: 2px solid var(--brand-border-strong); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--brand-shadow-sm); }
+    .avatar-upload mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--brand-text); }
     .hero-info { flex: 1; }
-    .hero-info h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 6px; }
-    .location { display: flex; align-items: center; gap: 4px; color: #888; font-size: 0.9rem; margin: 0; }
+    .hero-info h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .location { display: flex; align-items: center; gap: 4px; color: var(--brand-text-soft); font-size: 0.9rem; margin: 0; }
     .location mat-icon { font-size: 16px; width: 16px; height: 16px; }
-    .bio { color: #555; line-height: 1.6; margin: 8px 0 0; font-size: 0.95rem; }
-    .stats-row { display: flex; gap: 24px; margin-left: auto; }
-    .stat { display: flex; flex-direction: column; align-items: center; padding: 12px 20px; background: #f8f9fa; border-radius: 10px; }
-    .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--brand-primary); }
-    .stat-lbl { font-size: 0.75rem; color: #888; margin-top: 2px; }
+    .bio { color: var(--brand-text); line-height: 1.6; margin: 8px 0 0; font-size: 0.95rem; }
+    .stats-row { display: flex; gap: 16px; margin-left: auto; flex-wrap: wrap; }
+    .stat { display: flex; flex-direction: column; align-items: center; padding: 12px 20px; background: var(--brand-surface-2); border: 1px solid var(--brand-border); border-radius: var(--radius-sm); }
+    .stat-val { font-size: 1.5rem; font-weight: 800; color: var(--brand-primary); }
+    .stat-lbl { font-size: 0.75rem; color: var(--brand-text-soft); margin-top: 2px; }
     .section { margin: 24px 0; }
-    .section h3 { font-size: 1rem; font-weight: 600; margin: 0 0 12px; }
+    .section h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; }
     .chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .edit-tabs { margin-top: 24px; }
     .tab-form { padding: 24px 0; max-width: 540px; display: flex; flex-direction: column; gap: 8px; }
@@ -183,11 +181,11 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     .flex-1 { flex: 1; }
     .flex-2 { flex: 2; }
     .full-width { width: 100%; }
-    .error-banner { background: #fdecea; color: #d32f2f; padding: 10px 14px; border-radius: 6px; font-size: 0.9rem; }
-    .success-banner { background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 6px; font-size: 0.9rem; }
+    .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.9rem; }
+    .success-banner { background: var(--brand-success-soft); color: var(--brand-success); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.9rem; }
     .skills-edit { margin: 8px 0 16px; }
-    .skills-edit h4 { font-size: 0.95rem; font-weight: 600; margin: 0 0 4px; }
-    .skills-hint { color: #888; font-size: 0.85rem; margin: 0 0 12px; }
+    .skills-edit h4 { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; }
+    .skills-hint { color: var(--brand-text-soft); font-size: 0.85rem; margin: 0 0 12px; }
     .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   `],
 })

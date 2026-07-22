@@ -118,7 +118,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
             <div class="right-col">
               <mat-card class="action-card approve-card">
                 <mat-card-header>
-                  <mat-icon mat-card-avatar style="color: #4caf50" aria-hidden="true">check_circle</mat-icon>
+                  <mat-icon mat-card-avatar style="color: var(--brand-success)" aria-hidden="true">check_circle</mat-icon>
                   <mat-card-title>{{ 'Approuver l\\'organisation' | t }}</mat-card-title>
                   <mat-card-subtitle>{{ 'L\\'organisation sera publiée et visible de tous' | t }}</mat-card-subtitle>
                 </mat-card-header>
@@ -204,38 +204,37 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     }
     .org-logo-placeholder mat-icon { font-size: 36px !important; width: 36px !important; height: 36px !important; color: var(--brand-primary); }
     h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 8px; color: var(--brand-ink); }
-    .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: #666; }
+    .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--brand-text-soft); }
     .status-badge {
       padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
     }
-    .status-pending { background: #fff3e0; color: #e65100; }
-    .status-active { background: #e8f5e9; color: #2e7d32; }
-    .status-rejected { background: #ffebee; color: #c62828; }
+    .status-pending { background: var(--brand-accent-soft); color: var(--brand-warn); }
+    .status-active { background: var(--brand-success-soft); color: var(--brand-success); }
+    .status-rejected { background: var(--brand-danger-soft); color: var(--brand-danger); }
     .status-suspended { background: #fce4ec; color: #880e4f; }
     .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
     .left-col, .right-col { display: flex; flex-direction: column; gap: 24px; }
-    .detail-card, .action-card { border-radius: 12px !important; }
-    .approve-card { border-left: 4px solid #4caf50; }
-    .reject-card { border-left: 4px solid #f44336; }
+    .approve-card { border-left: 4px solid var(--brand-success); }
+    .reject-card { border-left: 4px solid var(--brand-danger); }
     .info-grid { display: flex; flex-direction: column; gap: 12px; }
     .info-item { display: flex; align-items: center; gap: 10px; }
-    .info-item mat-icon { color: #666; font-size: 18px !important; width: 18px !important; height: 18px !important; }
+    .info-item mat-icon { color: var(--brand-text-soft); font-size: 18px !important; width: 18px !important; height: 18px !important; }
     .info-item a { color: var(--brand-primary); text-decoration: none; }
     .my-divider { margin: 20px 0 !important; }
-    h3 { font-size: 1rem; font-weight: 600; color: var(--brand-ink); margin: 0 0 8px; }
-    .description-text { color: #555; line-height: 1.7; margin: 0 0 16px; white-space: pre-wrap; }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--brand-ink); margin: 0 0 8px; }
+    .description-text { color: var(--brand-text); line-height: 1.7; margin: 0 0 16px; white-space: pre-wrap; }
     .full-width { width: 100%; display: block; }
     .full-width-btn { width: 100%; margin-top: 8px; }
     .status-info { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px; text-align: center; }
-    .status-icon-active { color: #4caf50; font-size: 48px !important; width: 48px !important; height: 48px !important; }
-    .status-icon-rejected { color: #f44336; font-size: 48px !important; width: 48px !important; height: 48px !important; }
+    .status-icon-active { color: var(--brand-success); font-size: 48px !important; width: 48px !important; height: 48px !important; }
+    .status-icon-rejected { color: var(--brand-danger); font-size: 48px !important; width: 48px !important; height: 48px !important; }
     .status-icon-suspended { color: var(--brand-accent); font-size: 48px !important; width: 48px !important; height: 48px !important; }
     .rejection-reason {
-      background: #ffebee; border-radius: 8px; padding: 12px 16px; font-size: 0.9rem; color: #555; text-align: left;
+      background: var(--brand-danger-soft); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 0.9rem; color: var(--brand-text); text-align: left;
     }
     mat-spinner { display: inline-block; }
     .error-state { text-align: center; padding: 80px; }
-    .error-state mat-icon { font-size: 48px !important; width: 48px !important; height: 48px !important; color: #f44336; }
+    .error-state mat-icon { font-size: 48px !important; width: 48px !important; height: 48px !important; color: var(--brand-danger); }
     @media (max-width: 768px) { .content-grid { grid-template-columns: 1fr; } }
   `]
 })

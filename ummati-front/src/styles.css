@@ -1,13 +1,15 @@
 @use '@angular/material' as mat;
 
 /* ============================================================
-   Ummati Design System
+   Ummati — Design System
    Palette émeraude (solidarité, confiance) + accent ambre chaleureux.
    Typographie : Plus Jakarta Sans (latin) / Tajawal (arabe).
+   Objectif : épuré, aéré, cohérent. Les tokens sont la source
+   unique de vérité — plus de gris #666/#888 en dur dans les pages.
    ============================================================ */
 
 :root {
-  /* Brand */
+  /* ---- Marque ---- */
   --brand-primary: #0f766e;        /* teal-700 — texte/boutons sur fond clair */
   --brand-primary-dark: #115e59;   /* teal-800 */
   --brand-primary-light: #14b8a6;  /* teal-500 — gradients, hover */
@@ -15,17 +17,49 @@
   --brand-primary-soft: #f0fdfa;   /* teal-50 — fonds très légers */
   --brand-accent: #f59e0b;         /* amber-500 — CTA secondaires, étoiles */
   --brand-accent-soft: #fef3c7;    /* amber-100 */
-  --brand-ink: #1e293b;            /* slate-800 — titres */
+
+  /* ---- Neutres (slate) — à utiliser partout ---- */
+  --brand-ink: #0f172a;            /* slate-900 — titres */
   --brand-text: #334155;           /* slate-700 — corps de texte */
   --brand-text-soft: #64748b;      /* slate-500 — texte secondaire */
-  --brand-bg: #f8fafc;             /* slate-50 — fond de page */
+  --brand-text-faint: #94a3b8;     /* slate-400 — méta, indices */
+  --brand-bg: #f6f8fb;             /* fond de page (bleu-gris très clair) */
   --brand-surface: #ffffff;
-  --brand-border: #e2e8f0;         /* slate-200 */
+  --brand-surface-2: #f8fafc;      /* surface alternée */
+  --brand-border: #e6ebf1;         /* filet de séparation */
+  --brand-border-strong: #d4dbe4;
+
+  /* ---- États ---- */
+  --brand-success: #16a34a;
+  --brand-success-soft: #dcfce7;
+  --brand-danger: #dc2626;
+  --brand-danger-soft: #fef2f2;
+  --brand-warn: #d97706;
+
+  /* ---- Dégradés ---- */
   --brand-gradient: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
   --brand-gradient-deep: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
-  --brand-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
-  --brand-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
-  --brand-shadow-lg: 0 12px 32px rgba(15, 118, 110, 0.16);
+
+  /* ---- Ombres : douces, teintées slate (épuré, jamais noir dur) ---- */
+  --brand-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --brand-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --brand-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --brand-shadow-lg: 0 16px 40px rgba(15, 118, 110, 0.16);
+
+  /* ---- Rayons ---- */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Rythme d'espacement (échelle 4px) ---- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 72px;
+
+  /* ---- Largeur de contenu ---- */
+  --page-max: 1200px;
 
   /* Police par langue (surchargée par html[lang="ar"]) */
   --app-font: 'Plus Jakarta Sans', 'Segoe UI', Roboto, sans-serif;
@@ -42,6 +76,10 @@ body {
   font-family: var(--app-font);
   background: var(--brand-bg);
   color: var(--brand-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Applique la police partout sauf sur les icônes Material (ligatures) */
@@ -82,31 +120,120 @@ html {
   --mat-sys-outline-variant: var(--brand-border);
 
   /* Arrondis plus généreux */
-  --mat-sys-corner-extra-small: 8px;
-  --mat-sys-corner-small: 10px;
-  --mat-sys-corner-medium: 14px;
-  --mat-sys-corner-large: 18px;
+  --mat-sys-corner-extra-small: var(--radius-xs);
+  --mat-sys-corner-small: var(--radius-sm);
+  --mat-sys-corner-medium: var(--radius-md);
+  --mat-sys-corner-large: var(--radius-lg);
 }
 
-/* Titres */
+/* ---- Typographie ---- */
 h1, h2, h3, h4 {
   color: var(--brand-ink);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-/* Cartes : ombre douce homogène */
+/* ---- Cartes : ombre douce et rayon homogènes ---- */
 mat-card {
   --mat-card-elevated-container-elevation: var(--brand-shadow-sm);
   border: 1px solid var(--brand-border);
+  border-radius: var(--radius-card);
 }
 
-/* ===== RTL (arabe) — les layouts flex/grid s'inversent avec dir,
-   on corrige les quelques propriétés physiques restantes ===== */
-html[dir='rtl'] body {
-  letter-spacing: 0;
+/* ---- Correctif contraste : voile d'état (survol / focus) des boutons Material.
+   Un token M3 d'opacité manquant rendait ce voile BLANC OPAQUE au survol
+   → texte blanc invisible sur bouton vert (et inversement). On le force à un
+   halo translucide léger : le fond du bouton et son libellé restent lisibles. ---- */
+.mat-mdc-button-base .mat-mdc-button-persistent-ripple::before {
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
+.mat-mdc-button-base:hover .mat-mdc-button-persistent-ripple::before {
+  opacity: 0.10 !important;
+}
+.mat-mdc-button-base.cdk-keyboard-focused .mat-mdc-button-persistent-ripple::before,
+.mat-mdc-button-base.cdk-program-focused .mat-mdc-button-persistent-ripple::before {
+  opacity: 0.14 !important;
+}
+.mat-mdc-button-base:active .mat-mdc-button-persistent-ripple::before {
+  opacity: 0.16 !important;
+}
+
+/* ============================================================
+   Utilitaires de mise en page partagés
+   (une seule définition — les pages n'ont plus à les redéclarer)
+   ============================================================ */
+
+/* Conteneur de page : largeur maîtrisée + respiration généreuse */
+.page {
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding: var(--space-7) var(--space-5) var(--space-8);
+}
+/* Variante colonne étroite : flux de lecture, feeds, formulaires */
+.page-narrow { max-width: 820px; }
+
+/* En-tête de page : titre + sous-titre (+ action optionnelle à droite) */
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+.page-title {
+  font-size: clamp(1.6rem, 3vw, 2.05rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--brand-ink);
+  margin: 0;
+}
+.page-sub {
+  color: var(--brand-text-soft);
+  font-size: 1.02rem;
+  margin: 6px 0 0;
+  max-width: 62ch;
+}
+
+/* Barre de filtres */
+.filters-row {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+
+/* Grilles de cartes */
+.card-grid { display: grid; gap: var(--space-5); }
+
+/* Zone centrée (spinner de chargement) */
+.state-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80px 0;
+}
+
+/* Carte cliquable : élévation douce et cohérente au survol */
+.hover-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--brand-shadow-md) !important;
+  border-color: var(--brand-primary-100);
+}
+
+@media (max-width: 768px) {
+  .page { padding: var(--space-6) var(--space-4) var(--space-7); }
+}
+
+/* ===== RTL (arabe) ===== */
+html[dir='rtl'] body { letter-spacing: 0; }
 
 /* ===== T-137 : Accessibilité WCAG 2.1 AA ===== */
-
 :focus-visible {
   outline: 3px solid var(--brand-primary);
   outline-offset: 2px;
@@ -127,9 +254,7 @@ html[dir='rtl'] body {
   border-radius: 0 0 4px 0;
   transition: top 0.2s;
 }
-.skip-link:focus {
-  top: 0;
-}
+.skip-link:focus { top: 0; }
 
 .sr-only {
   position: absolute;
@@ -143,9 +268,20 @@ html[dir='rtl'] body {
   border: 0;
 }
 
-.text-secondary {
-  color: #595959;
+.text-secondary { color: var(--brand-text-soft); }
+
+a:not([mat-button]):not([mat-flat-button]):not([mat-stroked-button]):not([mat-icon-button]) {
+  text-decoration: underline;
 }
+
+[disabled], [aria-disabled="true"] { cursor: not-allowed; }
+
+/* ===== Animations d'entrée (sobres, opt-in via classe) ===== */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.anim-fade-up { animation: fade-up 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -154,14 +290,6 @@ html[dir='rtl'] body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-a:not([mat-button]):not([mat-flat-button]):not([mat-stroked-button]):not([mat-icon-button]) {
-  text-decoration: underline;
-}
-
-[disabled], [aria-disabled="true"] {
-  cursor: not-allowed;
 }
 
 @media (forced-colors: active) {

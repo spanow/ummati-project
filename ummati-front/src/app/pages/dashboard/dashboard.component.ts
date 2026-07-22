@@ -15,9 +15,9 @@ import { TPipe } from '../../shared/pipes/t.pipe';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
     MatProgressSpinnerModule, RouterLink, DatePipe, TPipe],
   template: `
-    <div class="page-container">
+    <div class="page">
       @if (loading()) {
-        <div class="loading"><mat-spinner diameter="40" /></div>
+        <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (dashboard()) {
         <header class="welcome">
           <h1>{{ 'Bonjour,' | t }} {{ dashboard()!.firstName }} 👋</h1>
@@ -59,7 +59,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
             <h2>{{ 'Mes prochains événements' | t }}</h2>
             <div class="card-row">
               @for (e of dashboard()!.upcomingEvents; track e.id) {
-                <mat-card class="event-mini" [routerLink]="['/events', e.id]">
+                <mat-card class="event-mini hover-lift" [routerLink]="['/events', e.id]">
                   <mat-card-content>
                     <strong>{{ e.title }}</strong>
                     <span class="meta">{{ e.startDate | date:'d MMM, HH:mm' }} · {{ e.locationCity }}</span>
@@ -75,7 +75,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
             <h2>{{ 'Mes organisations' | t }}</h2>
             <div class="card-row">
               @for (o of dashboard()!.myOrganizations; track o.id) {
-                <mat-card class="org-mini" [routerLink]="['/organizations', o.slug]">
+                <mat-card class="org-mini hover-lift" [routerLink]="['/organizations', o.slug]">
                   <mat-card-content>
                     <strong>{{ o.name }}</strong>
                     <span class="meta">{{ o.city }} · {{ o.memberCount }} {{ 'membres' | t }}</span>
@@ -91,7 +91,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
             <h2>{{ 'Événements suggérés' | t }}</h2>
             <div class="card-row">
               @for (e of dashboard()!.suggestedEvents; track e.id) {
-                <mat-card class="event-mini" [routerLink]="['/events', e.id]">
+                <mat-card class="event-mini hover-lift" [routerLink]="['/events', e.id]">
                   <mat-card-content>
                     <mat-chip class="type-chip">{{ e.type }}</mat-chip>
                     <strong>{{ e.title }}</strong>
@@ -106,25 +106,22 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
-    .loading { display: flex; justify-content: center; padding: 80px; }
-    .welcome h1 { font-size: 2rem; font-weight: 700; margin: 0; }
-    .subtitle { color: #666; margin-top: 4px; font-size: 1.05rem; }
-    .onboarding-banner { margin: 24px 0; border-radius: 12px; background: #fff3e0; }
+    .welcome h1 { font-size: 2rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .subtitle { color: var(--brand-text-soft); margin-top: 4px; font-size: 1.05rem; }
+    .onboarding-banner { margin: 24px 0; background: var(--brand-accent-soft); }
     .onboarding-banner mat-card-content { display: flex; align-items: center; gap: 16px; }
-    .onboarding-banner mat-icon { font-size: 32px; width: 32px; height: 32px; color: #e65100; }
-    .onboarding-banner p { margin: 4px 0 0; color: #666; }
-    .stats-row { display: flex; gap: 16px; margin: 24px 0; }
-    .stat-card { flex: 1; border-radius: 12px; text-align: center; }
+    .onboarding-banner mat-icon { font-size: 32px; width: 32px; height: 32px; color: var(--brand-warn); }
+    .onboarding-banner p { margin: 4px 0 0; color: var(--brand-text-soft); }
+    .stats-row { display: flex; gap: 16px; margin: 24px 0; flex-wrap: wrap; }
+    .stat-card { flex: 1; min-width: 160px; text-align: center; }
     .stat-card mat-icon { color: var(--brand-primary); font-size: 28px; width: 28px; height: 28px; }
-    .stat-value { font-size: 2rem; font-weight: 700; margin: 4px 0; }
-    .stat-label { color: #888; font-size: 0.85rem; }
+    .stat-value { font-size: 2rem; font-weight: 800; margin: 4px 0; color: var(--brand-ink); }
+    .stat-label { color: var(--brand-text-soft); font-size: 0.85rem; }
     section { margin-top: 32px; }
-    section h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 16px; }
-    .card-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-    .event-mini, .org-mini { border-radius: 10px; cursor: pointer; transition: box-shadow 0.2s; }
-    .event-mini:hover, .org-mini:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
-    .meta { display: block; color: #888; font-size: 0.8rem; margin-top: 4px; }
+    section h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
+    .card-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .event-mini, .org-mini { cursor: pointer; }
+    .meta { display: block; color: var(--brand-text-soft); font-size: 0.8rem; margin-top: 4px; }
     .type-chip { font-size: 10px; margin-bottom: 6px; }
   `],
 })

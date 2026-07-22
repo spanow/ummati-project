@@ -27,7 +27,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     MatInputModule, MatSelectModule, MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
     MatChipsModule, MatSnackBarModule, MatProgressSpinnerModule, RouterLink, TPipe, LocationPickerComponent],
   template: `
-    <div class="page-container">
+    <div class="page page-narrow">
       <h1>{{ (isEdit ? 'Modifier un événement' : 'Créer un événement') | t }}</h1>
       <mat-card class="form-card">
         <mat-card-content>
@@ -178,19 +178,17 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
-    h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 24px; }
-    .form-card { border-radius: 12px; }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 24px; letter-spacing: -0.02em; }
     .full-width { width: 100%; }
-    .row { display: flex; gap: 16px; }
-    .row mat-form-field { flex: 1; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row mat-form-field { flex: 1; min-width: 160px; }
     .online-check { margin-bottom: 16px; display: block; }
     .map-block { margin-bottom: 16px; }
-    .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
+    .map-label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--brand-ink); margin-bottom: 8px; }
     .recurrence-block { margin-bottom: 16px; padding: 8px 0; }
-    .recurrence-hint { font-size: 0.85rem; color: #666; margin: 4px 0 0; }
-    .error { color: #d32f2f; font-size: 0.9rem; margin-bottom: 16px; }
-    .actions { display: flex; gap: 12px; margin-top: 16px; }
+    .recurrence-hint { font-size: 0.85rem; color: var(--brand-text-soft); margin: 4px 0 0; }
+    .error { color: var(--brand-danger); font-size: 0.9rem; margin-bottom: 16px; }
+    .actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
     .actions button[type="submit"] { min-width: 180px; height: 44px; }
   `],
 })

@@ -25,15 +25,15 @@ import { CommonModule } from '@angular/common';
   `,
   styles: [`
     .progress-wrapper { display: flex; align-items: center; gap: 10px; }
-    .progress-label { font-size: 0.85rem; color: #666; white-space: nowrap; }
-    .progress-track { flex: 1; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
+    .progress-label { font-size: 0.85rem; color: var(--brand-text-soft); white-space: nowrap; }
+    .progress-track { flex: 1; height: 8px; background: var(--brand-border); border-radius: 4px; overflow: hidden; }
     .progress-fill {
       height: 100%; border-radius: 4px; transition: width 0.3s ease;
       background: linear-gradient(90deg, var(--brand-primary), var(--brand-primary-light));
     }
     .progress-fill.warning { background: linear-gradient(90deg, var(--brand-accent), #ff5722); }
     .progress-fill.danger { background: linear-gradient(90deg, #f44336, #d32f2f); }
-    .progress-value { font-size: 0.8rem; color: #888; white-space: nowrap; }
+    .progress-value { font-size: 0.8rem; color: var(--brand-text-soft); white-space: nowrap; }
   `]
 })
 export class ProgressBarComponent {

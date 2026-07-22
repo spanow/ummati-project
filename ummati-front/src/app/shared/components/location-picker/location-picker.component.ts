@@ -64,7 +64,7 @@ const PIN_ZOOM = 15;
     .lp-search { position: relative; display: flex; align-items: center; gap: 8px;
       border: 1px solid var(--brand-border, #ddd); border-radius: 10px; padding: 8px 12px;
       background: white; margin-bottom: 10px; }
-    .lp-search mat-icon { color: #888; font-size: 20px; width: 20px; height: 20px; }
+    .lp-search mat-icon { color: var(--brand-text-soft); font-size: 20px; width: 20px; height: 20px; }
     .lp-search input { flex: 1; border: none; outline: none; font-size: 0.95rem; background: transparent; }
     .lp-results { position: absolute; top: calc(100% + 4px); inset-inline: 0; z-index: 1000;
       list-style: none; margin: 0; padding: 4px; background: white; border: 1px solid #e0e0e0;
@@ -74,7 +74,7 @@ const PIN_ZOOM = 15;
     .lp-map { height: 300px; width: 100%; border-radius: 12px; overflow: hidden; z-index: 0;
       border: 1px solid var(--brand-border, #e0e0e0); }
     .lp-map.readonly { height: 240px; }
-    .lp-hint { display: flex; align-items: center; gap: 6px; color: #888; font-size: 0.82rem; margin: 8px 0 0; }
+    .lp-hint { display: flex; align-items: center; gap: 6px; color: var(--brand-text-soft); font-size: 0.82rem; margin: 8px 0 0; }
     .lp-hint mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .lp-directions { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
       color: var(--brand-primary, #3f51b5); font-weight: 600; text-decoration: none; font-size: 0.9rem; }

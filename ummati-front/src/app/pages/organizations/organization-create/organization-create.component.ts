@@ -21,7 +21,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     MatSelectModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatStepperModule, TPipe,
     LocationPickerComponent],
   template: `
-    <div class="page-container">
+    <div class="page page-narrow">
       <h1>{{ 'Créer une organisation' | t }}</h1>
       <p class="subtitle">{{ 'Enregistrez votre association sur Ummati' | t }}</p>
 
@@ -96,19 +96,18 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 680px; margin: 0 auto; padding: 32px 24px; }
-    h1 { font-size: 1.8rem; font-weight: 600; margin: 0; }
-    .subtitle { color: #666; margin: 4px 0 24px; }
-    h3 { font-size: 1rem; font-weight: 600; margin: 24px 0 12px; color: #333; }
-    .form-card { padding: 32px; border-radius: 12px; }
+    h1 { font-size: 1.8rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .subtitle { color: var(--brand-text-soft); margin: 4px 0 24px; }
+    h3 { font-size: 1rem; font-weight: 700; margin: 24px 0 12px; color: var(--brand-ink); }
+    .form-card { padding: 32px; }
     .full-width { width: 100%; }
-    .row { display: flex; gap: 16px; }
-    .flex-1 { flex: 1; }
-    .flex-2 { flex: 2; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .flex-1 { flex: 1; min-width: 140px; }
+    .flex-2 { flex: 2; min-width: 180px; }
     .map-block { margin: 8px 0 8px; }
-    .map-label { display: block; font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 8px; }
-    .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; }
-    .error-banner { background: #fdecea; color: #d32f2f; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+    .map-label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--brand-ink); margin-bottom: 8px; }
+    .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; border-radius: var(--radius-md); }
+    .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
   `],
 })
 export class OrganizationCreateComponent {

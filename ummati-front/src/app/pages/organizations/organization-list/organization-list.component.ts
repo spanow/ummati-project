@@ -19,18 +19,18 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule, RouterLink, FormsModule, TPipe],
   template: `
-    <div class="page-container">
-      <header class="page-header">
+    <div class="page">
+      <header class="page-head">
         <div>
-          <h1>{{ 'Organisations' | t }}</h1>
-          <p class="subtitle">{{ 'Trouvez une association qui vous correspond' | t }}</p>
+          <h1 class="page-title">{{ 'Organisations' | t }}</h1>
+          <p class="page-sub">{{ 'Trouvez une association qui vous correspond' | t }}</p>
         </div>
         <a mat-flat-button routerLink="/organizations/new" class="create-btn">
           <mat-icon>add</mat-icon> {{ 'Créer une ONG' | t }}
         </a>
       </header>
 
-      <div class="filters">
+      <div class="filters-row">
         <mat-form-field appearance="outline" class="search-field">
           <mat-label>{{ 'Rechercher' | t }}</mat-label>
           <input matInput [(ngModel)]="searchQuery" (keyup.enter)="loadOrganizations()"
@@ -49,7 +49,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
       </div>
 
       @if (loading()) {
-        <div class="loading"><mat-spinner diameter="40" /></div>
+        <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (organizations().length === 0) {
         <div class="empty-state">
           <mat-icon class="empty-icon">groups</mat-icon>
@@ -60,7 +60,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
       } @else {
         <div class="org-grid">
           @for (org of organizations(); track org.id) {
-            <mat-card class="org-card" [routerLink]="['/organizations', org.slug]">
+            <mat-card class="org-card hover-lift" [routerLink]="['/organizations', org.slug]">
               <div class="card-header">
                 @if (org.logoUrl) {
                   <img [src]="org.logoUrl" [alt]="org.name" class="org-logo" />
@@ -88,31 +88,24 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-    .page-header h1 { font-size: 2rem; font-weight: 600; margin: 0; }
-    .subtitle { color: #666; margin-top: 4px; font-size: 1.05rem; }
     .create-btn { height: 44px; }
-    .filters { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
     .search-field { flex: 1; min-width: 240px; }
-    .loading { display: flex; justify-content: center; padding: 80px 0; }
     .empty-state { text-align: center; padding: 80px 24px; }
-    .empty-icon { font-size: 64px; width: 64px; height: 64px; color: #ccc; }
+    .empty-icon { font-size: 64px; width: 64px; height: 64px; color: var(--brand-text-faint); }
     .empty-state h3 { margin-top: 16px; font-size: 1.3rem; }
-    .empty-state p { color: #666; margin-bottom: 24px; }
+    .empty-state p { color: var(--brand-text-soft); margin-bottom: 24px; }
     .org-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
-    .org-card { cursor: pointer; transition: box-shadow 0.2s, transform 0.2s; border-radius: 12px; overflow: hidden; }
-    .org-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }
+    .org-card { cursor: pointer; overflow: hidden; }
     .card-header { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
     .org-logo { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; }
     .org-logo-placeholder { width: 48px; height: 48px; border-radius: 10px; background: var(--brand-primary-100); display: flex; align-items: center; justify-content: center; }
     .org-logo-placeholder mat-icon { color: var(--brand-primary); }
     .domain-chip { margin-left: auto; font-size: 12px; }
-    .org-name { font-size: 1.15rem; font-weight: 600; margin: 16px 0 8px; }
-    .org-meta { display: flex; gap: 16px; color: #888; font-size: 0.85rem; margin-bottom: 12px; }
+    .org-name { font-size: 1.15rem; font-weight: 700; margin: 16px 0 8px; color: var(--brand-ink); }
+    .org-meta { display: flex; gap: 16px; color: var(--brand-text-faint); font-size: 0.85rem; margin-bottom: 12px; }
     .org-meta span { display: flex; align-items: center; gap: 4px; }
     .meta-icon { font-size: 16px; width: 16px; height: 16px; }
-    .org-excerpt { color: #555; font-size: 0.9rem; line-height: 1.5; }
+    .org-excerpt { color: var(--brand-text-soft); font-size: 0.9rem; line-height: 1.55; }
   `],
 })
 export class OrganizationListComponent implements OnInit {

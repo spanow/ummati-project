@@ -20,14 +20,14 @@ import { TPipe } from '../../shared/pipes/t.pipe';
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatChipsModule,
     MatMenuModule, MatPaginatorModule, MatProgressSpinnerModule, MatSnackBarModule, RouterLink, DatePipe, TPipe],
   template: `
-    <div class="page-container">
+    <div class="page page-narrow">
       <h1>{{ 'Mes activités' | t }}</h1>
 
       <mat-tab-group>
         <!-- Mes organisations -->
         <mat-tab [label]="('Mes organisations' | t) + ' (' + membershipTotal() + ')'">
           @if (membershipsLoading()) {
-            <div class="loading"><mat-spinner diameter="30" /></div>
+            <div class="state-center"><mat-spinner diameter="30" /></div>
           } @else if (memberships().length === 0) {
             <div class="empty">
               <mat-icon>groups_off</mat-icon>
@@ -37,7 +37,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
           } @else {
             <div class="card-list">
               @for (m of memberships(); track m.id) {
-                <mat-card class="activity-card" [routerLink]="['/organizations', m.organizationSlug]">
+                <mat-card class="activity-card hover-lift" [routerLink]="['/organizations', m.organizationSlug]">
                   <mat-card-content>
                     <div class="card-row">
                       <mat-icon>business</mat-icon>
@@ -67,7 +67,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
         <!-- Mes inscriptions -->
         <mat-tab [label]="('Mes inscriptions' | t) + ' (' + signupTotal() + ')'">
           @if (signupsLoading()) {
-            <div class="loading"><mat-spinner diameter="30" /></div>
+            <div class="state-center"><mat-spinner diameter="30" /></div>
           } @else if (signups().length === 0) {
             <div class="empty">
               <mat-icon>event_busy</mat-icon>
@@ -77,7 +77,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
           } @else {
             <div class="card-list">
               @for (s of signups(); track s.id) {
-                <mat-card class="activity-card" [routerLink]="['/events', s.eventId]">
+                <mat-card class="activity-card hover-lift" [routerLink]="['/events', s.eventId]">
                   <mat-card-content>
                     <div class="card-row">
                       <mat-icon>event</mat-icon>
@@ -98,26 +98,23 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page-container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
-    h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 24px; }
-    .loading { display: flex; justify-content: center; padding: 40px; }
-    .empty { text-align: center; padding: 48px 24px; color: #888; }
-    .empty mat-icon { font-size: 48px; width: 48px; height: 48px; color: #ccc; display: block; margin: 0 auto 12px; }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 24px; letter-spacing: -0.02em; }
+    .empty { text-align: center; padding: 48px 24px; color: var(--brand-text-soft); }
+    .empty mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--brand-text-faint); display: block; margin: 0 auto 12px; }
     .card-list { display: flex; flex-direction: column; gap: 10px; padding: 16px 0; }
-    .activity-card { border-radius: 10px; cursor: pointer; }
-    .activity-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    .activity-card { cursor: pointer; }
     .card-row { display: flex; align-items: center; gap: 16px; }
     .card-row mat-icon { color: var(--brand-primary); }
     .info { flex: 1; }
-    .info strong { display: block; }
-    .meta { color: #888; font-size: 0.8rem; }
+    .info strong { display: block; color: var(--brand-ink); }
+    .meta { color: var(--brand-text-soft); font-size: 0.8rem; }
     .role-admin { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
-    .role-member { background: #e8f5e9 !important; color: #2e7d32 !important; }
-    .status-registered { background: #e8f5e9 !important; color: #2e7d32 !important; }
-    .status-waitlisted { background: #fff3e0 !important; color: #e65100 !important; }
+    .role-member { background: var(--brand-success-soft) !important; color: var(--brand-success) !important; }
+    .status-registered { background: var(--brand-success-soft) !important; color: var(--brand-success) !important; }
+    .status-waitlisted { background: var(--brand-accent-soft) !important; color: var(--brand-warn) !important; }
     .status-attended { background: var(--brand-primary-100) !important; color: var(--brand-primary-dark) !important; }
-    .status-cancelled { background: #ffebee !important; color: #c62828 !important; }
-    .danger-item { color: #c62828; }
+    .status-cancelled { background: var(--brand-danger-soft) !important; color: var(--brand-danger) !important; }
+    .danger-item { color: var(--brand-danger); }
   `],
 })
 export class MyActivitiesComponent implements OnInit {
