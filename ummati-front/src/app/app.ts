@@ -16,7 +16,7 @@ import { NavbarComponent } from './shared/components/navbar/navbar.component';
   `,
   styles: [`
     main {
-      min-height: calc(100vh - 66px);
+      min-height: calc(100vh - var(--nav-h));
     }
     main:focus { outline: none; }
   `],

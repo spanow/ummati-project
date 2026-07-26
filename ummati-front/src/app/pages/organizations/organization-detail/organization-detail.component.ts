@@ -243,7 +243,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     .contact-info a { color: var(--brand-primary); text-decoration: none; }
     .org-map { margin-top: 20px; }
     .placeholder-text { color: var(--brand-text-soft); font-style: italic; padding: 40px 0; text-align: center; }
-    .tab-badge { background: var(--brand-primary); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
+    .tab-badge { background: var(--brand-primary); color: var(--brand-surface); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-inline-start: 6px; font-weight: 700; }
     .announcement-list { display: flex; flex-direction: column; gap: 16px; }
     .announcement-card { padding: 20px 24px; border-radius: var(--radius-md); border: 1px solid var(--brand-border); background: var(--brand-surface); }
     .announcement-card.pinned { border-left: 4px solid var(--brand-primary); background: var(--brand-primary-soft); }

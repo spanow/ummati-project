@@ -122,7 +122,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                         @if (ann.pinned) { <span class="pin-tag">📌 {{ 'Épinglée' | t }}</span> }
                         <span class="ann-date">{{ ann.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
                         <button mat-icon-button color="warn" (click)="deleteAnnouncement(ann.id)" [title]="'Supprimer' | t">
-                          <mat-icon>delete_outline</mat-icon>
+                          <mat-icon>delete</mat-icon>
                         </button>
                       </div>
                       <p class="ann-content">{{ ann.content }}</p>

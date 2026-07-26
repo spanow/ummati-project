@@ -4,11 +4,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { I18nService } from '../../../core/services/i18n.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { TPipe } from '../../pipes/t.pipe';
 
 @Component({
@@ -16,37 +18,49 @@ import { TPipe } from '../../pipes/t.pipe';
   standalone: true,
   imports: [
     CommonModule, MatButtonModule, MatIconModule, MatMenuModule,
-    MatBadgeModule, MatDividerModule, RouterLink, RouterLinkActive, TPipe,
+    MatBadgeModule, MatDividerModule, MatTooltipModule, RouterLink, RouterLinkActive, TPipe,
   ],
   template: `
     <header class="nav-root" role="banner">
       <div class="nav-inner">
-        <!-- Brand -->
-        <a routerLink="/" class="brand" aria-label="Ummati">
-          <span class="brand-mark"><mat-icon aria-hidden="true">volunteer_activism</mat-icon></span>
+        <!-- Marque -->
+        <a routerLink="/" class="brand no-underline" aria-label="Ummati">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="6" y="6" width="20" height="20" rx="2" />
+              <rect x="6" y="6" width="20" height="20" rx="2" transform="rotate(45 16 16)" />
+            </svg>
+          </span>
           <span class="brand-name">Ummati</span>
         </a>
 
-        <!-- Desktop nav -->
+        <!-- Navigation bureau -->
         <nav class="desktop-nav" aria-label="Navigation principale">
-          <a routerLink="/organizations" routerLinkActive="active-link" class="nav-link">{{ 'Organisations' | t }}</a>
-          <a routerLink="/events" routerLinkActive="active-link" class="nav-link">{{ 'Événements' | t }}</a>
+          <a routerLink="/organizations" routerLinkActive="active-link" class="nav-link no-underline">{{ 'Organisations' | t }}</a>
+          <a routerLink="/events" routerLinkActive="active-link" class="nav-link no-underline">{{ 'Événements' | t }}</a>
           @if (authService.isLoggedIn()) {
-            <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-link">{{ 'Dashboard' | t }}</a>
+            <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-link no-underline">{{ 'Dashboard' | t }}</a>
           }
           @if (authService.isAdmin()) {
-            <a routerLink="/admin" routerLinkActive="active-link" class="nav-link admin-link">
-              <mat-icon>admin_panel_settings</mat-icon> {{ 'Admin' | t }}
+            <a routerLink="/admin" routerLinkActive="active-link" class="nav-link no-underline">
+              <mat-icon>shield_person</mat-icon> {{ 'Admin' | t }}
             </a>
           }
         </nav>
 
         <span class="spacer"></span>
 
-        <!-- Language switcher -->
-        <button mat-icon-button [matMenuTriggerFor]="langMenu" class="lang-btn"
-                [attr.aria-label]="'Langue' | t">
-          <mat-icon>language</mat-icon>
+        <!-- Thème clair / sombre -->
+        <button mat-icon-button class="chrome-btn" (click)="theme.toggle()"
+                [matTooltip]="(theme.resolved() === 'dark' ? 'Passer en clair' : 'Passer en sombre') | t"
+                [attr.aria-label]="(theme.resolved() === 'dark' ? 'Passer en clair' : 'Passer en sombre') | t">
+          <mat-icon class="theme-icon">{{ theme.resolved() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+        </button>
+
+        <!-- Langue -->
+        <button mat-icon-button [matMenuTriggerFor]="langMenu" class="chrome-btn"
+                [matTooltip]="'Langue' | t" [attr.aria-label]="'Langue' | t">
+          <mat-icon>translate</mat-icon>
         </button>
         <mat-menu #langMenu="matMenu">
           <button mat-menu-item (click)="i18n.setLang('fr')" [class.lang-active]="i18n.lang() === 'fr'">
@@ -59,10 +73,10 @@ import { TPipe } from '../../pipes/t.pipe';
           </button>
         </mat-menu>
 
-        <!-- Right actions -->
+        <!-- Actions à droite -->
         @if (authService.isLoggedIn()) {
-          <a mat-icon-button routerLink="/notifications" class="bell-btn"
-             [attr.aria-label]="'Notifications' | t"
+          <a mat-icon-button routerLink="/notifications" class="chrome-btn"
+             [attr.aria-label]="'Notifications' | t" [matTooltip]="'Notifications' | t"
              [matBadge]="unreadCount() > 0 ? unreadCount() : null"
              matBadgeColor="warn" matBadgeSize="small">
             <mat-icon>notifications</mat-icon>
@@ -88,11 +102,11 @@ import { TPipe } from '../../pipes/t.pipe';
             </button>
           </mat-menu>
         } @else {
-          <a mat-button routerLink="/login" class="login-link">{{ 'Connexion' | t }}</a>
-          <a mat-flat-button routerLink="/register" class="register-btn">{{ 'Inscription' | t }}</a>
+          <a mat-button routerLink="/login" class="login-link no-underline">{{ 'Connexion' | t }}</a>
+          <a mat-flat-button routerLink="/register" class="register-btn no-underline">{{ 'Inscription' | t }}</a>
         }
 
-        <!-- Mobile burger -->
+        <!-- Menu mobile -->
         <button mat-icon-button class="mobile-menu-btn" (click)="mobileOpen.set(!mobileOpen())"
                 [attr.aria-expanded]="mobileOpen()" aria-controls="mobile-menu"
                 [attr.aria-label]="'Ouvrir le menu' | t">
@@ -101,14 +115,14 @@ import { TPipe } from '../../pipes/t.pipe';
       </div>
     </header>
 
-    <!-- Mobile drawer -->
+    <!-- Tiroir mobile -->
     @if (mobileOpen()) {
       <nav id="mobile-menu" class="mobile-menu" aria-label="Navigation mobile" role="navigation">
         <a mat-button routerLink="/" (click)="mobileOpen.set(false)">
           <mat-icon>home</mat-icon> {{ 'Accueil' | t }}
         </a>
         <a mat-button routerLink="/organizations" (click)="mobileOpen.set(false)">
-          <mat-icon>business</mat-icon> {{ 'Organisations' | t }}
+          <mat-icon>diversity_3</mat-icon> {{ 'Organisations' | t }}
         </a>
         <a mat-button routerLink="/events" (click)="mobileOpen.set(false)">
           <mat-icon>event</mat-icon> {{ 'Événements' | t }}
@@ -119,12 +133,12 @@ import { TPipe } from '../../pipes/t.pipe';
           </a>
           @if (authService.isAdmin()) {
             <a mat-button routerLink="/admin" (click)="mobileOpen.set(false)">
-              <mat-icon>admin_panel_settings</mat-icon> {{ 'Administration' | t }}
+              <mat-icon>shield_person</mat-icon> {{ 'Administration' | t }}
             </a>
           }
           <a mat-button routerLink="/notifications" (click)="mobileOpen.set(false)">
             <mat-icon>notifications</mat-icon> {{ 'Notifications' | t }}
-            @if (unreadCount() > 0) { <span class="mobile-badge">{{ unreadCount() }}</span> }
+            @if (unreadCount() > 0) { <span class="badge badge-danger mobile-badge">{{ unreadCount() }}</span> }
           </a>
           <a mat-button routerLink="/profile" (click)="mobileOpen.set(false)">
             <mat-icon>person</mat-icon> {{ 'Profil' | t }}
@@ -140,9 +154,13 @@ import { TPipe } from '../../pipes/t.pipe';
           <a mat-flat-button routerLink="/register" (click)="mobileOpen.set(false)">{{ 'Inscription' | t }}</a>
         }
         <mat-divider></mat-divider>
-        <div class="mobile-lang-row">
+        <div class="mobile-pref-row">
           <button mat-button (click)="i18n.setLang('fr')" [class.lang-active]="i18n.lang() === 'fr'">🇫🇷 Français</button>
           <button mat-button (click)="i18n.setLang('ar')" [class.lang-active]="i18n.lang() === 'ar'">🇩🇿 العربية</button>
+          <button mat-button (click)="theme.toggle()">
+            <mat-icon>{{ theme.resolved() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+            {{ (theme.resolved() === 'dark' ? 'Clair' : 'Sombre') | t }}
+          </button>
         </div>
       </nav>
     }
@@ -150,75 +168,97 @@ import { TPipe } from '../../pipes/t.pipe';
   styles: [`
     .nav-root {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(10px);
+      background: color-mix(in oklab, var(--brand-bg) 82%, transparent);
+      backdrop-filter: blur(14px) saturate(1.4);
+      -webkit-backdrop-filter: blur(14px) saturate(1.4);
       border-bottom: 1px solid var(--brand-border);
     }
     .nav-inner {
-      max-width: var(--page-max); margin: 0 auto; height: 66px;
-      display: flex; align-items: center; gap: 8px; padding: 0 24px;
+      max-width: var(--page-max); margin: 0 auto; height: var(--nav-h);
+      display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-5);
     }
+
     .brand { display: flex; align-items: center; gap: 10px; text-decoration: none !important; }
     .brand-mark {
-      width: 38px; height: 38px; border-radius: 12px;
+      width: 38px; height: 38px; border-radius: 11px; color: #fff;
       background: var(--brand-gradient); display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.28);
+      box-shadow: 0 4px 14px color-mix(in oklab, var(--brand-primary) 40%, transparent);
+      transition: transform 0.4s var(--ease-spring);
     }
-    .brand-mark mat-icon { color: white; font-size: 22px; width: 22px; height: 22px; }
-    .brand-name { font-size: 1.25rem; font-weight: 800; color: var(--brand-primary-dark); letter-spacing: -0.02em; }
+    .brand:hover .brand-mark { transform: rotate(45deg); }
+    .brand-name {
+      font-size: 1.4rem; font-weight: 600; color: var(--brand-ink);
+      letter-spacing: -0.02em; line-height: 1;
+    }
+
     .spacer { flex: 1 1 auto; }
-    .desktop-nav { display: flex; gap: 4px; margin: 0 12px; }
+    .desktop-nav { display: flex; gap: 2px; margin-inline-start: var(--space-5); }
     .nav-link {
+      position: relative;
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 16px; border-radius: 999px;
-      color: var(--brand-text); font-weight: 600; font-size: 0.92rem;
-      text-decoration: none !important; transition: background 0.15s, color 0.15s;
+      padding: 9px 14px; border-radius: var(--radius-sm);
+      color: var(--brand-text); font-weight: 600; font-size: 0.94rem;
+      text-decoration: none !important; transition: color 0.16s, background 0.16s;
     }
-    .nav-link:hover { background: var(--brand-primary-soft); color: var(--brand-primary-dark); }
-    .nav-link.active-link { background: var(--brand-primary-100); color: var(--brand-primary-dark); }
+    .nav-link:hover { background: var(--brand-surface-2); color: var(--brand-ink); }
+    .nav-link.active-link { color: var(--brand-primary-dark); }
+    /* Soulignement de l'onglet actif : un trait, pas une pastille */
+    .nav-link.active-link::after {
+      content: ''; position: absolute; inset-inline: 14px; bottom: 2px; height: 2px;
+      border-radius: 2px; background: var(--brand-primary);
+    }
     .nav-link mat-icon { font-size: 18px; width: 18px; height: 18px; }
-    .lang-btn, .bell-btn { color: var(--brand-text); }
+
+    .chrome-btn { color: var(--brand-text-soft); }
+    .chrome-btn:hover { color: var(--brand-ink); }
+    .theme-icon { transition: transform 0.5s var(--ease-spring); }
+    .chrome-btn:hover .theme-icon { transform: rotate(30deg); }
+
     .lang-flag { margin-inline-end: 8px; }
     .lang-check { margin-inline-start: 8px; color: var(--brand-primary); }
     .lang-active { font-weight: 700; }
-    .user-btn { display: flex; align-items: center; gap: 8px; border-radius: 999px !important; padding: 4px 10px 4px 4px !important; }
-    .user-avatar {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: var(--brand-gradient); color: white;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 0.9rem;
+
+    .user-btn {
+      display: flex; align-items: center; gap: 8px;
+      border-radius: var(--radius-pill) !important;
+      padding: 4px 12px 4px 4px !important;
+      border: 1px solid var(--brand-border);
     }
-    .user-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand-ink); font-weight: 600; }
-    .caret { color: var(--brand-text-soft); }
-    .login-link { color: var(--brand-ink); font-weight: 600; }
-    .register-btn { border-radius: 999px !important; font-weight: 700; }
+    .user-btn:hover { background: var(--brand-surface-2); }
+    .user-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--brand-gradient); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.88rem; text-transform: uppercase;
+    }
+    .user-name {
+      max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--brand-ink); font-weight: 600;
+    }
+    .caret { color: var(--brand-text-faint); font-size: 20px; width: 20px; height: 20px; }
+    .login-link { color: var(--brand-ink); font-weight: 650; }
+    .register-btn { border-radius: var(--radius-pill) !important; font-weight: 700; }
     .mobile-menu-btn { display: none !important; color: var(--brand-ink); }
 
     .mobile-menu {
-      position: fixed; top: 66px; inset-inline: 0; bottom: 0;
-      background: white; z-index: 99; padding: 16px;
-      display: flex; flex-direction: column; gap: 4px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      position: fixed; top: var(--nav-h); inset-inline: 0; bottom: 0;
+      background: var(--brand-bg); z-index: 99; padding: var(--space-4);
+      display: flex; flex-direction: column; gap: var(--space-1);
       overflow-y: auto;
+      animation: fade-up 0.22s var(--ease-out) both;
     }
     .mobile-menu a, .mobile-menu button {
       width: 100%; justify-content: flex-start !important;
-      padding: 12px 16px !important;
-      border-radius: 10px !important;
+      padding: 12px 16px !important; border-radius: var(--radius-sm) !important;
     }
-    .mobile-badge {
-      background: #f44336; color: white;
-      border-radius: 10px; padding: 1px 6px;
-      font-size: 0.75rem; margin-inline-start: 8px;
-    }
-    .logout-btn { color: #f44336 !important; }
-    .mobile-lang-row { display: flex; gap: 8px; padding-top: 8px; }
-    .mobile-lang-row button { width: auto; }
+    .mobile-badge { margin-inline-start: auto; }
+    .logout-btn { color: var(--brand-danger) !important; }
+    .mobile-pref-row { display: flex; gap: var(--space-2); padding-top: var(--space-2); flex-wrap: wrap; }
+    .mobile-pref-row button { width: auto; }
 
-    @media (max-width: 768px) {
-      .nav-inner { padding: 0 12px; }
-      .desktop-nav { display: none !important; }
-      .user-btn, .register-btn, .login-link, .lang-btn { display: none !important; }
+    @media (max-width: 900px) {
+      .nav-inner { padding: 0 var(--space-3); }
+      .desktop-nav, .user-btn, .register-btn, .login-link { display: none !important; }
       .mobile-menu-btn { display: inline-flex !important; }
     }
   `],
@@ -226,6 +266,7 @@ import { TPipe } from '../../pipes/t.pipe';
 export class NavbarComponent implements OnInit {
   authService = inject(AuthService);
   i18n = inject(I18nService);
+  theme = inject(ThemeService);
   private notificationService = inject(NotificationService);
   unreadCount = signal(0);
   mobileOpen = signal(false);

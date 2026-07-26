@@ -1,7 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,70 +8,65 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { AuthShellComponent } from '../../../shared/components/auth-shell/auth-shell.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [
-    ReactiveFormsModule, RouterLink,
-    MatCardModule, MatFormFieldModule, MatInputModule,
-    MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe,
+    ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule,
+    MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe, AuthShellComponent,
   ],
   template: `
-    <div class="auth-container">
-      <mat-card class="auth-card">
-        <mat-card-header>
-          <mat-card-title>{{ 'Connexion' | t }}</mat-card-title>
-          <mat-card-subtitle>{{ 'Accédez à votre espace Ummati' | t }}</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          @if (successMessage()) {
-            <div class="success-banner">
-              <mat-icon>check_circle</mat-icon>
-              {{ successMessage() }}
-            </div>
-          }
-          @if (errorMessage()) {
-            <div class="error-banner">{{ errorMessage() }}</div>
-          }
-          <form [formGroup]="form" (ngSubmit)="onSubmit()">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>{{ 'Email' | t }}</mat-label>
-              <input matInput formControlName="email" type="email" />
-              <mat-icon matSuffix>email</mat-icon>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>{{ 'Mot de passe' | t }}</mat-label>
-              <input matInput formControlName="password" [type]="hidePassword() ? 'password' : 'text'" />
-              <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())">
-                <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-            </mat-form-field>
-            <div class="forgot-link">
-              <a routerLink="/forgot-password">{{ 'Mot de passe oublié ?' | t }}</a>
-            </div>
-            <button mat-flat-button color="primary" type="submit" class="full-width submit-btn"
-                    [disabled]="loading()">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Se connecter' | t }} }
-            </button>
-          </form>
-        </mat-card-content>
-        <mat-card-actions align="end">
-          <span>{{ 'Pas encore de compte ?' | t }} <a routerLink="/register">{{ 'S\\'inscrire' | t }}</a></span>
-        </mat-card-actions>
-      </mat-card>
-    </div>
+    <app-auth-shell title="Bon retour" subtitle="Connectez-vous pour retrouver vos missions.">
+      @if (successMessage()) {
+        <div class="banner banner-success" role="status">
+          <mat-icon>check_circle</mat-icon>
+          <span>{{ successMessage() }}</span>
+        </div>
+      }
+      @if (errorMessage()) {
+        <div class="banner banner-error" role="alert">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>{{ 'Email' | t }}</mat-label>
+          <input matInput formControlName="email" type="email" autocomplete="email" />
+          <mat-icon matSuffix>mail</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>{{ 'Mot de passe' | t }}</mat-label>
+          <input matInput formControlName="password" autocomplete="current-password"
+                 [type]="hidePassword() ? 'password' : 'text'" />
+          <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())"
+                  [attr.aria-label]="(hidePassword() ? 'Afficher le mot de passe' : 'Masquer le mot de passe') | t">
+            <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <div class="forgot-link">
+          <a routerLink="/forgot-password">{{ 'Mot de passe oublié ?' | t }}</a>
+        </div>
+
+        <button mat-flat-button type="submit" class="submit-btn" [disabled]="loading()">
+          @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Se connecter' | t }} }
+        </button>
+      </form>
+
+      <ng-container footer>
+        {{ 'Pas encore de compte ?' | t }}
+        <a routerLink="/register">{{ 'S\\'inscrire' | t }}</a>
+      </ng-container>
+    </app-auth-shell>
   `,
   styles: [`
-    .auth-container { display: flex; justify-content: center; align-items: flex-start; padding: 56px 16px; }
-    .auth-card { max-width: 440px; width: 100%; }
-    .full-width { width: 100%; }
-    .submit-btn { height: 48px; font-size: 16px; margin-top: 8px; border-radius: var(--radius-md); }
-    .forgot-link { text-align: right; margin: -8px 0 16px; }
-    .forgot-link a { font-size: 14px; }
-    .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
-    .success-banner { background: var(--brand-success-soft); color: var(--brand-success); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
-    mat-card-actions span { font-size: 14px; }
+    .forgot-link { text-align: end; margin: calc(-1 * var(--space-2)) 0 var(--space-4); }
+    .forgot-link a { font-size: 0.88rem; }
   `],
 })
 export class LoginComponent implements OnInit {

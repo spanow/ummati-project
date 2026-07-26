@@ -204,7 +204,8 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     .data-table th { font-size: 0.8rem; color: var(--brand-text-soft); text-transform: uppercase; }
     .active { background: var(--brand-success-soft) !important; color: var(--brand-success) !important; }
     .disabled { background: var(--brand-danger-soft) !important; color: var(--brand-danger) !important; }
-    .tab-badge { background: var(--brand-danger); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 6px; }
+    /* --brand-surface : blanc en clair, charbon en sombre -> lisible dans les deux thèmes */
+    .tab-badge { background: var(--brand-danger); color: var(--brand-surface); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-inline-start: 6px; font-weight: 700; }
     .empty-hint { color: var(--brand-text-soft); font-style: italic; padding: 40px 0; text-align: center; }
     .report-list { display: flex; flex-direction: column; gap: 12px; }
     .report-header { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }

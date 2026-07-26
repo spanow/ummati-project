@@ -184,7 +184,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
         </div>
       } @else {
         <div class="error-state" role="alert">
-          <mat-icon>error_outline</mat-icon>
+          <mat-icon>error</mat-icon>
           <p>{{ 'Organisation introuvable.' | t }}</p>
           <a mat-button routerLink="/admin">{{ 'Retour à l\\'administration' | t }}</a>
         </div>
@@ -208,10 +208,10 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .status-badge {
       padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
     }
-    .status-pending { background: var(--brand-accent-soft); color: var(--brand-warn); }
+    .status-pending { background: var(--brand-warn-soft); color: var(--brand-warn); }
     .status-active { background: var(--brand-success-soft); color: var(--brand-success); }
     .status-rejected { background: var(--brand-danger-soft); color: var(--brand-danger); }
-    .status-suspended { background: #fce4ec; color: #880e4f; }
+    .status-suspended { background: var(--brand-surface-3); color: var(--brand-text-soft); }
     .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
     .left-col, .right-col { display: flex; flex-direction: column; gap: 24px; }
     .approve-card { border-left: 4px solid var(--brand-success); }

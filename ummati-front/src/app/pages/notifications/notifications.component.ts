@@ -28,7 +28,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
         <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (notifications().length === 0) {
         <div class="empty-state">
-          <mat-icon class="empty-icon">notifications_none</mat-icon>
+          <mat-icon class="empty-icon">notifications_off</mat-icon>
           <h3>{{ 'Aucune notification' | t }}</h3>
           <p>{{ 'Vous êtes à jour !' | t }}</p>
         </div>

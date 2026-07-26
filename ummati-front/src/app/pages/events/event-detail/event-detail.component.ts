@@ -138,7 +138,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
                       <span class="comment-date">{{ c.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
                       @if (canDeleteComment(c)) {
                         <button mat-icon-button class="delete-btn" (click)="deleteComment(c.id)" [title]="'Supprimer' | t">
-                          <mat-icon>delete_outline</mat-icon>
+                          <mat-icon>delete</mat-icon>
                         </button>
                       }
                     </div>

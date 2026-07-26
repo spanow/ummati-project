@@ -30,7 +30,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
             <div class="state-center"><mat-spinner diameter="30" /></div>
           } @else if (memberships().length === 0) {
             <div class="empty">
-              <mat-icon>groups_off</mat-icon>
+              <mat-icon>group_off</mat-icon>
               <p>{{ 'Vous n\\'êtes membre d\\'aucune organisation.' | t }}</p>
               <a mat-flat-button routerLink="/organizations">{{ 'Explorer les ONG' | t }}</a>
             </div>

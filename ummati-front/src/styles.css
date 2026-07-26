@@ -1,74 +1,163 @@
 @use '@angular/material' as mat;
 
 /* ============================================================
-   Ummati — Design System
-   Palette émeraude (solidarité, confiance) + accent ambre chaleureux.
-   Typographie : Plus Jakarta Sans (latin) / Tajawal (arabe).
-   Objectif : épuré, aéré, cohérent. Les tokens sont la source
-   unique de vérité — plus de gris #666/#888 en dur dans les pages.
+   Ummati — Design System v2
+   Direction : « chaleureux, éditorial, ancré ».
+
+   - Fond chaud (blanc cassé) plutôt que le bleu-gris SaaS.
+   - Titres en Fraunces (serif douce, axes optiques) / UI en Plus Jakarta Sans.
+   - Teal profond ancré + terracotta chaude en accent.
+   - Thème clair ET sombre : mêmes noms de tokens, valeurs différentes.
+     -> Les pages qui utilisent --brand-* héritent du mode sombre sans
+        être modifiées. Ne jamais remettre de couleur en dur dans une page.
    ============================================================ */
 
-:root {
-  /* ---- Marque ---- */
-  --brand-primary: #0f766e;        /* teal-700 — texte/boutons sur fond clair */
-  --brand-primary-dark: #115e59;   /* teal-800 */
-  --brand-primary-light: #14b8a6;  /* teal-500 — gradients, hover */
-  --brand-primary-100: #ccfbf1;    /* teal-100 — fonds de badges/blocs */
-  --brand-primary-soft: #f0fdfa;   /* teal-50 — fonds très légers */
-  --brand-accent: #f59e0b;         /* amber-500 — CTA secondaires, étoiles */
-  --brand-accent-soft: #fef3c7;    /* amber-100 */
+/* ============================================================
+   1. Tokens — thème clair
+   ============================================================ */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
 
-  /* ---- Neutres (slate) — à utiliser partout ---- */
-  --brand-ink: #0f172a;            /* slate-900 — titres */
-  --brand-text: #334155;           /* slate-700 — corps de texte */
-  --brand-text-soft: #64748b;      /* slate-500 — texte secondaire */
-  --brand-text-faint: #94a3b8;     /* slate-400 — méta, indices */
-  --brand-bg: #f6f8fb;             /* fond de page (bleu-gris très clair) */
+  /* ---- Marque : teal profond, ancré ---- */
+  --brand-primary: #0d6b62;
+  --brand-primary-dark: #0a534c;   /* texte de marque sur fond clair */
+  --brand-primary-light: #17a398;  /* dégradés, survols */
+  --brand-primary-100: #c9ece7;    /* fonds de badges */
+  --brand-primary-soft: #eef9f7;   /* fonds très légers */
+
+  /* ---- Accent : terracotta chaude ---- */
+  --brand-accent: #d1762f;
+  --brand-accent-strong: #b45f1f;  /* accent lisible en texte */
+  --brand-accent-soft: #fbeee3;
+
+  /* ---- Neutres chauds ---- */
+  --brand-ink: #1c1a17;            /* titres */
+  --brand-text: #3d3833;           /* corps */
+  --brand-text-soft: #6b635a;      /* secondaire */
+  --brand-text-faint: #9a9086;     /* méta */
+  --brand-bg: #faf8f5;
   --brand-surface: #ffffff;
-  --brand-surface-2: #f8fafc;      /* surface alternée */
-  --brand-border: #e6ebf1;         /* filet de séparation */
-  --brand-border-strong: #d4dbe4;
+  --brand-surface-2: #f5f2ed;
+  --brand-surface-3: #ede8e0;
+  --brand-border: #e8e2d9;
+  --brand-border-strong: #d6cec2;
 
   /* ---- États ---- */
-  --brand-success: #16a34a;
-  --brand-success-soft: #dcfce7;
-  --brand-danger: #dc2626;
-  --brand-danger-soft: #fef2f2;
-  --brand-warn: #d97706;
+  --brand-success: #127a4a;
+  --brand-success-soft: #dff3e7;
+  --brand-danger: #c2352b;
+  --brand-danger-soft: #fdeceb;
+  --brand-warn: #b06d10;
+  --brand-warn-soft: #fdf1dc;
+  --brand-info: #1d6fa5;
+  --brand-info-soft: #e4f1fa;
 
   /* ---- Dégradés ---- */
-  --brand-gradient: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
-  --brand-gradient-deep: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
+  --brand-gradient: linear-gradient(135deg, #0d6b62 0%, #17a398 100%);
+  --brand-gradient-deep: linear-gradient(150deg, #08403b 0%, #0d6b62 55%, #14867c 100%);
+  --brand-gradient-warm: linear-gradient(135deg, #d1762f 0%, #e0a15c 100%);
 
-  /* ---- Ombres : douces, teintées slate (épuré, jamais noir dur) ---- */
-  --brand-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --brand-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --brand-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --brand-shadow-lg: 0 16px 40px rgba(15, 118, 110, 0.16);
+  /* ---- Ombres : chaudes, jamais noir pur ---- */
+  --brand-shadow-xs: 0 1px 2px rgba(60, 45, 30, 0.05);
+  --brand-shadow-sm: 0 1px 2px rgba(60, 45, 30, 0.05), 0 2px 6px rgba(60, 45, 30, 0.04);
+  --brand-shadow-md: 0 4px 10px rgba(60, 45, 30, 0.06), 0 14px 32px rgba(60, 45, 30, 0.09);
+  --brand-shadow-lg: 0 8px 20px rgba(60, 45, 30, 0.08), 0 28px 60px rgba(13, 107, 98, 0.14);
+  --brand-ring: 0 0 0 4px rgba(13, 107, 98, 0.14);
 
-  /* ---- Rayons ---- */
+  /* ---- Voile de survol / d'appui sur une surface ---- */
+  --brand-overlay-hover: rgba(28, 26, 23, 0.04);
+  --brand-overlay-press: rgba(28, 26, 23, 0.08);
+}
+
+/* ============================================================
+   2. Tokens — thème sombre
+   Charbon chaud, jamais bleuté. Les teintes de marque s'éclaircissent
+   (contraste), les fonds de badges s'assombrissent.
+   ============================================================ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand-primary: #2fb9ab;
+  --brand-primary-dark: #7ee0d3;   /* devient la variante LISIBLE sur fond sombre */
+  --brand-primary-light: #22a094;
+  --brand-primary-100: #123f39;
+  --brand-primary-soft: #0f2b28;
+
+  --brand-accent: #e8944f;
+  --brand-accent-strong: #f2ad70;
+  --brand-accent-soft: #3a2716;
+
+  --brand-ink: #f6f2ec;
+  --brand-text: #ddd5cb;
+  --brand-text-soft: #a79f95;
+  --brand-text-faint: #7d766d;
+  --brand-bg: #121110;
+  --brand-surface: #1b1917;
+  --brand-surface-2: #232120;
+  --brand-surface-3: #2c2926;
+  --brand-border: #322e2b;
+  --brand-border-strong: #45403b;
+
+  --brand-success: #45cf8e;
+  --brand-success-soft: #123528;
+  --brand-danger: #f28075;
+  --brand-danger-soft: #3a1d1a;
+  --brand-warn: #e0a33a;
+  --brand-warn-soft: #33260f;
+  --brand-info: #63b3e0;
+  --brand-info-soft: #14293a;
+
+  --brand-gradient: linear-gradient(135deg, #12857a 0%, #2fb9ab 100%);
+  --brand-gradient-deep: linear-gradient(150deg, #0a2c29 0%, #0f4d47 55%, #14685f 100%);
+  --brand-gradient-warm: linear-gradient(135deg, #b8632a 0%, #e8944f 100%);
+
+  --brand-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --brand-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --brand-shadow-md: 0 4px 10px rgba(0, 0, 0, 0.45), 0 14px 32px rgba(0, 0, 0, 0.4);
+  --brand-shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.5), 0 28px 60px rgba(0, 0, 0, 0.5);
+  --brand-ring: 0 0 0 4px rgba(47, 185, 171, 0.22);
+
+  --brand-overlay-hover: rgba(255, 255, 255, 0.05);
+  --brand-overlay-press: rgba(255, 255, 255, 0.09);
+}
+
+/* ============================================================
+   3. Tokens invariants (géométrie, rythme, typo)
+   ============================================================ */
+:root {
   --radius-xs: 8px;
   --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-card: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-card: 18px;
   --radius-pill: 999px;
 
-  /* ---- Rythme d'espacement (échelle 4px) ---- */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
   --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 72px;
+  --space-9: 104px;
 
-  /* ---- Largeur de contenu ---- */
   --page-max: 1200px;
+  --nav-h: 68px;
 
-  /* Police par langue (surchargée par html[lang="ar"]) */
   --app-font: 'Plus Jakarta Sans', 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+
+  /* Courbes de mouvement */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
 }
 
+/* L'arabe n'a pas de Fraunces : Tajawal fait office de police de titre. */
 html[lang='ar'] {
   --app-font: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+  --font-display: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
 }
 
+/* ============================================================
+   4. Base
+   ============================================================ */
 html,
 body {
   height: 100%;
@@ -76,17 +165,122 @@ body {
   font-family: var(--app-font);
   background: var(--brand-bg);
   color: var(--brand-text);
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
 }
 
-/* Applique la police partout sauf sur les icônes Material (ligatures) */
-body *:not(mat-icon):not(.material-icons) {
-  font-family: var(--app-font);
+/* Halo de fond très diffus : donne de la profondeur sans image. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 620px at 10% -10%, color-mix(in oklab, var(--brand-primary) 10%, transparent), transparent 62%),
+    radial-gradient(720px 520px at 100% -4%, color-mix(in oklab, var(--brand-accent) 9%, transparent), transparent 58%);
 }
 
+/*
+  Police appliquée partout, y compris à l'intérieur des composants Material.
+  On passe par --font-current pour qu'un titre puisse basculer en serif :
+  la variable est héritée, la règle large la relit. Sans ça, un `h1 { font-family }`
+  perdrait en spécificité face à ce sélecteur.
+*/
+body *:not(mat-icon):not(.mat-icon):not(.material-icons):not(.material-symbols-rounded) {
+  font-family: var(--font-current, var(--app-font));
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brand-primary) 24%, transparent);
+  color: var(--brand-ink);
+}
+
+/* Barres de défilement discrètes, accordées au thème */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-border-strong) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--brand-border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: var(--brand-text-faint); }
+
+/* ============================================================
+   5. Typographie
+   ============================================================ */
+h1, h2, h3, h4 {
+  color: var(--brand-ink);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* Titres éditoriaux en serif — h3/h4 restent en sans (chrome d'interface). */
+h1,
+h2,
+.display,
+.page-title,
+.brand-name {
+  --font-current: var(--font-display);
+  font-variation-settings: 'SOFT' 40, 'WONK' 1;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+h1 { font-variation-settings: 'opsz' 96, 'SOFT' 40, 'WONK' 1; }
+h2 { font-variation-settings: 'opsz' 48, 'SOFT' 40, 'WONK' 1; }
+
+/* Surtitre : petite capitale espacée au-dessus d'un titre de section */
+.kicker {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-primary-dark);
+  margin-bottom: var(--space-3);
+}
+
+/* Chiffres alignés (stats, compteurs, tableaux) */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   6. Icônes — Material Symbols Rounded (variable)
+   ============================================================ */
+mat-icon,
+.mat-icon,
+.material-icons,
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded' !important;
+  font-variation-settings: 'FILL' var(--icon-fill, 0), 'wght' var(--icon-wght, 350), 'GRAD' 0, 'opsz' 24;
+  font-weight: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  /* Les ligatures d'icônes restent LTR même en arabe */
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  transition: font-variation-settings 0.2s var(--ease-out);
+}
+
+/* Icône pleine (états actifs, sélection) */
+.icon-filled { --icon-fill: 1; }
+
+/* ============================================================
+   7. Thème Material + passerelle de tokens
+   ============================================================ */
 @include mat.theme((
   color: (
     primary: mat.$cyan-palette,
@@ -99,7 +293,7 @@ body *:not(mat-icon):not(.material-icons) {
   density: 0,
 ));
 
-/* Aligne les tokens système Material sur la marque */
+/* Aligne les tokens système Material sur la marque (les deux thèmes). */
 html {
   --mat-sys-primary: var(--brand-primary);
   --mat-sys-on-primary: #ffffff;
@@ -110,70 +304,205 @@ html {
   --mat-sys-secondary-container: var(--brand-primary-soft);
   --mat-sys-on-secondary-container: var(--brand-primary-dark);
   --mat-sys-tertiary: var(--brand-accent);
+  --mat-sys-on-tertiary: #ffffff;
   --mat-sys-tertiary-container: var(--brand-accent-soft);
+  --mat-sys-on-tertiary-container: var(--brand-accent-strong);
+  --mat-sys-error: var(--brand-danger);
+  --mat-sys-on-error: #ffffff;
+  --mat-sys-error-container: var(--brand-danger-soft);
+  --mat-sys-on-error-container: var(--brand-danger);
+
   --mat-sys-surface-tint: var(--brand-primary);
   --mat-sys-inverse-primary: var(--brand-primary-light);
   --mat-sys-background: var(--brand-bg);
+  --mat-sys-on-background: var(--brand-text);
   --mat-sys-surface: var(--brand-surface);
+  --mat-sys-surface-dim: var(--brand-surface-2);
+  --mat-sys-surface-bright: var(--brand-surface);
+  --mat-sys-surface-container-lowest: var(--brand-surface);
+  --mat-sys-surface-container-low: var(--brand-surface);
+  --mat-sys-surface-container: var(--brand-surface);
+  --mat-sys-surface-container-high: var(--brand-surface-2);
+  --mat-sys-surface-container-highest: var(--brand-surface-3);
+  --mat-sys-surface-variant: var(--brand-surface-2);
   --mat-sys-on-surface: var(--brand-ink);
-  --mat-sys-outline: #94a3b8;
+  --mat-sys-on-surface-variant: var(--brand-text-soft);
+  --mat-sys-outline: var(--brand-border-strong);
   --mat-sys-outline-variant: var(--brand-border);
+  --mat-sys-inverse-surface: var(--brand-ink);
+  --mat-sys-inverse-on-surface: var(--brand-bg);
+  --mat-sys-shadow: rgba(60, 45, 30, 0.2);
+  --mat-sys-scrim: rgba(28, 26, 23, 0.45);
 
-  /* Arrondis plus généreux */
   --mat-sys-corner-extra-small: var(--radius-xs);
   --mat-sys-corner-small: var(--radius-sm);
   --mat-sys-corner-medium: var(--radius-md);
   --mat-sys-corner-large: var(--radius-lg);
+  --mat-sys-corner-extra-large: var(--radius-xl);
 }
 
-/* ---- Typographie ---- */
-h1, h2, h3, h4 {
-  color: var(--brand-ink);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+:root[data-theme='dark'] {
+  --mat-sys-shadow: rgba(0, 0, 0, 0.6);
+  --mat-sys-scrim: rgba(0, 0, 0, 0.65);
+  /* Sur fond sombre, le teal de marque porte du texte foncé, pas blanc. */
+  --mat-sys-on-primary: #06231f;
+  --mat-sys-on-tertiary: #2a1608;
+  --mat-sys-on-error: #34100c;
 }
 
-/* ---- Cartes : ombre douce et rayon homogènes ---- */
-mat-card {
-  --mat-card-elevated-container-elevation: var(--brand-shadow-sm);
+/* ============================================================
+   8. Affinages des composants Material
+   ============================================================ */
+
+/* ---- Cartes ---- */
+mat-card,
+.mat-mdc-card {
+  --mat-card-elevated-container-elevation: none;
+  background: var(--brand-surface);
   border: 1px solid var(--brand-border);
   border-radius: var(--radius-card);
+  box-shadow: var(--brand-shadow-sm) !important;
 }
 
-/* ---- Correctif contraste : voile d'état (survol / focus) des boutons Material.
-   Un token M3 d'opacité manquant rendait ce voile BLANC OPAQUE au survol
-   → texte blanc invisible sur bouton vert (et inversement). On le force à un
-   halo translucide léger : le fond du bouton et son libellé restent lisibles. ---- */
+/* ---- Boutons : plus de présence, coins doux ---- */
+.mat-mdc-unelevated-button,
+.mat-mdc-raised-button,
+.mat-mdc-outlined-button,
+.mat-mdc-button {
+  --mdc-text-button-label-text-weight: 650;
+  --mdc-filled-button-label-text-weight: 650;
+  --mdc-outlined-button-label-text-weight: 650;
+  border-radius: var(--radius-md) !important;
+  letter-spacing: 0.005em;
+}
+.mat-mdc-unelevated-button:not(:disabled) {
+  box-shadow: 0 1px 2px rgba(13, 107, 98, 0.2), 0 6px 16px rgba(13, 107, 98, 0.18);
+}
+.mat-mdc-unelevated-button:not(:disabled):hover { box-shadow: 0 2px 4px rgba(13, 107, 98, 0.22), 0 10px 24px rgba(13, 107, 98, 0.24); }
+.mat-mdc-unelevated-button:not(:disabled):active { transform: translateY(1px); }
+.mat-mdc-outlined-button { --mdc-outlined-button-outline-color: var(--brand-border-strong); }
+
+/*
+  Correctif contraste du voile d'état (survol / focus) des boutons Material.
+  Un token M3 d'opacité manquant rendait ce voile BLANC OPAQUE au survol
+  -> libellé blanc invisible sur bouton teal. On force un halo translucide.
+  NE PAS RETIRER.
+*/
 .mat-mdc-button-base .mat-mdc-button-persistent-ripple::before {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
-.mat-mdc-button-base:hover .mat-mdc-button-persistent-ripple::before {
-  opacity: 0.10 !important;
-}
+.mat-mdc-button-base:hover .mat-mdc-button-persistent-ripple::before { opacity: 0.1 !important; }
 .mat-mdc-button-base.cdk-keyboard-focused .mat-mdc-button-persistent-ripple::before,
-.mat-mdc-button-base.cdk-program-focused .mat-mdc-button-persistent-ripple::before {
-  opacity: 0.14 !important;
+.mat-mdc-button-base.cdk-program-focused .mat-mdc-button-persistent-ripple::before { opacity: 0.14 !important; }
+.mat-mdc-button-base:active .mat-mdc-button-persistent-ripple::before { opacity: 0.16 !important; }
+
+/* ---- Champs de formulaire : fond plein, contour discret ---- */
+.mat-mdc-form-field {
+  --mat-form-field-container-height: 54px;
+  --mdc-outlined-text-field-outline-color: var(--brand-border);
+  --mdc-outlined-text-field-hover-outline-color: var(--brand-border-strong);
+  --mdc-outlined-text-field-focus-outline-color: var(--brand-primary);
+  --mdc-outlined-text-field-outline-width: 1px;
+  --mdc-outlined-text-field-focus-outline-width: 2px;
+  --mdc-outlined-text-field-label-text-color: var(--brand-text-soft);
+  --mdc-outlined-text-field-input-text-color: var(--brand-ink);
+  --mdc-outlined-text-field-caret-color: var(--brand-primary);
 }
-.mat-mdc-button-base:active .mat-mdc-button-persistent-ripple::before {
-  opacity: 0.16 !important;
+.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  background: var(--brand-surface);
+  border-radius: var(--radius-md);
 }
+.mat-mdc-form-field-icon-suffix,
+.mat-mdc-form-field-icon-prefix { color: var(--brand-text-faint); }
+
+/* ---- Puces ---- */
+.mat-mdc-chip,
+.mat-mdc-standard-chip {
+  --mdc-chip-container-height: 28px;
+  --mdc-chip-label-text-weight: 600;
+  border-radius: var(--radius-pill) !important;
+  background: var(--brand-surface-2) !important;
+  color: var(--brand-text-soft) !important;
+  border: 1px solid var(--brand-border);
+}
+.mat-mdc-standard-chip .mdc-evolution-chip__text-label { color: inherit !important; }
+
+/* ---- Menus, dialogues, infobulles ---- */
+.mat-mdc-menu-panel,
+.mat-mdc-autocomplete-panel,
+.mat-mdc-select-panel {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--brand-border);
+  box-shadow: var(--brand-shadow-md) !important;
+  background: var(--brand-surface) !important;
+}
+.mat-mdc-menu-item { border-radius: var(--radius-xs); margin: 2px 6px; min-height: 42px !important; }
+.mat-mdc-menu-item:hover { background: var(--brand-surface-2) !important; }
+.mat-mdc-menu-item .mat-icon { color: var(--brand-text-soft); }
+
+.mat-mdc-dialog-surface {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--brand-border);
+  box-shadow: var(--brand-shadow-lg) !important;
+}
+.mat-mdc-tooltip .mdc-tooltip__surface {
+  background: var(--brand-ink) !important;
+  color: var(--brand-bg) !important;
+  border-radius: var(--radius-xs) !important;
+  font-size: 0.8rem !important;
+  padding: 6px 10px !important;
+}
+
+/* ---- Onglets ---- */
+.mat-mdc-tab-group { --mat-tab-header-active-label-text-color: var(--brand-primary-dark); }
+.mat-mdc-tab .mdc-tab__text-label { font-weight: 650 !important; }
+
+/* ---- Pagination, tableaux, barres ---- */
+.mat-mdc-paginator {
+  background: transparent !important;
+  color: var(--brand-text-soft);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--brand-border);
+}
+.mat-mdc-table { background: transparent !important; }
+.mat-mdc-header-cell {
+  color: var(--brand-text-soft) !important;
+  font-weight: 700 !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mat-mdc-row:hover { background: var(--brand-surface-2); }
+
+/* ---- Notifications toast ---- */
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-color: var(--brand-ink);
+  --mdc-snackbar-supporting-text-color: var(--brand-bg);
+  --mat-snack-bar-button-color: var(--brand-primary-light);
+}
+.mat-mdc-snack-bar-container .mdc-snackbar__surface { border-radius: var(--radius-md) !important; }
+
+/* ---- Expansion / listes ---- */
+.mat-expansion-panel {
+  background: var(--brand-surface) !important;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+.mat-mdc-list-item { border-radius: var(--radius-sm); }
 
 /* ============================================================
-   Utilitaires de mise en page partagés
-   (une seule définition — les pages n'ont plus à les redéclarer)
+   9. Utilitaires de mise en page
    ============================================================ */
-
-/* Conteneur de page : largeur maîtrisée + respiration généreuse */
 .page {
   max-width: var(--page-max);
   margin-inline: auto;
-  padding: var(--space-7) var(--space-5) var(--space-8);
+  padding: var(--space-7) var(--space-5) var(--space-9);
 }
-/* Variante colonne étroite : flux de lecture, feeds, formulaires */
 .page-narrow { max-width: 820px; }
+.page-wide { max-width: 1440px; }
 
-/* En-tête de page : titre + sous-titre (+ action optionnelle à droite) */
 .page-head {
   display: flex;
   justify-content: space-between;
@@ -183,75 +512,198 @@ mat-card {
   margin-bottom: var(--space-6);
 }
 .page-title {
-  font-size: clamp(1.6rem, 3vw, 2.05rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: clamp(1.9rem, 1.2rem + 2.4vw, 2.7rem);
+  font-weight: 600;
   color: var(--brand-ink);
   margin: 0;
 }
 .page-sub {
   color: var(--brand-text-soft);
-  font-size: 1.02rem;
-  margin: 6px 0 0;
+  font-size: 1.03rem;
+  margin: var(--space-2) 0 0;
   max-width: 62ch;
 }
 
-/* Barre de filtres */
 .filters-row {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
   align-items: center;
   margin-bottom: var(--space-6);
+  padding: var(--space-3);
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--brand-shadow-xs);
 }
+/* Les champs d'une barre de filtres n'ont pas besoin de la zone d'erreur */
+.filters-row .mat-mdc-form-field-subscript-wrapper { display: none; }
 
-/* Grilles de cartes */
 .card-grid { display: grid; gap: var(--space-5); }
 
-/* Zone centrée (spinner de chargement) */
 .state-center {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 80px 0;
+  padding: var(--space-9) 0;
 }
 
-/* Carte cliquable : élévation douce et cohérente au survol */
+/* Surface générique hors mat-card */
+.surface {
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--brand-shadow-sm);
+}
+
+/* Carte cliquable : élévation douce et cohérente */
 .hover-lift {
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out),
+    border-color 0.22s var(--ease-out);
 }
 .hover-lift:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   box-shadow: var(--brand-shadow-md) !important;
-  border-color: var(--brand-primary-100);
+  border-color: color-mix(in oklab, var(--brand-primary) 35%, var(--brand-border));
+}
+.hover-lift:active { transform: translateY(-1px); }
+
+/* Motif géométrique (étoile à 8 branches) — filigrane identitaire */
+.pattern-stars {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%230d6b62' stroke-width='1.1'%3E%3Crect x='16' y='16' width='40' height='40'/%3E%3Crect x='16' y='16' width='40' height='40' transform='rotate(45 36 36)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 72px 72px;
+  opacity: 0.07;
+}
+:root[data-theme='dark'] .pattern-stars {
+  filter: invert(1) brightness(2);
+  opacity: 0.06;
 }
 
-@media (max-width: 768px) {
-  .page { padding: var(--space-6) var(--space-4) var(--space-7); }
+/* Pastilles d'état — remplace les badges recopiés dans chaque page */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.badge-success { background: var(--brand-success-soft); color: var(--brand-success); }
+.badge-danger  { background: var(--brand-danger-soft);  color: var(--brand-danger); }
+.badge-warn    { background: var(--brand-warn-soft);    color: var(--brand-warn); }
+.badge-info    { background: var(--brand-info-soft);    color: var(--brand-info); }
+.badge-brand   { background: var(--brand-primary-100);  color: var(--brand-primary-dark); }
+.badge-neutral { background: var(--brand-surface-2);    color: var(--brand-text-soft); }
+
+/* Bandeaux de formulaire — mêmes styles partout (auth, réglages, création) */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  margin-bottom: var(--space-4);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.banner mat-icon { flex: 0 0 auto; font-size: 20px; width: 20px; height: 20px; }
+.banner-success {
+  background: var(--brand-success-soft);
+  color: var(--brand-success);
+  border-color: color-mix(in oklab, var(--brand-success) 24%, transparent);
+}
+.banner-error {
+  background: var(--brand-danger-soft);
+  color: var(--brand-danger);
+  border-color: color-mix(in oklab, var(--brand-danger) 24%, transparent);
+}
+.banner-info {
+  background: var(--brand-info-soft);
+  color: var(--brand-info);
+  border-color: color-mix(in oklab, var(--brand-info) 24%, transparent);
 }
 
-/* ===== RTL (arabe) ===== */
-html[dir='rtl'] body { letter-spacing: 0; }
+/* Champ pleine largeur + bouton de soumission : répétés dans tous les formulaires */
+.field-full { width: 100%; }
+.submit-btn { width: 100%; height: 50px; font-size: 1rem !important; margin-top: var(--space-2); }
 
-/* ===== T-137 : Accessibilité WCAG 2.1 AA ===== */
+/* ============================================================
+   10. États de chargement — squelettes
+   ============================================================ */
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: var(--brand-surface-2);
+  border-radius: var(--radius-xs);
+}
+.skeleton-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--brand-surface) 70%, transparent),
+    transparent
+  );
+  animation: skeleton-sweep 1.5s infinite;
+}
+@keyframes skeleton-sweep {
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+   11. Mouvement
+   ============================================================ */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+.anim-fade-up { animation: fade-up 0.6s var(--ease-out) both; }
+
+/* Apparition au défilement — l'élément est masqué puis révélé par
+   la directive appReveal (IntersectionObserver). */
+.reveal { opacity: 0; transform: translateY(22px); }
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+}
+
+/* Transitions de vue entre routes */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) { animation: vt-out 0.18s var(--ease-out) both; }
+  ::view-transition-new(root) { animation: vt-in 0.32s var(--ease-out) both; }
+}
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* ============================================================
+   12. Accessibilité
+   ============================================================ */
 :focus-visible {
   outline: 3px solid var(--brand-primary);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .skip-link {
   position: absolute;
-  top: -40px;
-  left: 0;
+  top: -48px;
+  inset-inline-start: 0;
   background: var(--brand-primary-dark);
-  color: white;
-  padding: 8px 16px;
+  color: var(--brand-bg);
+  padding: 10px 18px;
   z-index: 9999;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
-  border-radius: 0 0 4px 0;
+  border-radius: 0 0 var(--radius-sm) 0;
   transition: top 0.2s;
 }
 .skip-link:focus { top: 0; }
@@ -270,18 +722,34 @@ html[dir='rtl'] body { letter-spacing: 0; }
 
 .text-secondary { color: var(--brand-text-soft); }
 
-a:not([mat-button]):not([mat-flat-button]):not([mat-stroked-button]):not([mat-icon-button]) {
+/* Les liens de texte restent soulignés (repère non chromatique, WCAG 1.4.1). */
+a:not([mat-button]):not([mat-flat-button]):not([mat-stroked-button]):not([mat-icon-button]):not(.no-underline) {
+  color: var(--brand-primary-dark);
   text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--brand-primary) 40%, transparent);
+  text-underline-offset: 3px;
+}
+/*
+  Opt-out : liens qui ne sont pas du texte courant — carte entièrement
+  cliquable, entrée de navigation, marque. Le soulignement s'y lirait comme
+  un artefact. `none` est hérité par les descendants du lien.
+*/
+.no-underline,
+.no-underline:hover {
+  text-decoration: none;
 }
 
-[disabled], [aria-disabled="true"] { cursor: not-allowed; }
+[disabled], [aria-disabled='true'] { cursor: not-allowed; }
 
-/* ===== Animations d'entrée (sobres, opt-in via classe) ===== */
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
+/* ============================================================
+   13. Adaptations
+   ============================================================ */
+@media (max-width: 768px) {
+  .page { padding: var(--space-6) var(--space-4) var(--space-8); }
+  .filters-row { padding: var(--space-2); }
 }
-.anim-fade-up { animation: fade-up 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+html[dir='rtl'] body { letter-spacing: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -290,10 +758,18 @@ a:not([mat-button]):not([mat-flat-button]):not([mat-stroked-button]):not([mat-ic
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .reveal { opacity: 1; transform: none; }
 }
 
 @media (forced-colors: active) {
-  mat-toolbar, .hero, .stats-section, .cta-section {
+  mat-toolbar, .hero, .stats-section, .cta-section, .surface, mat-card {
     border: 1px solid ButtonText;
   }
+  body::before, .pattern-stars { display: none; }
+}
+
+@media print {
+  .nav-root, .skip-link, .mat-mdc-paginator, .filters-row { display: none !important; }
+  body::before { display: none; }
+  .page { padding: 0; }
 }

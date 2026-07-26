@@ -327,8 +327,8 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     .date { font-size: 0.8rem; color: var(--brand-text-faint); }
     .role-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .member-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
-    .badge { background: var(--brand-danger); color: white; border-radius: 10px; padding: 1px 7px;
-      font-size: 11px; margin-left: 6px; }
+    .badge { background: var(--brand-danger); color: var(--brand-surface); border-radius: 10px; padding: 1px 7px;
+      font-size: 11px; margin-inline-start: 6px; font-weight: 700; }
     .role-admin { --mdc-chip-label-text-color: var(--brand-primary-dark); background: var(--brand-primary-100); }
     .role-member { --mdc-chip-label-text-color: var(--brand-success); background: var(--brand-success-soft); }
     .role-accountant { --mdc-chip-label-text-color: var(--brand-warn); background: var(--brand-accent-soft); }

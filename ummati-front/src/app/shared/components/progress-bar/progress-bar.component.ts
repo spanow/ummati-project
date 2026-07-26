@@ -26,13 +26,15 @@ import { CommonModule } from '@angular/common';
   styles: [`
     .progress-wrapper { display: flex; align-items: center; gap: 10px; }
     .progress-label { font-size: 0.85rem; color: var(--brand-text-soft); white-space: nowrap; }
-    .progress-track { flex: 1; height: 8px; background: var(--brand-border); border-radius: 4px; overflow: hidden; }
+    .progress-track { flex: 1; height: 8px; background: var(--brand-surface-3); border-radius: 4px; overflow: hidden; }
     .progress-fill {
-      height: 100%; border-radius: 4px; transition: width 0.3s ease;
-      background: linear-gradient(90deg, var(--brand-primary), var(--brand-primary-light));
+      height: 100%; border-radius: 4px; transition: width 0.3s var(--ease-out);
+      background: var(--brand-gradient);
     }
-    .progress-fill.warning { background: linear-gradient(90deg, var(--brand-accent), #ff5722); }
-    .progress-fill.danger { background: linear-gradient(90deg, #f44336, #d32f2f); }
+    .progress-fill.warning { background: var(--brand-gradient-warm); }
+    .progress-fill.danger {
+      background: linear-gradient(90deg, var(--brand-danger), color-mix(in oklab, var(--brand-danger) 70%, black));
+    }
     .progress-value { font-size: 0.8rem; color: var(--brand-text-soft); white-space: nowrap; }
   `]
 })

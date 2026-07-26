@@ -1,7 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,75 +9,103 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { AuthShellComponent } from '../../../shared/components/auth-shell/auth-shell.component';
+
+/** Règles de mot de passe — doivent rester alignées sur le validateur du formulaire. */
+const PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] = [
+  { label: '8 caractères minimum', test: v => v.length >= 8 },
+  { label: 'Une majuscule et une minuscule', test: v => /[a-z]/.test(v) && /[A-Z]/.test(v) },
+  { label: 'Un chiffre', test: v => /\d/.test(v) },
+  { label: 'Un caractère spécial', test: v => /[@$!%*?&#]/.test(v) },
+];
 
 @Component({
   selector: 'app-register',
   standalone: true,
   imports: [
-    ReactiveFormsModule, RouterLink,
-    MatCardModule, MatFormFieldModule, MatInputModule,
-    MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe,
+    ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule,
+    MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe, AuthShellComponent,
   ],
   template: `
-    <div class="auth-container">
-      <mat-card class="auth-card">
-        <mat-card-header>
-          <mat-card-title>{{ 'Inscription' | t }}</mat-card-title>
-          <mat-card-subtitle>{{ 'Rejoignez la communauté Ummati' | t }}</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          @if (successMessage()) {
-            <div class="success-banner">{{ successMessage() }}</div>
+    <app-auth-shell title="Créer un compte" subtitle="Quelques secondes, et vous pouvez déjà vous inscrire à une mission.">
+      @if (successMessage()) {
+        <div class="banner banner-success" role="status">
+          <mat-icon>mark_email_read</mat-icon>
+          <span>{{ successMessage() }}</span>
+        </div>
+      }
+      @if (errorMessage()) {
+        <div class="banner banner-error" role="alert">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="name-row">
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'Prénom' | t }}</mat-label>
+            <input matInput formControlName="firstName" autocomplete="given-name" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'Nom' | t }}</mat-label>
+            <input matInput formControlName="lastName" autocomplete="family-name" />
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>{{ 'Email' | t }}</mat-label>
+          <input matInput formControlName="email" type="email" autocomplete="email" />
+          <mat-icon matSuffix>mail</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field-full" subscriptSizing="dynamic">
+          <mat-label>{{ 'Mot de passe' | t }}</mat-label>
+          <input matInput formControlName="password" autocomplete="new-password"
+                 [type]="hidePassword() ? 'password' : 'text'" />
+          <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())"
+                  [attr.aria-label]="(hidePassword() ? 'Afficher le mot de passe' : 'Masquer le mot de passe') | t">
+            <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <!-- Critères cochés en direct : plus utile qu'un simple message d'erreur après coup -->
+        <ul class="pwd-rules" aria-live="polite">
+          @for (rule of ruleStates(); track rule.label) {
+            <li [class.ok]="rule.ok">
+              <mat-icon>{{ rule.ok ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              {{ rule.label | t }}
+            </li>
           }
-          @if (errorMessage()) {
-            <div class="error-banner">{{ errorMessage() }}</div>
-          }
-          <form [formGroup]="form" (ngSubmit)="onSubmit()">
-            <div class="name-row">
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'Prénom' | t }}</mat-label>
-                <input matInput formControlName="firstName" />
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'Nom' | t }}</mat-label>
-                <input matInput formControlName="lastName" />
-              </mat-form-field>
-            </div>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>{{ 'Email' | t }}</mat-label>
-              <input matInput formControlName="email" type="email" />
-              <mat-icon matSuffix>email</mat-icon>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>{{ 'Mot de passe' | t }}</mat-label>
-              <input matInput formControlName="password" [type]="hidePassword() ? 'password' : 'text'" />
-              <mat-hint>{{ 'Min. 8 caractères, 1 majuscule, 1 chiffre, 1 spécial' | t }}</mat-hint>
-              <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())">
-                <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-            </mat-form-field>
-            <button mat-flat-button color="primary" type="submit" class="full-width submit-btn"
-                    [disabled]="loading()">
-              @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Créer mon compte' | t }} }
-            </button>
-          </form>
-        </mat-card-content>
-        <mat-card-actions align="end">
-          <span>{{ 'Déjà inscrit ?' | t }} <a routerLink="/login">{{ 'Se connecter' | t }}</a></span>
-        </mat-card-actions>
-      </mat-card>
-    </div>
+        </ul>
+
+        <button mat-flat-button type="submit" class="submit-btn" [disabled]="loading()">
+          @if (loading()) { <mat-spinner diameter="20" /> } @else { {{ 'Créer mon compte' | t }} }
+        </button>
+      </form>
+
+      <ng-container footer>
+        {{ 'Déjà inscrit ?' | t }}
+        <a routerLink="/login">{{ 'Se connecter' | t }}</a>
+      </ng-container>
+    </app-auth-shell>
   `,
   styles: [`
-    .auth-container { display: flex; justify-content: center; align-items: flex-start; padding: 56px 16px; }
-    .auth-card { max-width: 480px; width: 100%; }
-    .full-width { width: 100%; }
-    .name-row { display: flex; gap: 16px; }
+    .name-row { display: flex; gap: var(--space-4); }
     .name-row mat-form-field { flex: 1; }
-    .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; border-radius: var(--radius-md); }
-    .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
-    .success-banner { background: var(--brand-success-soft); color: var(--brand-success); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
-    mat-card-actions span { font-size: 14px; }
+
+    .pwd-rules {
+      list-style: none; margin: var(--space-3) 0 var(--space-5); padding: 0;
+      display: grid; gap: 6px;
+    }
+    .pwd-rules li {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.84rem; color: var(--brand-text-faint);
+      transition: color 0.2s var(--ease-out);
+    }
+    .pwd-rules li.ok { color: var(--brand-success); }
+    .pwd-rules mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
     @media (max-width: 480px) { .name-row { flex-direction: column; gap: 0; } }
   `],
 })
@@ -88,6 +116,11 @@ export class RegisterComponent {
   successMessage = signal('');
   hidePassword = signal(true);
 
+  /** Valeur courante du champ mot de passe, exposée en signal. */
+  private passwordValue;
+  /** État de chaque critère, recalculé à la frappe. */
+  ruleStates;
+
   constructor(private fb: FormBuilder, private authService: AuthService, private router: Router) {
     this.form = this.fb.group({
       firstName: ['', Validators.required],
@@ -95,6 +128,12 @@ export class RegisterComponent {
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8),
         Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/)]],
+    });
+
+    this.passwordValue = toSignal(this.form.controls['password'].valueChanges, { initialValue: '' });
+    this.ruleStates = computed(() => {
+      const v = this.passwordValue() ?? '';
+      return PASSWORD_RULES.map(r => ({ label: r.label, ok: r.test(v) }));
     });
   }
 
