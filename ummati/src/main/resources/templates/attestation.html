@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <title>Attestation de bénévolat</title>
+  <style>
+    @page { size: A4; margin: 2.2cm 2cm; }
+    body { font-family: sans-serif; color: #222; font-size: 12px; line-height: 1.55; }
+    .header { text-align: center; border-bottom: 2px solid #2e7d5b; padding-bottom: 14px; margin-bottom: 24px; }
+    .header h1 { font-size: 22px; margin: 0 0 4px; color: #2e7d5b; }
+    .header .subtitle { font-size: 11px; color: #777; margin: 0; }
+    .intro { margin: 0 0 18px; }
+    .highlight { background: #f2f8f5; border: 1px solid #cfe6da; border-radius: 6px; padding: 12px 16px; margin: 0 0 22px; }
+    .highlight .total { font-size: 16px; font-weight: bold; color: #2e7d5b; }
+    table { width: 100%; border-collapse: collapse; margin: 0 0 22px; }
+    th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #e3e3e3; font-size: 11px; vertical-align: top; }
+    th { background: #f6f6f6; text-transform: uppercase; font-size: 10px; letter-spacing: 0.4px; color: #555; }
+    td.num, th.num { text-align: right; white-space: nowrap; }
+    .section-title { font-size: 13px; font-weight: bold; margin: 0 0 8px; color: #333; }
+    .empty { font-style: italic; color: #888; padding: 16px 0; }
+    .signature { margin-top: 34px; font-size: 11px; color: #444; }
+    .legal { margin-top: 20px; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Attestation de bénévolat</h1>
+    <p class="subtitle">Délivrée via la plateforme Ummati</p>
+  </div>
+
+  <p class="intro">
+    Nous attestons que <strong th:text="${volunteerName}">Prénom Nom</strong>
+    a réalisé des missions de bénévolat pour
+    <span th:text="${scopeLabel}">l'organisation</span>.
+  </p>
+
+  <div class="highlight">
+    <span class="total" th:text="${totalHours}">0 h</span>
+    de bénévolat validées sur
+    <span th:text="${missionCount}">0</span> mission<span th:text="${missionCount > 1 ? 's' : ''}"></span>.
+  </div>
+
+  <div th:if="${missionCount > 0}">
+    <div class="section-title">Détail des missions</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Mission</th>
+          <th>Organisation</th>
+          <th class="num">Heures</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="line : ${lines}">
+          <td th:text="${line.date}">01 janvier 2026</td>
+          <td th:text="${line.title}">Maraude</td>
+          <td th:text="${line.orgName}">Organisation</td>
+          <td class="num" th:text="${line.hours}">3 h</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div th:if="${!singleOrg and orgTotals.size() > 1}">
+      <div class="section-title">Récapitulatif par organisation</div>
+      <table>
+        <tbody>
+          <tr th:each="ot : ${orgTotals}">
+            <td th:text="${ot.orgName}">Organisation</td>
+            <td class="num" th:text="${ot.hours}">10 h</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div th:unless="${missionCount > 0}" class="empty">
+    Aucune présence validée à ce jour.
+  </div>
+
+  <div class="signature">
+    Fait le <span th:text="${emittedAt}">1 janvier 2026</span>.
+  </div>
+
+  <p class="legal">
+    Les heures indiquées correspondent aux présences validées par les organisations sur la plateforme Ummati.
+    Ce document est généré automatiquement à la demande du bénévole et fourni à titre informatif.
+  </p>
+</body>
+</html>

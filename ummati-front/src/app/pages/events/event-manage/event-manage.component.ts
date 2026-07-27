@@ -11,12 +11,13 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { EventService, EventPhoto, EventSummary, SignupResponse } from '../../../core/services/event.service';
+import { EventService, EventPhoto, EventSummary, ReliabilityResponse, SignupResponse }
+  from '../../../core/services/event.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { ImageService } from '../../../core/services/image.service';
 import { ConfirmDialogComponent, ConfirmDialogData, ConfirmDialogResult }
@@ -24,6 +25,7 @@ import { ConfirmDialogComponent, ConfirmDialogData, ConfirmDialogResult }
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-event-manage',
@@ -31,7 +33,7 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
-    RouterLink, DatePipe, FormsModule, TPipe, OrgDocumentsComponent],
+    RouterLink, DatePipe, DecimalPipe, FormsModule, TPipe, OrgDocumentsComponent],
   template: `
     <div class="page">
       <header class="page-header">
@@ -150,8 +152,11 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                     <mat-icon>download</mat-icon> {{ 'Export CSV' | t }}
                   </button>
                   @if (selectedEvent()!.status !== 'DRAFT') {
-                    <button mat-flat-button (click)="markSelectedAttended()" [disabled]="selectedUserIds.length === 0">
+                    <button mat-flat-button (click)="markSelectedAttended()" [disabled]="selectedSignupIds.size === 0">
                       <mat-icon>check_circle</mat-icon> {{ 'Marquer présents' | t }}
+                    </button>
+                    <button mat-stroked-button (click)="markSelectedNoShow()" [disabled]="selectedSignupIds.size === 0">
+                      <mat-icon>person_off</mat-icon> {{ 'Marquer absents' | t }}
                     </button>
                   }
                 </div>
@@ -164,19 +169,41 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                     <tr>
                       <th><input type="checkbox" (change)="toggleAll($event)" /></th>
                       <th>{{ 'Nom' | t }}</th>
-                      <th>{{ 'Email' | t }}</th>
+                      <th>{{ 'Créneau' | t }}</th>
                       <th>{{ 'Statut' | t }}</th>
+                      <th>{{ 'Heures' | t }}</th>
                       <th>{{ 'Inscrit le' | t }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     @for (s of signups(); track s.id) {
                       <tr>
-                        <td><input type="checkbox" [checked]="selectedUserIds.includes(s.userId)"
-                                   (change)="toggleUser(s.userId)" /></td>
-                        <td>{{ s.userFirstName }} {{ s.userLastName }}</td>
-                        <td>{{ s.userEmail }}</td>
+                        <td><input type="checkbox" [checked]="isSelected(s.id)"
+                                   (change)="toggleSignup(s.id)" /></td>
+                        <td>
+                          <div class="name">{{ s.userFirstName }} {{ s.userLastName }}</div>
+                          <div class="email">{{ s.userEmail }}</div>
+                          @if (reliability()[s.userId]?.reliabilityRate != null) {
+                            <span class="rel-badge" [class.rel-low]="reliability()[s.userId]!.reliabilityRate! < 0.7">
+                              {{ 'Fiabilité' | t }} {{ (reliability()[s.userId]!.reliabilityRate! * 100) | number:'1.0-0' }}%
+                            </span>
+                          }
+                        </td>
+                        <td>{{ s.occurrenceStartDate ? (s.occurrenceStartDate | date:'d MMM, HH:mm') : '—' }}</td>
                         <td><mat-chip [class]="'signup-' + s.status.toLowerCase()">{{ s.status }}</mat-chip></td>
+                        <td>
+                          @if (s.status === 'ATTENDED') {
+                            <span class="hours-cell">
+                              <input type="number" min="0" step="0.25" [(ngModel)]="s.hoursValidated" class="hours-input" />
+                              <button mat-icon-button class="hours-save" (click)="saveHours(s)"
+                                      [title]="'Enregistrer les heures' | t">
+                                <mat-icon>save</mat-icon>
+                              </button>
+                            </span>
+                          } @else {
+                            <span class="muted">—</span>
+                          }
+                        </td>
                         <td>{{ s.registeredAt | date:'d MMM yyyy' }}</td>
                       </tr>
                     }
@@ -352,9 +379,10 @@ export class EventManageComponent implements OnInit {
   loading = signal(true);
   selectedEvent = signal<EventSummary | null>(null);
   signups = signal<SignupResponse[]>([]);
+  reliability = signal<Record<string, ReliabilityResponse>>({});
   signupsLoading = signal(false);
   signupTotal = signal(0);
-  selectedUserIds: string[] = [];
+  selectedSignupIds = new Set<string>();
   cancelReason = '';
   announcements = signal<AnnouncementResponse[]>([]);
   newAnnContent = '';
@@ -575,32 +603,90 @@ export class EventManageComponent implements OnInit {
         this.signups.set(res.data.content);
         this.signupTotal.set(res.data.totalElements);
         this.signupsLoading.set(false);
+        this.reliability.set({});
+        this.loadReliability();
       },
       error: () => this.signupsLoading.set(false),
     });
   }
 
-  onSignupPage(event: PageEvent) { this.loadSignups(event.pageIndex); }
-
-  toggleUser(userId: string) {
-    const idx = this.selectedUserIds.indexOf(userId);
-    if (idx >= 0) this.selectedUserIds.splice(idx, 1);
-    else this.selectedUserIds.push(userId);
-  }
-
-  toggleAll(event: any) {
-    if (event.target.checked) {
-      this.selectedUserIds = this.signups().map(s => s.userId);
-    } else {
-      this.selectedUserIds = [];
+  // Fiabilité chargée par bénévole (dédupliquée) et mise en cache pour la page courante.
+  loadReliability() {
+    const ids = Array.from(new Set(this.signups().map(s => s.userId)));
+    for (const uid of ids) {
+      this.eventService.getReliability(this.orgId, uid).subscribe({
+        next: res => this.reliability.update(m => ({ ...m, [uid]: res.data })),
+        error: () => {},
+      });
     }
   }
 
+  onSignupPage(event: PageEvent) { this.loadSignups(event.pageIndex); }
+
+  isSelected(signupId: string) { return this.selectedSignupIds.has(signupId); }
+
+  toggleSignup(signupId: string) {
+    if (this.selectedSignupIds.has(signupId)) this.selectedSignupIds.delete(signupId);
+    else this.selectedSignupIds.add(signupId);
+  }
+
+  toggleAll(event: any) {
+    this.selectedSignupIds = event.target.checked
+      ? new Set(this.signups().map(s => s.id))
+      : new Set();
+  }
+
   markSelectedAttended() {
-    this.eventService.markAttendance(this.selectedEvent()!.id, this.selectedUserIds).subscribe({
+    const selected = this.signups().filter(s => this.selectedSignupIds.has(s.id));
+    // Présence marquée au niveau créneau : on regroupe les inscriptions sélectionnées par occurrence.
+    const byOccurrence = new Map<string, string[]>();
+    for (const s of selected) {
+      if (!s.occurrenceId) continue;
+      const arr = byOccurrence.get(s.occurrenceId) ?? [];
+      arr.push(s.userId);
+      byOccurrence.set(s.occurrenceId, arr);
+    }
+    const eventId = this.selectedEvent()!.id;
+    const calls = Array.from(byOccurrence.entries())
+      .map(([occId, userIds]) => this.eventService.markOccurrenceAttendance(eventId, occId, userIds));
+    if (calls.length === 0) return;
+
+    forkJoin(calls).subscribe({
       next: () => {
         this.snackBar.open('Présences marquées', 'OK', { duration: 3000 });
-        this.selectedUserIds = [];
+        this.selectedSignupIds.clear();
+        this.loadSignups(0);
+      },
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  saveHours(s: SignupResponse) {
+    if (!s.occurrenceId || s.hoursValidated == null) return;
+    this.eventService.adjustHours(this.selectedEvent()!.id, s.occurrenceId, s.id, s.hoursValidated).subscribe({
+      next: () => this.snackBar.open('Heures mises à jour', 'OK', { duration: 2000 }),
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  markSelectedNoShow() {
+    const selected = this.signups().filter(s => this.selectedSignupIds.has(s.id));
+    const byOccurrence = new Map<string, string[]>();
+    for (const s of selected) {
+      if (!s.occurrenceId) continue;
+      const arr = byOccurrence.get(s.occurrenceId) ?? [];
+      arr.push(s.userId);
+      byOccurrence.set(s.occurrenceId, arr);
+    }
+    const eventId = this.selectedEvent()!.id;
+    const calls = Array.from(byOccurrence.entries())
+      .map(([occId, userIds]) => this.eventService.markNoShow(eventId, occId, userIds));
+    if (calls.length === 0) return;
+
+    forkJoin(calls).subscribe({
+      next: () => {
+        this.snackBar.open('Absences enregistrées', 'OK', { duration: 3000 });
+        this.selectedSignupIds.clear();
         this.loadSignups(0);
       },
       error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),

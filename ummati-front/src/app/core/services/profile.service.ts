@@ -80,5 +80,11 @@ export class ProfileService {
     return this.http.get<ApiResponse<VolunteerPassport>>(
       `${environment.apiUrl}/public/volunteers/${userId}`);
   }
+
+  /** Attestation de bénévolat (PDF). orgId optionnel = attestation pour une seule organisation. */
+  downloadAttestation(orgId?: string): Observable<Blob> {
+    const url = orgId ? `${this.apiUrl}/attestation/organizations/${orgId}` : `${this.apiUrl}/attestation`;
+    return this.http.get(url, { responseType: 'blob' });
+  }
 }
 

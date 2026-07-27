@@ -356,9 +356,11 @@ public class ProfileService {
     /**
      * Total des heures de bénévolat, arrondi à la demi-heure.
      *
-     * <p>Priorité aux heures validées par l'ONG ({@code hours_validated}) : ce sont les
-     * seules qui font foi pour une attestation. À défaut, on retombe sur la durée du
-     * créneau réservé, sinon sur celle de l'enveloppe événement.
+     * <p>Priorité aux heures certifiées par l'ONG ({@code hours_validated}) : ce sont les
+     * seules qui font foi pour une attestation. Depuis la validation de présence, elles
+     * sont systématiquement renseignées ; le repli sur la durée du créneau ne sert donc
+     * qu'aux présences enregistrées avant cette bascule, qui seraient sinon comptées à
+     * zéro heure.
      */
     private double computeVolunteerHours(UUID userId) {
         double totalMinutes = 0;

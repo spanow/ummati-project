@@ -32,7 +32,7 @@ public class MembershipController {
             @Valid @RequestBody(required = false) MembershipRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(membershipService.requestMembership(userId, orgId,
-                        request != null ? request : new MembershipRequest(null))));
+                        request != null ? request : new MembershipRequest(null, null))));
     }
 
     @GetMapping("/organizations/{orgId}/memberships/me")

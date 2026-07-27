@@ -57,6 +57,7 @@ export interface SignupResponse {
   userId: string;
   userFirstName: string; userLastName: string; userEmail: string;
   status: string; registeredAt: string; attendedAt: string | null;
+  hoursValidated: number | null;
 }
 
 export interface FeedbackResponse {
@@ -68,6 +69,14 @@ export interface FeedbackResponse {
 export interface FeedbackListResponse {
   feedbacks: PageResponse<FeedbackResponse>;
   averageRating: number | null;
+}
+
+export interface ReliabilityResponse {
+  userId: string;
+  attendedCount: number;
+  noShowCount: number;
+  lateCancelCount: number;
+  reliabilityRate: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -194,6 +203,24 @@ export class EventService {
   changeOccurrenceStatus(eventId: string, occurrenceId: string, data: { status: string; reason?: string }): Observable<ApiResponse<EventDetail>> {
     return this.http.patch<ApiResponse<EventDetail>>(
       `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/status`, data);
+  }
+
+  // Ajuste les heures certifiées d'une présence (admin ONG).
+  adjustHours(eventId: string, occurrenceId: string, signupId: string, hours: number): Observable<ApiResponse<SignupResponse>> {
+    return this.http.patch<ApiResponse<SignupResponse>>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups/${signupId}/hours`, { hours });
+  }
+
+  // Marque des inscrits absents (admin ONG) — REGISTERED → NO_SHOW.
+  markNoShow(eventId: string, occurrenceId: string, userIds: string[]): Observable<void> {
+    return this.http.patch<void>(
+      `${this.apiUrl}/events/${eventId}/occurrences/${occurrenceId}/signups/no-show`, { userIds });
+  }
+
+  // Fiabilité d'un bénévole (admin ONG).
+  getReliability(orgId: string, userId: string): Observable<ApiResponse<ReliabilityResponse>> {
+    return this.http.get<ApiResponse<ReliabilityResponse>>(
+      `${this.apiUrl}/organizations/${orgId}/members/${userId}/reliability`);
   }
 }
 

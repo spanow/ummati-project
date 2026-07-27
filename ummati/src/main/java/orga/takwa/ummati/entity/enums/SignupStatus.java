@@ -4,6 +4,7 @@ public enum SignupStatus {
     REGISTERED,
     WAITLISTED,
     CANCELLED,
-    ATTENDED
+    ATTENDED,
+    NO_SHOW
 }
 

@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -466,11 +469,17 @@ public class EventService {
         EventSignup signup = eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inscription non trouvée"));
 
-        if (signup.getStatus() == SignupStatus.CANCELLED || signup.getStatus() == SignupStatus.ATTENDED) {
+        if (signup.getStatus() == SignupStatus.CANCELLED || signup.getStatus() == SignupStatus.ATTENDED
+                || signup.getStatus() == SignupStatus.NO_SHOW) {
             throw new BusinessRuleException("Impossible d'annuler cette inscription");
         }
 
         boolean wasRegistered = signup.getStatus() == SignupStatus.REGISTERED;
+        // Annulation tardive : moins de 24h avant le début du créneau (impacte la fiabilité).
+        if (wasRegistered && occ.getStartDate() != null
+                && LocalDateTime.now().isAfter(occ.getStartDate().minusHours(24))) {
+            signup.setLateCancel(true);
+        }
         signup.setStatus(SignupStatus.CANCELLED);
         signup.setCancelledAt(LocalDateTime.now());
         eventSignupRepository.save(signup);
@@ -571,7 +580,8 @@ public class EventService {
     private void doMarkAttendance(UUID actorUserId, Event event, EventOccurrence occ, AttendanceRequest request) {
         for (UUID attendeeId : request.userIds()) {
             eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), attendeeId).ifPresent(signup -> {
-                if (signup.getStatus() != SignupStatus.REGISTERED) {
+                // REGISTERED → ATTENDED ; NO_SHOW → ATTENDED permet à l'ONG de corriger une absence.
+                if (signup.getStatus() != SignupStatus.REGISTERED && signup.getStatus() != SignupStatus.NO_SHOW) {
                     return;
                 }
                 // L'avis se donne une fois par événement, pas une fois par créneau : sur une
@@ -582,6 +592,8 @@ public class EventService {
 
                 signup.setStatus(SignupStatus.ATTENDED);
                 signup.setAttendedAt(LocalDateTime.now());
+                // Heures pré-remplies avec la durée du créneau (l'ONG pourra ajuster ensuite).
+                signup.setHoursValidated(occurrenceDurationHours(occ));
                 eventSignupRepository.save(signup);
 
                 if (firstAttendance) {
@@ -592,6 +604,48 @@ public class EventService {
             });
         }
         auditService.log(actorUserId, "EVENT_ATTENDANCE_MARKED", "EventOccurrence", occ.getId());
+    }
+
+    // Ajustement des heures certifiées d'une présence par l'ONG.
+    @Transactional
+    public SignupResponse adjustSignupHours(UUID adminUserId, UUID eventId, UUID occurrenceId,
+                                            UUID signupId, BigDecimal hours) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(adminUserId, event.getOrganization().getId());
+        requireOccurrenceInEvent(occurrenceId, eventId);
+
+        EventSignup signup = eventSignupRepository.findById(signupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Inscription non trouvée"));
+        if (signup.getOccurrence() == null || !signup.getOccurrence().getId().equals(occurrenceId)) {
+            throw new BusinessRuleException("Cette inscription n'appartient pas à ce créneau");
+        }
+        if (signup.getStatus() != SignupStatus.ATTENDED) {
+            throw new BusinessRuleException("Seule une présence validée peut recevoir des heures");
+        }
+        if (hours == null || hours.signum() < 0 || hours.compareTo(new BigDecimal("999.99")) > 0) {
+            throw new BusinessRuleException("Nombre d'heures invalide (0 à 999,99)");
+        }
+        signup.setHoursValidated(hours.setScale(2, RoundingMode.HALF_UP));
+        eventSignupRepository.save(signup);
+        auditService.log(adminUserId, "EVENT_HOURS_ADJUSTED", "EventSignup", signupId);
+        return toSignupResponse(signup);
+    }
+
+    // Marquage d'absence par l'ONG (jamais automatique) : REGISTERED → NO_SHOW.
+    @Transactional
+    public void markNoShow(UUID adminUserId, UUID eventId, UUID occurrenceId, AttendanceRequest request) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(adminUserId, event.getOrganization().getId());
+        EventOccurrence occ = requireOccurrenceInEvent(occurrenceId, eventId);
+        for (UUID attendeeId : request.userIds()) {
+            eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), attendeeId).ifPresent(signup -> {
+                if (signup.getStatus() == SignupStatus.REGISTERED) {
+                    signup.setStatus(SignupStatus.NO_SHOW);
+                    eventSignupRepository.save(signup);
+                }
+            });
+        }
+        auditService.log(adminUserId, "EVENT_NO_SHOW_MARKED", "EventOccurrence", occurrenceId);
     }
 
     // T-080: Create feedback (au niveau série : avoir participé à au moins un créneau)
@@ -635,6 +689,18 @@ public class EventService {
     @Transactional(readOnly = true)
     public Page<SignupResponse> listUserSignups(UUID userId, Pageable pageable) {
         return eventSignupRepository.findByUserId(userId, pageable).map(this::toSignupResponse);
+    }
+
+    // Fiabilité d'un bénévole — réservée aux admins de l'ONG (donnée de profilage, jamais publique).
+    @Transactional(readOnly = true)
+    public ReliabilityResponse getReliability(UUID callerId, UUID orgId, UUID volunteerId) {
+        organizationService.verifyAdmin(callerId, orgId);
+        long attended = eventSignupRepository.countByUserIdAndStatus(volunteerId, SignupStatus.ATTENDED);
+        long noShow = eventSignupRepository.countByUserIdAndStatus(volunteerId, SignupStatus.NO_SHOW);
+        long lateCancel = eventSignupRepository.countByUserIdAndLateCancelTrue(volunteerId);
+        long denom = attended + noShow + lateCancel;
+        Double rate = denom == 0 ? null : Math.round((double) attended / denom * 100.0) / 100.0;
+        return new ReliabilityResponse(volunteerId, attended, noShow, lateCancel, rate);
     }
 
     // --- Génération des créneaux ---
@@ -809,6 +875,14 @@ public class EventService {
         return occ;
     }
 
+    // Durée d'un créneau en heures (2 décimales) — sert de valeur par défaut aux heures validées.
+    private BigDecimal occurrenceDurationHours(EventOccurrence occ) {
+        if (occ.getStartDate() == null || occ.getEndDate() == null) return BigDecimal.ZERO;
+        long minutes = Duration.between(occ.getStartDate(), occ.getEndDate()).toMinutes();
+        if (minutes <= 0) return BigDecimal.ZERO;
+        return BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+    }
+
     private void validateDates(LocalDateTime startDate, LocalDateTime endDate, LocalDateTime deadline) {
         if (startDate.isBefore(LocalDateTime.now())) {
             throw new BusinessRuleException("La date de début doit être dans le futur");
@@ -923,7 +997,8 @@ public class EventService {
                 occ != null ? occ.getStartDate() : null,
                 occ != null ? occ.getEndDate() : null,
                 user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(),
-                signup.getStatus().name(), signup.getRegisteredAt(), signup.getAttendedAt());
+                signup.getStatus().name(), signup.getRegisteredAt(), signup.getAttendedAt(),
+                signup.getHoursValidated());
     }
 
     private FeedbackResponse toFeedbackResponse(EventFeedback feedback) {

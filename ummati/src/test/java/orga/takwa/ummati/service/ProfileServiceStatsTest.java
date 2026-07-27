@@ -1,8 +1,6 @@
 package orga.takwa.ummati.service;
 
 import orga.takwa.ummati.dto.profile.ProfileResponse;
-import orga.takwa.ummati.entity.Event;
-import orga.takwa.ummati.entity.EventSignup;
 import orga.takwa.ummati.entity.User;
 import orga.takwa.ummati.entity.enums.MembershipStatus;
 import orga.takwa.ummati.entity.enums.SignupStatus;
@@ -18,8 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,11 +52,10 @@ class ProfileServiceStatsTest {
     }
 
     @Test
-    void getProfile_shouldSumAttendedEventDurations_asVolunteerHours() {
+    void getProfile_shouldExposeStoredValidatedHours() {
         when(eventSignupRepository.countByUserIdAndStatus(userId, SignupStatus.ATTENDED)).thenReturn(2L);
-        // 2h + 1h30 = 3.5 heures
-        when(eventSignupRepository.findAttendedWithEventByUserId(userId)).thenReturn(List.of(
-                signupWithDuration(120), signupWithDuration(90)));
+        // Heures certifiées et stockées (jamais recalculées depuis les dates).
+        when(eventSignupRepository.sumValidatedHoursByUserId(userId)).thenReturn(new BigDecimal("3.50"));
 
         ProfileResponse profile = profileService.getProfile(userId);
 
@@ -69,36 +65,12 @@ class ProfileServiceStatsTest {
     }
 
     @Test
-    void getProfile_shouldReturnZeroHours_whenNoAttendedEvents() {
+    void getProfile_shouldReturnZeroHours_whenNoValidatedHours() {
         when(eventSignupRepository.countByUserIdAndStatus(userId, SignupStatus.ATTENDED)).thenReturn(0L);
-        when(eventSignupRepository.findAttendedWithEventByUserId(userId)).thenReturn(List.of());
+        when(eventSignupRepository.sumValidatedHoursByUserId(userId)).thenReturn(null);
 
         ProfileResponse profile = profileService.getProfile(userId);
 
         assertThat(profile.stats().volunteerHours()).isZero();
-    }
-
-    @Test
-    void getProfile_shouldIgnoreEventsWithMissingDates() {
-        when(eventSignupRepository.countByUserIdAndStatus(userId, SignupStatus.ATTENDED)).thenReturn(2L);
-        EventSignup noDates = new EventSignup();
-        noDates.setEvent(new Event());
-        when(eventSignupRepository.findAttendedWithEventByUserId(userId)).thenReturn(List.of(
-                signupWithDuration(60), noDates));
-
-        ProfileResponse profile = profileService.getProfile(userId);
-
-        assertThat(profile.stats().volunteerHours()).isEqualTo(1.0);
-    }
-
-    private EventSignup signupWithDuration(int minutes) {
-        Event event = new Event();
-        LocalDateTime start = LocalDateTime.of(2026, 6, 1, 9, 0);
-        event.setStartDate(start);
-        event.setEndDate(start.plusMinutes(minutes));
-        EventSignup signup = new EventSignup();
-        signup.setEvent(event);
-        signup.setStatus(SignupStatus.ATTENDED);
-        return signup;
     }
 }

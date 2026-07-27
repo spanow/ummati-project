@@ -3,6 +3,7 @@ package orga.takwa.ummati.entity;
 import jakarta.persistence.*;
 import orga.takwa.ummati.entity.enums.SignupStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -42,11 +43,16 @@ public class EventSignup {
     private LocalDateTime attendedAt;
 
     /**
-     * Heures de bénévolat validées par l'ONG (colonne V15). Quand elle est nulle,
-     * le passeport retombe sur la durée du créneau — cf. PassportService.
+     * Heures de bénévolat certifiées par l'ONG (défaut = durée du créneau, ajustable),
+     * puis figées. Tant qu'elle est nulle, le passeport bénévole retombe sur la durée
+     * du créneau — cf. ProfileService.computeVolunteerHours.
      */
     @Column(name = "hours_validated", precision = 5, scale = 2)
-    private java.math.BigDecimal hoursValidated;
+    private BigDecimal hoursValidated;
+
+    // Annulation tardive (< 24h avant le début du créneau) — alimente le score de fiabilité.
+    @Column(name = "late_cancel", nullable = false)
+    private boolean lateCancel = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -81,8 +87,11 @@ public class EventSignup {
     public LocalDateTime getAttendedAt() { return attendedAt; }
     public void setAttendedAt(LocalDateTime attendedAt) { this.attendedAt = attendedAt; }
 
-    public java.math.BigDecimal getHoursValidated() { return hoursValidated; }
-    public void setHoursValidated(java.math.BigDecimal hoursValidated) { this.hoursValidated = hoursValidated; }
+    public BigDecimal getHoursValidated() { return hoursValidated; }
+    public void setHoursValidated(BigDecimal hoursValidated) { this.hoursValidated = hoursValidated; }
+
+    public boolean isLateCancel() { return lateCancel; }
+    public void setLateCancel(boolean lateCancel) { this.lateCancel = lateCancel; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

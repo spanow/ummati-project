@@ -35,6 +35,7 @@ class MembershipServiceTest {
     @Mock private NotificationService notificationService;
     @Mock private AuditService auditService;
     @Mock private OrganizationService organizationService;
+    @Mock private MembershipQuestionService membershipQuestionService;
 
     @InjectMocks
     private MembershipService membershipService;
@@ -64,7 +65,7 @@ class MembershipServiceTest {
         activeOrg.setStatus(OrganizationStatus.PENDING);
         when(organizationRepository.findById(orgId)).thenReturn(Optional.of(activeOrg));
 
-        assertThatThrownBy(() -> membershipService.requestMembership(user.getId(), orgId, new MembershipRequest(null)))
+        assertThatThrownBy(() -> membershipService.requestMembership(user.getId(), orgId, new MembershipRequest(null, null)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("n'est pas active");
     }
@@ -78,7 +79,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
                 .thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> membershipService.requestMembership(user.getId(), orgId, new MembershipRequest(null)))
+        assertThatThrownBy(() -> membershipService.requestMembership(user.getId(), orgId, new MembershipRequest(null, null)))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("déjà membre");
     }
@@ -93,7 +94,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
                 .thenReturn(Optional.of(rejected));
 
-        assertThatThrownBy(() -> membershipService.requestMembership(user.getId(), orgId, new MembershipRequest(null)))
+        assertThatThrownBy(() -> membershipService.requestMembership(user.getId(), orgId, new MembershipRequest(null, null)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("pourrez refaire");
     }

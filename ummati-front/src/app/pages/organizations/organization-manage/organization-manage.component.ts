@@ -18,7 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { MembershipService, MembershipResponse } from '../../../core/services/membership.service';
+import { MembershipService, MembershipResponse, MembershipQuestion, MembershipAnswer } from '../../../core/services/membership.service';
 import { OrgAnnouncementService, OrgAnnouncementResponse } from '../../../core/services/org-announcement.service';
 import { OrganizationService, OrganizationDetail } from '../../../core/services/organization.service';
 import { OrgDocumentsComponent } from '../org-documents/org-documents.component';
@@ -76,27 +76,47 @@ import { ImageService } from '../../../core/services/image.service';
           } @else {
             <div class="member-list">
               @for (m of pendingMembers(); track m.id) {
-                <div class="member-row">
-                  <div class="member-avatar">
-                    @if (m.photoUrl) {
-                      <img [src]="m.photoUrl" class="avatar-img" />
-                    } @else {
-                      <div class="avatar-placeholder">{{ m.firstName[0] }}{{ m.lastName[0] }}</div>
-                    }
+                <div class="member-block">
+                  <div class="member-row">
+                    <div class="member-avatar">
+                      @if (m.photoUrl) {
+                        <img [src]="m.photoUrl" class="avatar-img" />
+                      } @else {
+                        <div class="avatar-placeholder">{{ m.firstName[0] }}{{ m.lastName[0] }}</div>
+                      }
+                    </div>
+                    <div class="member-info">
+                      <strong>{{ m.firstName }} {{ m.lastName }}</strong>
+                      <span class="motivation">{{ m.motivation || ('Aucun message de motivation' | t) }}</span>
+                      <span class="date">{{ 'Demande reçue le' | t }} {{ m.createdAt | date:'dd/MM/yyyy' }}</span>
+                    </div>
+                    <div class="member-actions">
+                      <button mat-button (click)="toggleAnswers(m)">
+                        <mat-icon>{{ expandedMember() === m.id ? 'expand_less' : 'quiz' }}</mat-icon>
+                        {{ 'Réponses' | t }}
+                      </button>
+                      <button mat-flat-button color="primary" (click)="approve(m)">
+                        <mat-icon>check</mat-icon> {{ 'Accepter' | t }}
+                      </button>
+                      <button mat-stroked-button (click)="reject(m)">
+                        <mat-icon>close</mat-icon> {{ 'Refuser' | t }}
+                      </button>
+                    </div>
                   </div>
-                  <div class="member-info">
-                    <strong>{{ m.firstName }} {{ m.lastName }}</strong>
-                    <span class="motivation">{{ m.motivation || ('Aucun message de motivation' | t) }}</span>
-                    <span class="date">{{ 'Demande reçue le' | t }} {{ m.createdAt | date:'dd/MM/yyyy' }}</span>
-                  </div>
-                  <div class="member-actions">
-                    <button mat-flat-button color="primary" (click)="approve(m)">
-                      <mat-icon>check</mat-icon> {{ 'Accepter' | t }}
-                    </button>
-                    <button mat-stroked-button (click)="reject(m)">
-                      <mat-icon>close</mat-icon> {{ 'Refuser' | t }}
-                    </button>
-                  </div>
+                  @if (expandedMember() === m.id) {
+                    <div class="answers-panel">
+                      @if (answersByMembership()[m.id]?.length) {
+                        @for (a of answersByMembership()[m.id]; track a.questionId) {
+                          <div class="answer-item">
+                            <span class="a-q">{{ a.questionLabel }}</span>
+                            <span class="a-v">{{ a.value }}</span>
+                          </div>
+                        }
+                      } @else {
+                        <p class="no-answers">{{ 'Aucune réponse au questionnaire.' | t }}</p>
+                      }
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -157,6 +177,70 @@ import { ImageService } from '../../../core/services/image.service';
               }
             </div>
           }
+        </mat-tab>
+
+        <!-- Membership questionnaire tab -->
+        <mat-tab>
+          <ng-template matTabLabel>
+            <mat-icon>quiz</mat-icon>
+            {{ 'Questionnaire' | t }}
+          </ng-template>
+
+          <div class="tab-section">
+            <div class="announce-form">
+              <h3>{{ 'Nouvelle question d\\'adhésion' | t }}</h3>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>{{ 'Question' | t }}</mat-label>
+                <input matInput [(ngModel)]="newQ.label" name="qlabel" maxlength="500"
+                       [placeholder]="'Ex : Pourquoi souhaitez-vous nous rejoindre ?' | t" />
+              </mat-form-field>
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>{{ 'Type' | t }}</mat-label>
+                  <mat-select [(ngModel)]="newQ.type" name="qtype">
+                    <mat-option value="TEXT">{{ 'Texte libre' | t }}</mat-option>
+                    <mat-option value="BOOLEAN">{{ 'Oui / Non' | t }}</mat-option>
+                    <mat-option value="SINGLE_CHOICE">{{ 'Choix unique' | t }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-checkbox [(ngModel)]="newQ.required" name="qreq" class="req-check">{{ 'Obligatoire' | t }}</mat-checkbox>
+              </div>
+              @if (newQ.type === 'SINGLE_CHOICE') {
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>{{ 'Options (une par ligne)' | t }}</mat-label>
+                  <textarea matInput [(ngModel)]="newQ.options" name="qopts" rows="3"></textarea>
+                </mat-form-field>
+              }
+              <button mat-flat-button color="primary" (click)="addQuestion()" [disabled]="!newQ.label.trim()">
+                <mat-icon>add</mat-icon> {{ 'Ajouter la question' | t }}
+              </button>
+            </div>
+
+            @if (questions().length === 0) {
+              <div class="empty-state">
+                <mat-icon>quiz</mat-icon>
+                <p>{{ 'Aucune question — les candidats ne renseignent que la motivation.' | t }}</p>
+              </div>
+            } @else {
+              <div class="q-list">
+                @for (q of questions(); track q.id) {
+                  <div class="q-row">
+                    <div class="q-main">
+                      <strong>{{ q.label }}</strong>
+                      <div class="q-meta">
+                        <mat-chip>{{ qTypeLabel(q.type) | t }}</mat-chip>
+                        @if (q.required) { <span class="q-req">{{ 'Obligatoire' | t }}</span> }
+                        @if (q.options.length) { <span class="q-opts">{{ q.options.join(' · ') }}</span> }
+                      </div>
+                    </div>
+                    <button mat-icon-button color="warn" (click)="deleteQuestion(q)" [title]="'Supprimer' | t">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
         </mat-tab>
 
         <!-- Announcements tab -->
@@ -448,6 +532,21 @@ import { ImageService } from '../../../core/services/image.service';
     .flex-1 { flex: 1; min-width: 140px; }
     .flex-2 { flex: 2; min-width: 180px; }
     .org-edit-form button { align-self: flex-start; margin-top: 8px; }
+    .member-block { display: flex; flex-direction: column; }
+    .answers-panel { background: white; border: 1px solid #f0f0f0; border-top: none;
+      border-radius: 0 0 10px 10px; padding: 10px 20px 14px; margin: -6px 0 0; }
+    .answer-item { display: flex; flex-direction: column; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+    .answer-item:last-child { border-bottom: none; }
+    .a-q { font-size: 0.78rem; color: #888; }
+    .a-v { font-size: 0.9rem; color: #333; }
+    .no-answers { color: #aaa; font-style: italic; margin: 4px 0; font-size: 0.85rem; }
+    .req-check { align-self: center; }
+    .q-list { display: flex; flex-direction: column; gap: 10px; }
+    .q-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 18px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 10px; }
+    .q-main strong { font-size: 0.95rem; }
+    .q-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 0.8rem; color: #888; flex-wrap: wrap; }
+    .q-req { color: #d32f2f; font-weight: 600; }
   `],
 })
 export class OrganizationManageComponent implements OnInit {
@@ -464,6 +563,10 @@ export class OrganizationManageComponent implements OnInit {
   newPinned = false;
   org = signal<OrganizationDetail | null>(null);
   savingInfo = signal(false);
+  questions = signal<MembershipQuestion[]>([]);
+  answersByMembership = signal<Record<string, MembershipAnswer[]>>({});
+  expandedMember = signal<string | null>(null);
+  newQ = { label: '', type: 'TEXT', options: '', required: false };
   domains = ['EDUCATION', 'SANTE', 'ENVIRONNEMENT', 'SOCIAL', 'CULTURE', 'SPORT',
     'HUMANITAIRE', 'DROITS_HUMAINS', 'AIDE_URGENCE', 'AUTRE'];
   editModel: {
@@ -518,6 +621,7 @@ export class OrganizationManageComponent implements OnInit {
           this.orgId = res.data.id;
           this.loadMembers();
           this.loadAnnouncements();
+          this.loadQuestions();
         }
       },
       error: () => {},
@@ -525,6 +629,7 @@ export class OrganizationManageComponent implements OnInit {
     if (this.orgId) {
       this.loadMembers();
       this.loadAnnouncements();
+      this.loadQuestions();
     }
   }
 
@@ -710,5 +815,55 @@ export class OrganizationManageComponent implements OnInit {
 
   roleLabel(role: string): string {
     return { ADMIN: 'Admin', MEMBER: 'Membre', ACCOUNTANT: 'Comptable' }[role] ?? role;
+  }
+
+  // --- Questionnaire d'adhésion ---
+
+  loadQuestions() {
+    this.membershipService.listQuestions(this.orgId).subscribe({
+      next: res => this.questions.set(res.data ?? []),
+      error: () => {},
+    });
+  }
+
+  addQuestion() {
+    const label = this.newQ.label.trim();
+    if (!label) return;
+    const options = this.newQ.type === 'SINGLE_CHOICE'
+      ? this.newQ.options.split('\n').map(s => s.trim()).filter(Boolean)
+      : undefined;
+    this.membershipService.createQuestion(this.orgId, {
+      label, type: this.newQ.type, options, required: this.newQ.required,
+    }).subscribe({
+      next: res => {
+        this.questions.update(list => [...list, res.data]);
+        this.newQ = { label: '', type: 'TEXT', options: '', required: false };
+        this.snackBar.open('Question ajoutée.', '', { duration: 2500 });
+      },
+      error: err => this.snackBar.open(err.error?.message ?? 'Erreur', '', { duration: 4000 }),
+    });
+  }
+
+  deleteQuestion(q: MembershipQuestion) {
+    if (!confirm(`Supprimer la question "${q.label}" ?`)) return;
+    this.membershipService.deleteQuestion(q.id).subscribe({
+      next: () => this.questions.update(list => list.filter(x => x.id !== q.id)),
+      error: err => this.snackBar.open(err.error?.message ?? 'Erreur', '', { duration: 4000 }),
+    });
+  }
+
+  toggleAnswers(m: MembershipResponse) {
+    if (this.expandedMember() === m.id) { this.expandedMember.set(null); return; }
+    this.expandedMember.set(m.id);
+    if (!this.answersByMembership()[m.id]) {
+      this.membershipService.getAnswers(m.id).subscribe({
+        next: res => this.answersByMembership.update(a => ({ ...a, [m.id]: res.data ?? [] })),
+        error: () => {},
+      });
+    }
+  }
+
+  qTypeLabel(type: string): string {
+    return { TEXT: 'Texte libre', BOOLEAN: 'Oui / Non', SINGLE_CHOICE: 'Choix unique' }[type] ?? type;
   }
 }

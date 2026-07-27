@@ -241,6 +241,24 @@ public class EventController {
                 eventService.changeOccurrenceStatus(userId, id, occId, request)));
     }
 
+    // Ajuster les heures certifiées d'une présence (admin ONG)
+    @PatchMapping("/events/{id}/occurrences/{occId}/signups/{signupId}/hours")
+    public ResponseEntity<ApiResponse<SignupResponse>> adjustHours(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId,
+            @PathVariable UUID signupId, @Valid @RequestBody HoursRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                eventService.adjustSignupHours(userId, id, occId, signupId, request.hours())));
+    }
+
+    // Marquer des inscrits absents (admin ONG) — REGISTERED → NO_SHOW
+    @PatchMapping("/events/{id}/occurrences/{occId}/signups/no-show")
+    public ResponseEntity<Void> markNoShow(
+            @CurrentUser UUID userId, @PathVariable UUID id, @PathVariable UUID occId,
+            @Valid @RequestBody AttendanceRequest request) {
+        eventService.markNoShow(userId, id, occId, request);
+        return ResponseEntity.ok().build();
+    }
+
     // T-080: Create feedback
     @PostMapping("/events/{id}/feedbacks")
     public ResponseEntity<ApiResponse<FeedbackResponse>> createFeedback(
