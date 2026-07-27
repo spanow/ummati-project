@@ -19,6 +19,8 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { EventService, EventPhoto, EventSummary, SignupResponse } from '../../../core/services/event.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { ImageService } from '../../../core/services/image.service';
+import { ConfirmDialogComponent, ConfirmDialogData, ConfirmDialogResult }
+  from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
@@ -371,6 +373,7 @@ export class EventManageComponent implements OnInit {
     private announcementService: EventAnnouncementService,
     private imageService: ImageService,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit() {
@@ -386,7 +389,35 @@ export class EventManageComponent implements OnInit {
     });
   }
 
+  /**
+   * Publie la mission. Sans visuel, on propose d'abord d'en ajouter un — rappel
+   * non bloquant : publier reste toujours possible en un clic.
+   */
   publish(event: EventSummary) {
+    if (event.coverUrl) {
+      this.doPublish(event);
+      return;
+    }
+
+    this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        icon: 'image',
+        title: 'Publier sans visuel ?',
+        message: 'Les missions accompagnées d\'une image reçoivent nettement plus d\'inscriptions. '
+          + 'Vous pouvez en ajouter une maintenant, ou publier et le faire plus tard.',
+        confirmLabel: 'Publier quand même',
+        secondaryLabel: 'Ajouter une image',
+      } satisfies ConfirmDialogData,
+    }).afterClosed().subscribe((result: ConfirmDialogResult) => {
+      if (result === 'confirm') {
+        this.doPublish(event);
+      } else if (result === 'secondary') {
+        this.openVisuals(event);
+      }
+    });
+  }
+
+  private doPublish(event: EventSummary) {
     this.eventService.changeStatus(event.id, { status: 'PUBLISH' }).subscribe({
       next: () => { this.snackBar.open('Événement publié !', 'OK', { duration: 3000 }); this.loadEvents(); },
       error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),

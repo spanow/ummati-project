@@ -133,6 +133,10 @@ export class NotificationsComponent implements OnInit {
       MEMBERSHIP_REQUESTED: 'person_add', MEMBERSHIP_ACCEPTED: 'how_to_reg', MEMBERSHIP_REJECTED: 'person_off',
       ONG_SUBMITTED: 'business', ONG_VALIDATED: 'verified', ONG_REJECTED: 'block',
       FEEDBACK_REQUESTED: 'rate_review', WELCOME: 'waving_hand',
+      EVENT_PHOTOS_REQUESTED: 'add_photo_alternate',
+      EVENT_ANNOUNCEMENT: 'campaign', ORG_ANNOUNCEMENT: 'campaign',
+      EVENT_REMINDER_7D: 'schedule', EVENT_REMINDER_1D: 'alarm',
+      EVENT_COMPLETED: 'task_alt', EMAIL_VERIFIED: 'mark_email_read',
     };
     return map[type] || 'notifications';
   }

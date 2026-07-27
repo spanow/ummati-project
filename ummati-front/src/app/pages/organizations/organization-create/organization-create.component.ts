@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatStepperModule } from '@angular/material/stepper';
 import { OrganizationService } from '../../../core/services/organization.service';
+import { ImageService } from '../../../core/services/image.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { GeoResult } from '../../../core/services/geocoding.service';
@@ -30,6 +31,34 @@ import { GeoResult } from '../../../core/services/geocoding.service';
       <mat-card class="form-card">
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
           <h3>{{ 'Informations générales' | t }}</h3>
+
+          <div class="logo-field">
+            <span class="logo-label">{{ 'Logo (optionnel)' | t }}</span>
+            <p class="logo-hint">{{ 'Rend votre association reconnaissable dans les listes et sur vos missions. Une image carrée donne le meilleur rendu.' | t }}</p>
+            <div class="logo-row">
+              <div class="logo-preview" [class.is-empty]="!logoPreview()">
+                @if (logoPreview()) {
+                  <img [src]="logoPreview()" alt="" />
+                } @else {
+                  <mat-icon>apartment</mat-icon>
+                }
+              </div>
+              <div class="logo-actions">
+                <button mat-stroked-button type="button" (click)="logoInput.click()">
+                  <mat-icon>upload</mat-icon>
+                  {{ (logoPreview() ? 'Remplacer' : 'Choisir un logo') | t }}
+                </button>
+                @if (logoPreview()) {
+                  <button mat-button type="button" (click)="clearLogo()">
+                    <mat-icon>close</mat-icon> {{ 'Retirer' | t }}
+                  </button>
+                }
+                <input #logoInput type="file" hidden [accept]="acceptedTypes"
+                       (change)="onLogoSelected($event)" />
+              </div>
+            </div>
+          </div>
+
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>{{ 'Nom de l\\'organisation' | t }}</mat-label>
             <input matInput formControlName="name" />
@@ -108,12 +137,32 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     .map-label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--brand-ink); margin-bottom: 8px; }
     .submit-btn { height: 48px; font-size: 16px; margin-top: 16px; border-radius: var(--radius-md); }
     .error-banner { background: var(--brand-danger-soft); color: var(--brand-danger); padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.9rem; }
+    .logo-field { margin-bottom: 20px; }
+    .logo-label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--brand-ink); }
+    .logo-hint { font-size: 0.85rem; color: var(--brand-text-soft); margin: 4px 0 12px; }
+    .logo-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .logo-preview {
+      width: 96px; height: 96px; flex: 0 0 auto; overflow: hidden;
+      border-radius: var(--radius-sm); background: var(--brand-surface-2);
+      border: 1px dashed var(--brand-border-strong);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-preview.is-empty mat-icon { font-size: 30px; width: 30px; height: 30px; color: var(--brand-text-faint); }
+    .logo-actions { display: flex; flex-direction: column; gap: 8px; }
   `],
 })
-export class OrganizationCreateComponent {
+export class OrganizationCreateComponent implements OnDestroy {
   form: FormGroup;
   loading = signal(false);
   errorMessage = signal('');
+
+  logoPreview = signal<string | null>(null);
+  readonly acceptedTypes = ImageService.ACCEPTED_TYPES;
+
+  /** L'upload exige un orgId : le fichier part juste après la création de l'ONG. */
+  private pendingLogo: File | null = null;
+  private previewObjectUrl: string | null = null;
 
   domains = [
     { value: 'EDUCATION', label: 'Éducation' }, { value: 'SANTE', label: 'Santé' },
@@ -123,7 +172,8 @@ export class OrganizationCreateComponent {
     { value: 'AIDE_URGENCE', label: "Aide d'urgence" }, { value: 'AUTRE', label: 'Autre' },
   ];
 
-  constructor(private fb: FormBuilder, private orgService: OrganizationService, private router: Router) {
+  constructor(private fb: FormBuilder, private orgService: OrganizationService,
+              private imageService: ImageService, private router: Router) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       description: ['', Validators.required],
@@ -137,6 +187,41 @@ export class OrganizationCreateComponent {
       phone: [''],
       website: [''],
     });
+  }
+
+  ngOnDestroy() {
+    this.revokePreview();
+  }
+
+  onLogoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // On vide l'input tout de suite : sans ça, resélectionner le même fichier
+    // après une erreur ne déclencherait aucun événement « change ».
+    input.value = '';
+    if (!file) return;
+
+    const error = ImageService.validate(file);
+    if (error) { this.errorMessage.set(error); return; }
+
+    this.revokePreview();
+    this.errorMessage.set('');
+    this.pendingLogo = file;
+    this.previewObjectUrl = URL.createObjectURL(file);
+    this.logoPreview.set(this.previewObjectUrl);
+  }
+
+  clearLogo() {
+    this.revokePreview();
+    this.pendingLogo = null;
+    this.logoPreview.set(null);
+  }
+
+  private revokePreview() {
+    if (this.previewObjectUrl) {
+      URL.revokeObjectURL(this.previewObjectUrl);
+      this.previewObjectUrl = null;
+    }
   }
 
   onCoords(c: { lat: number; lng: number }) {
@@ -155,8 +240,29 @@ export class OrganizationCreateComponent {
     if (this.form.invalid) return;
     this.loading.set(true);
     this.orgService.create(this.form.value).subscribe({
-      next: res => { this.loading.set(false); this.router.navigate(['/organizations', res.data.slug]); },
+      // Le créateur devient admin actif de l'ONG dès la création : l'upload du logo
+      // est donc autorisé immédiatement, sans attendre la validation plateforme.
+      next: res => this.saveLogoThenLeave(res.data.id, res.data.slug),
       error: err => { this.loading.set(false); this.errorMessage.set(err.error?.message || 'Erreur'); },
+    });
+  }
+
+  /**
+   * Envoie le logo puis quitte le formulaire. L'ONG est déjà créée à ce stade :
+   * un échec sur l'image ne doit pas bloquer la navigation ni laisser croire que
+   * la création a échoué — le logo reste modifiable depuis l'onglet « Visuels ».
+   */
+  private saveLogoThenLeave(orgId: string, slug: string) {
+    const leave = () => {
+      this.loading.set(false);
+      this.router.navigate(['/organizations', slug]);
+    };
+
+    if (!this.pendingLogo) { leave(); return; }
+
+    this.imageService.uploadOrgLogo(orgId, this.pendingLogo).subscribe({
+      next: () => leave(),
+      error: () => leave(),
     });
   }
 }

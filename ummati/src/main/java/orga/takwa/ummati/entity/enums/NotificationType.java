@@ -20,6 +20,8 @@ public enum NotificationType {
     FEEDBACK_REQUESTED,
     EVENT_ANNOUNCEMENT,
     ORG_ANNOUNCEMENT,
+    /** Relance de l'ONG pour alimenter la galerie d'une mission terminée. */
+    EVENT_PHOTOS_REQUESTED,
     GENERAL
 }
 

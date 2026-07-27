@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -15,6 +15,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EventService } from '../../../core/services/event.service';
 import { SkillService } from '../../../core/services/skill.service';
+import { ImageService } from '../../../core/services/image.service';
 import { EVENT_TYPES } from '../../../core/constants/event-types';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
@@ -32,6 +33,35 @@ import { GeoResult } from '../../../core/services/geocoding.service';
       <mat-card class="form-card">
         <mat-card-content>
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <!-- Le visuel est le premier facteur de clic sur une mission : il se choisit
+                 ici, au moment de la création, pas dans un écran de gestion séparé. -->
+            <div class="cover-field">
+              <span class="cover-label">{{ 'Image de couverture' | t }}</span>
+              <p class="cover-hint">{{ 'Elle s\\'affiche sur les cartes et en tête de votre mission. JPG, PNG ou WebP, 5 Mo maximum.' | t }}</p>
+              <div class="cover-row">
+                <div class="cover-preview" [class.is-empty]="!coverPreview()">
+                  @if (coverPreview()) {
+                    <img [src]="coverPreview()" alt="" />
+                  } @else {
+                    <mat-icon>add_photo_alternate</mat-icon>
+                  }
+                </div>
+                <div class="cover-actions">
+                  <button mat-stroked-button type="button" (click)="coverInput.click()">
+                    <mat-icon>upload</mat-icon>
+                    {{ (coverPreview() ? 'Remplacer' : 'Choisir une image') | t }}
+                  </button>
+                  @if (coverPreview()) {
+                    <button mat-button type="button" (click)="clearCover()">
+                      <mat-icon>close</mat-icon> {{ 'Retirer' | t }}
+                    </button>
+                  }
+                  <input #coverInput type="file" hidden [accept]="acceptedTypes"
+                         (change)="onCoverSelected($event)" />
+                </div>
+              </div>
+            </div>
+
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>{{ 'Titre' | t }}</mat-label>
               <input matInput formControlName="title" />
@@ -180,6 +210,21 @@ import { GeoResult } from '../../../core/services/geocoding.service';
   styles: [`
     h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 24px; letter-spacing: -0.02em; }
     .full-width { width: 100%; }
+    .cover-field { margin-bottom: 24px; }
+    .cover-label { display: block; font-size: 0.9rem; font-weight: 700; color: var(--brand-ink); }
+    .cover-hint { font-size: 0.85rem; color: var(--brand-text-soft); margin: 4px 0 12px; }
+    .cover-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .cover-preview {
+      width: 220px; aspect-ratio: 16 / 9; flex: 0 0 auto; overflow: hidden;
+      border-radius: var(--radius-sm); background: var(--brand-surface-2);
+      border: 1px dashed var(--brand-border-strong);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .cover-preview.is-empty mat-icon {
+      font-size: 32px; width: 32px; height: 32px; color: var(--brand-text-faint);
+    }
+    .cover-actions { display: flex; flex-direction: column; gap: 8px; }
     .row { display: flex; gap: 16px; flex-wrap: wrap; }
     .row mat-form-field { flex: 1; min-width: 160px; }
     .online-check { margin-bottom: 16px; display: block; }
@@ -192,12 +237,24 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     .actions button[type="submit"] { min-width: 180px; height: 44px; }
   `],
 })
-export class EventCreateComponent implements OnInit {
+export class EventCreateComponent implements OnInit, OnDestroy {
   form!: FormGroup;
   isEdit = false;
   submitting = signal(false);
   errorMessage = signal('');
   skills = signal<{ id: string; name: string }[]>([]);
+
+  /** URL affichée : celle déjà stockée en édition, ou un aperçu local du fichier choisi. */
+  coverPreview = signal<string | null>(null);
+  readonly acceptedTypes = ImageService.ACCEPTED_TYPES;
+
+  /** Fichier choisi mais pas encore envoyé : l'upload exige un eventId, qui n'existe
+   *  qu'après la création. Il part donc juste après l'enregistrement. */
+  private pendingCover: File | null = null;
+  /** En édition, l'utilisateur a retiré la couverture existante. */
+  private coverCleared = false;
+  /** Object URL de l'aperçu local, à révoquer pour ne pas fuir de mémoire. */
+  private previewObjectUrl: string | null = null;
 
   private orgId = '';
   private eventId = '';
@@ -210,8 +267,13 @@ export class EventCreateComponent implements OnInit {
     private router: Router,
     private eventService: EventService,
     private skillService: SkillService,
+    private imageService: ImageService,
     private snackBar: MatSnackBar,
   ) {}
+
+  ngOnDestroy() {
+    this.revokePreview();
+  }
 
   ngOnInit() {
     this.orgId = this.route.snapshot.paramMap.get('orgId') || '';
@@ -248,6 +310,7 @@ export class EventCreateComponent implements OnInit {
       this.eventService.getEvent(this.eventId).subscribe(res => {
         const e = res.data;
         this.orgId = e.organizationId;
+        this.coverPreview.set(e.coverUrl);
         this.form.patchValue({
           ...e,
           startDate: e.startDate?.slice(0, 16),
@@ -263,6 +326,39 @@ export class EventCreateComponent implements OnInit {
     this.skillService.getAll().subscribe(res => {
       this.skills.set(res.data.map((s: any) => ({ id: s.id, name: s.name })));
     });
+  }
+
+  onCoverSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // On vide l'input tout de suite : sans ça, resélectionner le même fichier
+    // après une erreur ne déclencherait aucun événement « change ».
+    input.value = '';
+    if (!file) return;
+
+    const error = ImageService.validate(file);
+    if (error) { this.snackBar.open(error, 'OK', { duration: 4000 }); return; }
+
+    this.revokePreview();
+    this.pendingCover = file;
+    this.coverCleared = false;
+    this.previewObjectUrl = URL.createObjectURL(file);
+    this.coverPreview.set(this.previewObjectUrl);
+  }
+
+  clearCover() {
+    this.revokePreview();
+    this.pendingCover = null;
+    // En édition seulement : marque la suppression de l'image déjà stockée.
+    this.coverCleared = this.isEdit;
+    this.coverPreview.set(null);
+  }
+
+  private revokePreview() {
+    if (this.previewObjectUrl) {
+      URL.revokeObjectURL(this.previewObjectUrl);
+      this.previewObjectUrl = null;
+    }
   }
 
   onCoords(c: { lat: number; lng: number }) {
@@ -305,16 +401,47 @@ export class EventCreateComponent implements OnInit {
       : this.eventService.createEvent(this.orgId, data);
 
     obs.subscribe({
-      next: res => {
-        this.submitting.set(false);
-        this.snackBar.open(this.isEdit ? 'Événement modifié' : 'Événement créé', 'OK', { duration: 3000 });
-        this.router.navigate(['/events', res.data.id]);
-      },
+      next: res => this.saveCoverThenLeave(res.data.id),
       error: err => {
         this.submitting.set(false);
         this.errorMessage.set(err.error?.message || 'Erreur lors de la sauvegarde');
       },
     });
+  }
+
+  /**
+   * Applique le changement de couverture puis quitte le formulaire.
+   *
+   * L'événement est déjà enregistré à ce stade : un échec sur l'image ne doit pas
+   * faire croire que la mission est perdue. On avertit et on continue — la couverture
+   * reste modifiable depuis l'onglet « Visuels ».
+   */
+  private saveCoverThenLeave(eventId: string) {
+    const done = (warning?: string) => {
+      this.submitting.set(false);
+      this.snackBar.open(
+        warning ?? (this.isEdit ? 'Événement modifié' : 'Événement créé'),
+        'OK', { duration: warning ? 5000 : 3000 });
+      this.router.navigate(['/events', eventId]);
+    };
+
+    if (this.pendingCover) {
+      this.imageService.uploadEventCover(eventId, this.pendingCover).subscribe({
+        next: () => done(),
+        error: () => done('Événement enregistré, mais l\'image n\'a pas pu être envoyée. Réessayez depuis l\'onglet « Visuels ».'),
+      });
+      return;
+    }
+
+    if (this.coverCleared) {
+      this.imageService.deleteEventCover(eventId).subscribe({
+        next: () => done(),
+        error: () => done('Événement enregistré, mais l\'image n\'a pas pu être retirée.'),
+      });
+      return;
+    }
+
+    done();
   }
 }
 

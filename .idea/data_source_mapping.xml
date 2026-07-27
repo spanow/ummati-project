@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/ummati/src/main/resources/db/migration/V18__images_and_public_profile.sql" value="9a0e962d-05a2-4e51-8322-6d34a3ffe1b9" />
+  </component>
+</project>
