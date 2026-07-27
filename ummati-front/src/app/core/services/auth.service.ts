@@ -1,7 +1,8 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, BehaviorSubject } from 'rxjs';
+import { Observable, tap, shareReplay, finalize } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api.models';
 
@@ -31,6 +32,17 @@ export class AuthService {
   readonly isLoggedIn = computed(() => this.currentUser() !== null);
   readonly isAdmin = computed(() => this.currentUser()?.role === 'PLATFORM_ADMIN');
 
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /**
+   * Rafraîchissement en cours, partagé entre tous les appelants.
+   *
+   * Sans ce partage, N requêtes recevant un 401 en même temps déclenchaient N appels à
+   * /auth/refresh : le rate limiter (20 req/min sur /auth/**) répondait 429, l'intercepteur
+   * traitait cet échec comme un refresh invalide et déconnectait l'utilisateur.
+   */
+  private refresh$: Observable<ApiResponse<{ accessToken: string; expiresIn: number }>> | null = null;
+
   constructor(private http: HttpClient, private router: Router) {
     this.loadFromStorage();
   }
@@ -49,16 +61,28 @@ export class AuthService {
       }));
   }
 
+  /** Un seul appel réseau, quel que soit le nombre de requêtes en attente. */
   refreshToken(): Observable<ApiResponse<{ accessToken: string; expiresIn: number }>> {
-    const refreshToken = localStorage.getItem('refreshToken');
-    return this.http.post<ApiResponse<{ accessToken: string; expiresIn: number }>>(
+    if (this.refresh$) {
+      return this.refresh$;
+    }
+
+    const refreshToken = this.readStorage('refreshToken');
+    this.refresh$ = this.http.post<ApiResponse<{ accessToken: string; expiresIn: number }>>(
       `${this.apiUrl}/refresh`, null,
       { headers: { Authorization: `Bearer ${refreshToken}` } }
-    ).pipe(tap(res => {
-      if (res.data) {
-        localStorage.setItem('accessToken', res.data.accessToken);
-      }
-    }));
+    ).pipe(
+      tap(res => {
+        if (res.data) {
+          this.writeStorage('accessToken', res.data.accessToken);
+        }
+      }),
+      // Libère le verrou pour qu'un 401 ultérieur puisse déclencher un nouveau refresh.
+      finalize(() => { this.refresh$ = null; }),
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+
+    return this.refresh$;
   }
 
   forgotPassword(email: string): Observable<ApiResponse<void>> {
@@ -71,15 +95,16 @@ export class AuthService {
 
   logout(): void {
     this.http.post(`${this.apiUrl}/logout`, null).subscribe({ error: () => {} });
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    this.removeStorage('accessToken');
+    this.removeStorage('refreshToken');
+    this.removeStorage('user');
+    this.refresh$ = null;
     this.currentUser.set(null);
     this.router.navigate(['/login']);
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem('accessToken');
+    return this.readStorage('accessToken');
   }
 
   updateOnboardingDone(): void {
@@ -87,23 +112,39 @@ export class AuthService {
     if (user) {
       const updated = { ...user, onboardingDone: true };
       this.currentUser.set(updated);
-      localStorage.setItem('user', JSON.stringify(updated));
+      this.writeStorage('user', JSON.stringify(updated));
     }
   }
 
   private storeTokens(auth: AuthResponse): void {
-    localStorage.setItem('accessToken', auth.accessToken);
-    localStorage.setItem('refreshToken', auth.refreshToken);
-    localStorage.setItem('user', JSON.stringify(auth.user));
+    this.writeStorage('accessToken', auth.accessToken);
+    this.writeStorage('refreshToken', auth.refreshToken);
+    this.writeStorage('user', JSON.stringify(auth.user));
   }
 
   private loadFromStorage(): void {
-    const userJson = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+    const userJson = this.readStorage('user');
     if (userJson) {
       try {
         this.currentUser.set(JSON.parse(userJson));
       } catch { /* ignore */ }
     }
+  }
+
+  // localStorage n'existe pas pendant le rendu serveur : l'intercepteur appelle
+  // getAccessToken() sur chaque requête, y compris côté SSR, où un accès direct
+  // lèverait une ReferenceError et ferait échouer le rendu de la page.
+
+  private readStorage(key: string): string | null {
+    return this.isBrowser ? localStorage.getItem(key) : null;
+  }
+
+  private writeStorage(key: string, value: string): void {
+    if (this.isBrowser) localStorage.setItem(key, value);
+  }
+
+  private removeStorage(key: string): void {
+    if (this.isBrowser) localStorage.removeItem(key);
   }
 }
 

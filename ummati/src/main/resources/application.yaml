@@ -86,6 +86,15 @@ app:
     password: ${ADMIN_PASSWORD:Admin123!}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+  security:
+    # Rate limiting /auth/** : source de l'IP client.
+    # false  → request.getRemoteAddr() (exposition directe, valeur sûre par défaut).
+    # true   → premier élément de X-Forwarded-For. À n'activer QUE derrière un reverse
+    #          proxy de confiance qui réécrit l'en-tête : sinon n'importe qui peut se
+    #          fabriquer une IP par requête et échapper au quota.
+    #          À l'inverse, laisser false derrière un proxy fait partager un unique
+    #          compteur à tous les utilisateurs (IP du proxy) et bloque les connexions.
+    trust-forwarded-for: ${TRUST_FORWARDED_FOR:false}
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:BPLSJxSB3QAA1XsJVFED-6HGGyJmFios6ETEo9MJ-7RmbPOXioh_0WsOUPorDEpCbP_PaEJ3wGyo0t3f93y2sU4}
     private-key: ${VAPID_PRIVATE_KEY:AM_NeFGDjso48CY-G965jKrTatAREp-TA-1KCPcJgbJI}

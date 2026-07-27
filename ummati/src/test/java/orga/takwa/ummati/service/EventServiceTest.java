@@ -110,6 +110,16 @@ class EventServiceTest {
         publishedOccurrence.setStatus(EventOccurrenceStatus.PUBLISHED);
     }
 
+    /**
+     * L'inscription recharge le créneau avec un verrou de ligne (anti-surréservation) :
+     * les tests d'inscription doivent donc câbler ce chargement en plus de la résolution
+     * du créneau depuis l'événement.
+     */
+    private void givenOccurrenceLockable() {
+        lenient().when(eventOccurrenceRepository.findByIdForUpdate(occurrenceId))
+                .thenReturn(Optional.of(publishedOccurrence));
+    }
+
     // --- T-070: Create Event ---
 
     @Test
@@ -192,6 +202,7 @@ class EventServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
         when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.empty());
         when(eventSignupRepository.countByOccurrenceIdAndStatus(occurrenceId, SignupStatus.REGISTERED)).thenReturn(5L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> {
@@ -215,6 +226,7 @@ class EventServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
         when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId)).thenReturn(Optional.empty());
         when(eventSignupRepository.countByOccurrenceIdAndStatus(occurrenceId, SignupStatus.REGISTERED)).thenReturn(20L);
         when(eventSignupRepository.save(any(EventSignup.class))).thenAnswer(inv -> {
@@ -242,6 +254,7 @@ class EventServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
         when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
                 .thenReturn(Optional.of(cancelledSignup));
         when(eventSignupRepository.countByOccurrenceIdAndStatus(occurrenceId, SignupStatus.REGISTERED)).thenReturn(5L);
@@ -266,6 +279,7 @@ class EventServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
         when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
                 .thenReturn(Optional.of(existing));
 
@@ -281,6 +295,7 @@ class EventServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
 
         assertThatThrownBy(() -> eventService.signup(userId, eventId))
                 .isInstanceOf(BusinessRuleException.class)
@@ -329,6 +344,7 @@ class EventServiceTest {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(publishedEvent));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
         when(eventSignupRepository.findByOccurrenceIdAndUserId(occurrenceId, userId))
                 .thenReturn(Optional.of(registeredSignup));
         when(eventSignupRepository.findFirstByOccurrenceIdAndStatusOrderByRegisteredAtAsc(occurrenceId, SignupStatus.WAITLISTED))
@@ -403,6 +419,7 @@ class EventServiceTest {
         when(eventSignupRepository.findByOccurrenceIdAndStatusIn(eq(occId), any())).thenReturn(List.of(s));
         when(eventOccurrenceRepository.findByEventIdOrderByStartDateAsc(eventId))
                 .thenReturn(List.of(publishedOccurrence));
+        givenOccurrenceLockable();
         when(eventSignupRepository.countByEventIdAndStatus(any(), any())).thenReturn(0L);
 
         eventService.changeOccurrenceStatus(userId, eventId, occId,

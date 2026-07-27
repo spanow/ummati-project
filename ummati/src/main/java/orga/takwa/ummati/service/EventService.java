@@ -213,6 +213,14 @@ public class EventService {
                 if (request.reason() == null || request.reason().length() < 10) {
                     throw new BusinessRuleException("Le motif d'annulation doit faire au moins 10 caractères");
                 }
+                // Un événement déjà annulé ou terminé ne se ré-annule pas : sans ce garde-fou,
+                // une mission COMPLETED repassait en CANCELLED, effaçant l'historique de
+                // participation et renotifiant des bénévoles pour un événement déjà passé.
+                if (event.getStatus() == EventStatus.CANCELLED || event.getStatus() == EventStatus.COMPLETED) {
+                    throw new BusinessRuleException(
+                            "Un événement " + (event.getStatus() == EventStatus.CANCELLED ? "annulé" : "terminé")
+                                    + " ne peut plus être annulé");
+                }
                 event.setStatus(EventStatus.CANCELLED);
                 event.setCancellationReason(request.reason());
                 for (EventOccurrence o : occurrences) {
@@ -341,7 +349,14 @@ public class EventService {
         return doSignup(user, event, occ);
     }
 
-    private SignupResponse doSignup(User user, Event event, EventOccurrence occ) {
+    private SignupResponse doSignup(User user, Event event, EventOccurrence requestedOccurrence) {
+        // Verrou sur la ligne du créneau pour toute la transaction : le comptage des
+        // places et l'écriture de l'inscription qui suivent doivent être atomiques,
+        // sinon deux inscriptions simultanées lisent la même place restante et
+        // l'événement part en surnombre.
+        final EventOccurrence occ = occurrenceRepository.findByIdForUpdate(requestedOccurrence.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Créneau non trouvé"));
+
         if (occ.getStatus() != EventOccurrenceStatus.PUBLISHED) {
             throw new BusinessRuleException("L'inscription n'est possible que pour les créneaux publiés");
         }
@@ -360,7 +375,15 @@ public class EventService {
             }
         }
 
-        if (event.getMinAge() != null && user.getDateOfBirth() != null) {
+        // Âge minimum : l'absence de date de naissance ne vaut pas autorisation. Le
+        // contrôle était auparavant sauté dans ce cas, ce qui laissait n'importe qui
+        // s'inscrire à une mission réservée aux majeurs en ne renseignant pas son profil.
+        if (event.getMinAge() != null) {
+            if (user.getDateOfBirth() == null) {
+                throw new BusinessRuleException(
+                        "Cette mission est réservée aux " + event.getMinAge() + " ans et plus. "
+                                + "Renseignez votre date de naissance dans votre profil pour vous inscrire.");
+            }
             int age = Period.between(user.getDateOfBirth(), LocalDate.now()).getYears();
             if (age < event.getMinAge()) {
                 throw new BusinessRuleException("Vous devez avoir au moins " + event.getMinAge() + " ans pour vous inscrire");
@@ -394,10 +417,33 @@ public class EventService {
         return toSignupResponse(signup);
     }
 
+    /**
+     * Inscription du bénévole pour cet événement, tous créneaux confondus.
+     *
+     * <p>Une série peut porter plusieurs inscriptions pour le même bénévole (une par
+     * créneau) : renvoyer la première venue faisait remonter une inscription annulée
+     * alors qu'une inscription active existait, et le front affichait « S'inscrire » à
+     * quelqu'un de déjà inscrit. On privilégie donc l'inscription la plus engageante,
+     * puis la plus récente.
+     */
     @Transactional(readOnly = true)
     public Optional<SignupResponse> getMySignup(UUID userId, UUID eventId) {
         return eventSignupRepository.findByEventIdAndUserId(eventId, userId).stream()
-                .findFirst().map(this::toSignupResponse);
+                .min(Comparator
+                        .comparingInt((EventSignup s) -> signupRelevance(s.getStatus()))
+                        .thenComparing(EventSignup::getRegisteredAt,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toSignupResponse);
+    }
+
+    /** Plus la valeur est basse, plus l'inscription prime dans l'affichage. */
+    private static int signupRelevance(SignupStatus status) {
+        return switch (status) {
+            case REGISTERED -> 0;
+            case WAITLISTED -> 1;
+            case ATTENDED -> 2;
+            case CANCELLED -> 3;
+        };
     }
 
     // T-076: Cancel signup — événement mono-créneau (rétro-compatible)
@@ -470,13 +516,38 @@ public class EventService {
         List<EventSignup> signups = eventSignupRepository.findByEventId(eventId, Pageable.unpaged()).getContent();
         StringBuilder csv = new StringBuilder("Prénom,Nom,Email,Créneau,Statut,Date inscription\n");
         for (EventSignup s : signups) {
-            csv.append(String.format("%s,%s,%s,%s,%s,%s\n",
-                    s.getUser().getFirstName(), s.getUser().getLastName(),
-                    s.getUser().getEmail(),
-                    s.getOccurrence() != null ? s.getOccurrence().getStartDate() : "",
-                    s.getStatus().name(), s.getRegisteredAt()));
+            csv.append(String.join(",",
+                    csvCell(s.getUser().getFirstName()),
+                    csvCell(s.getUser().getLastName()),
+                    csvCell(s.getUser().getEmail()),
+                    csvCell(s.getOccurrence() != null ? s.getOccurrence().getStartDate().toString() : ""),
+                    csvCell(s.getStatus().name()),
+                    csvCell(String.valueOf(s.getRegisteredAt()))));
+            csv.append("\n");
         }
         return csv.toString();
+    }
+
+    /**
+     * Encode une valeur en cellule CSV.
+     *
+     * <p>Deux problèmes traités :
+     * <ul>
+     *   <li>un nom contenant une virgule, un guillemet ou un saut de ligne décalait toutes
+     *       les colonnes suivantes — la valeur est donc systématiquement entre guillemets,
+     *       les guillemets internes étant doublés (RFC 4180) ;</li>
+     *   <li>un nom commençant par {@code = + - @} (ou une tabulation) est interprété comme
+     *       une formule par Excel et LibreOffice à l'ouverture du fichier. Comme ces champs
+     *       viennent des utilisateurs, on préfixe d'une apostrophe pour neutraliser
+     *       l'exécution.</li>
+     * </ul>
+     */
+    static String csvCell(String value) {
+        String safe = value == null ? "" : value;
+        if (!safe.isEmpty() && "=+-@\t\r".indexOf(safe.charAt(0)) >= 0) {
+            safe = "'" + safe;
+        }
+        return '"' + safe.replace("\"", "\"\"") + '"';
     }
 
     // T-079: Mark attendance — événement mono-créneau (rétro-compatible)
@@ -500,10 +571,20 @@ public class EventService {
     private void doMarkAttendance(UUID actorUserId, Event event, EventOccurrence occ, AttendanceRequest request) {
         for (UUID attendeeId : request.userIds()) {
             eventSignupRepository.findByOccurrenceIdAndUserId(occ.getId(), attendeeId).ifPresent(signup -> {
-                if (signup.getStatus() == SignupStatus.REGISTERED) {
-                    signup.setStatus(SignupStatus.ATTENDED);
-                    signup.setAttendedAt(LocalDateTime.now());
-                    eventSignupRepository.save(signup);
+                if (signup.getStatus() != SignupStatus.REGISTERED) {
+                    return;
+                }
+                // L'avis se donne une fois par événement, pas une fois par créneau : sur une
+                // série récurrente, notifier à chaque présence validée envoyait dix
+                // « donnez votre avis » pour un seul avis possible.
+                boolean firstAttendance = !eventSignupRepository.existsByEventIdAndUserIdAndStatus(
+                        event.getId(), attendeeId, SignupStatus.ATTENDED);
+
+                signup.setStatus(SignupStatus.ATTENDED);
+                signup.setAttendedAt(LocalDateTime.now());
+                eventSignupRepository.save(signup);
+
+                if (firstAttendance) {
                     notificationService.saveNotification(signup.getUser(), NotificationType.FEEDBACK_REQUESTED,
                             "Donnez votre avis", "Comment s'est passé '" + event.getTitle() + "' ? Laissez un feedback !",
                             "/events/" + event.getId());

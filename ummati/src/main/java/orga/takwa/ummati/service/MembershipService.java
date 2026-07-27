@@ -62,8 +62,14 @@ public class MembershipService {
             m.setStatus(MembershipStatus.PENDING);
             m.setMotivation(request.motivation());
             m.setRejectedAt(null);
+            // Le rôle repart de zéro. Sans cette remise à MEMBER, un ancien ADMIN qui
+            // avait quitté l'ONG redevenait automatiquement ADMIN à la simple approbation
+            // de sa nouvelle demande — l'admin qui valide croit accepter un membre.
+            m.setRole(MembershipRole.MEMBER);
+            m.setJoinedAt(null);
             m = membershipRepository.save(m);
             notifyAdmins(org, userId);
+            auditService.log(userId, "MEMBERSHIP_REQUESTED", "Membership", m.getId());
             return toResponse(m);
         }
 

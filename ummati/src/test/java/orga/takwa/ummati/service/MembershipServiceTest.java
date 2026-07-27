@@ -195,5 +195,57 @@ class MembershipServiceTest {
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Impossible d'exclure un admin");
     }
+
+    // --- Ré-adhésion : le rôle ne doit pas survivre au départ ---
+
+    @Test
+    void requestMembership_shouldResetRoleToMember_whenAFormerAdminReapplies() {
+        // Un ancien ADMIN qui avait quitté l'ONG conservait son rôle sur la ligne
+        // d'adhésion : à l'approbation de sa nouvelle demande, il redevenait
+        // silencieusement administrateur.
+        Membership previous = new Membership();
+        previous.setId(UUID.randomUUID());
+        previous.setUser(user);
+        previous.setOrganization(activeOrg);
+        previous.setRole(MembershipRole.ADMIN);
+        previous.setStatus(MembershipStatus.LEFT);
+        previous.setJoinedAt(LocalDateTime.now().minusMonths(6));
+
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(activeOrg));
+        when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
+                .thenReturn(Optional.of(previous));
+        when(membershipRepository.save(any(Membership.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(membershipRepository.findByOrganizationIdAndRoleAndStatus(
+                orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE)).thenReturn(Collections.emptyList());
+
+        membershipService.requestMembership(user.getId(), orgId, new MembershipRequest("Je reviens"));
+
+        assertThat(previous.getStatus()).isEqualTo(MembershipStatus.PENDING);
+        assertThat(previous.getRole()).isEqualTo(MembershipRole.MEMBER);
+        assertThat(previous.getJoinedAt()).isNull();
+    }
+
+    @Test
+    void requestMembership_shouldResetRoleToMember_whenReapplyingAfterTheRejectionCooldown() {
+        Membership previous = new Membership();
+        previous.setId(UUID.randomUUID());
+        previous.setUser(user);
+        previous.setOrganization(activeOrg);
+        previous.setRole(MembershipRole.ADMIN);
+        previous.setStatus(MembershipStatus.REJECTED);
+        previous.setRejectedAt(LocalDateTime.now().minusDays(45));
+
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(activeOrg));
+        when(membershipRepository.findByUserIdAndOrganizationId(user.getId(), orgId))
+                .thenReturn(Optional.of(previous));
+        when(membershipRepository.save(any(Membership.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(membershipRepository.findByOrganizationIdAndRoleAndStatus(
+                orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE)).thenReturn(Collections.emptyList());
+
+        membershipService.requestMembership(user.getId(), orgId, new MembershipRequest("Nouvelle demande"));
+
+        assertThat(previous.getRole()).isEqualTo(MembershipRole.MEMBER);
+        assertThat(previous.getRejectedAt()).isNull();
+    }
 }
 

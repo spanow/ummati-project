@@ -136,6 +136,15 @@ public class AuthService {
             throw new BusinessRuleException("Compte temporairement bloqué. Réessayez plus tard.");
         }
 
+        // Le mot de passe est vérifié AVANT l'état du compte. Dans l'ordre inverse,
+        // « Compte désactivé » et « Email non vérifié » se déclenchaient sans connaître
+        // le mot de passe : il suffisait d'essayer une adresse pour savoir si elle était
+        // inscrite sur la plateforme (énumération de comptes).
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            handleFailedLogin(user, ipAddress);
+            throw new BusinessRuleException("Email ou mot de passe incorrect");
+        }
+
         // Check enabled
         if (!user.isEnabled()) {
             throw new ForbiddenException("Compte désactivé");
@@ -144,12 +153,6 @@ public class AuthService {
         // Check email verified
         if (!user.isEmailVerified()) {
             throw new ForbiddenException("Email non vérifié. Vérifiez votre boîte mail.");
-        }
-
-        // Check password
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            handleFailedLogin(user, ipAddress);
-            throw new BusinessRuleException("Email ou mot de passe incorrect");
         }
 
         // Success — reset failed attempts
@@ -235,6 +238,11 @@ public class AuthService {
 
         User user = vt.getUser();
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // Le compteur d'échecs et le blocage temporaire sont remis à zéro : sans cela, un
+        // utilisateur bloqué après 5 tentatives restait bloqué 30 minutes de plus alors
+        // qu'il vient précisément de prouver son identité par email.
+        user.setFailedAttempts(0);
+        user.setLockedUntil(null);
         userRepository.save(user);
 
         auditService.log(user.getId(), "PASSWORD_RESET", "User", user.getId());

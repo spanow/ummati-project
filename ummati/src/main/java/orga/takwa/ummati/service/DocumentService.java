@@ -21,6 +21,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -68,12 +69,7 @@ public class DocumentService {
 
         validateFile(file);
 
-        // Save to disk
-        Path dir = Paths.get(uploadDir, "organizations", orgId.toString());
-        Files.createDirectories(dir);
-        String storedFilename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        Path dest = dir.resolve(storedFilename);
-        Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+        Path dest = storeOnDisk(file, Paths.get(uploadDir, "organizations", orgId.toString()));
 
         Document doc = new Document();
         doc.setOwnerType(DocumentOwnerType.ORGANIZATION);
@@ -105,11 +101,7 @@ public class DocumentService {
 
         validateFile(file);
 
-        Path dir = Paths.get(uploadDir, "events", eventId.toString());
-        Files.createDirectories(dir);
-        String storedFilename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        Path dest = dir.resolve(storedFilename);
-        Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+        Path dest = storeOnDisk(file, Paths.get(uploadDir, "events", eventId.toString()));
 
         Document doc = new Document();
         doc.setOwnerType(DocumentOwnerType.EVENT);
@@ -167,6 +159,49 @@ public class DocumentService {
         Path path = Paths.get(doc.getFilePath());
         Files.deleteIfExists(path);
         documentRepository.delete(doc);
+    }
+
+    /**
+     * Écrit le fichier dans {@code dir} sous un nom sûr et retourne le chemin réel.
+     *
+     * <p>{@code getOriginalFilename()} est fourni par le client et n'est pas assaini par
+     * Spring : un nom du type {@code ../../../../etc/cron.d/tache} sortait du répertoire
+     * d'upload et permettait d'écrire un fichier arbitraire sur le serveur. Le nom est
+     * donc réduit à son seul segment final, nettoyé, et le chemin résolu est vérifié
+     * comme restant sous le répertoire cible (défense en profondeur).
+     */
+    private Path storeOnDisk(MultipartFile file, Path dir) throws IOException {
+        Path targetDir = dir.toAbsolutePath().normalize();
+        Files.createDirectories(targetDir);
+
+        String storedFilename = UUID.randomUUID() + "_" + safeFilename(file.getOriginalFilename());
+        Path dest = targetDir.resolve(storedFilename).normalize();
+
+        if (!dest.startsWith(targetDir)) {
+            log.warn("Tentative d'écriture hors du répertoire d'upload rejetée : {}", file.getOriginalFilename());
+            throw new BusinessRuleException("Nom de fichier invalide");
+        }
+
+        Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+        return dest;
+    }
+
+    /** Ne garde que le nom de fichier, sans composant de chemin ni caractère problématique. */
+    static String safeFilename(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return "document";
+        }
+        // StringUtils.cleanPath normalise les séparateurs et résout les « .. » ;
+        // getFilename ne conserve ensuite que le dernier segment.
+        String name = StringUtils.getFilename(StringUtils.cleanPath(originalFilename));
+        if (name == null || name.isBlank() || name.equals("..") || name.equals(".")) {
+            return "document";
+        }
+        // Ceinture et bretelles : plus aucun séparateur quelle que soit la plateforme, et
+        // pas de guillemet ni de saut de ligne, qui casseraient l'en-tête Content-Disposition
+        // du téléchargement.
+        name = name.replaceAll("[/\\\\\"\\p{Cntrl}]", "_");
+        return name.length() > 150 ? name.substring(name.length() - 150) : name;
     }
 
     private UUID resolveEventOrgId(UUID eventId) {
