@@ -10,7 +10,16 @@ export interface EventSummary {
   startDate: string; endDate: string;
   maxParticipants: number | null; registeredCount: number;
   status: string; organizationName: string; organizationSlug: string;
+  organizationLogoUrl: string | null;
+  coverUrl: string | null;
   nextOccurrenceDate: string | null; occurrenceCount: number;
+  /** Distance en km depuis le point de recherche — null hors recherche géolocalisée. */
+  distanceKm: number | null;
+}
+
+export interface EventPhoto {
+  id: string; url: string; caption: string | null;
+  position: number; createdAt: string;
 }
 
 export interface OccurrenceResponse {
@@ -31,7 +40,9 @@ export interface EventDetail {
   startDate: string; endDate: string; registrationDeadline: string;
   maxParticipants: number | null; minAge: number | null;
   status: string; cancellationReason: string;
+  coverUrl: string | null;
   organizationId: string; organizationName: string; organizationSlug: string;
+  organizationLogoUrl: string | null;
   registeredCount: number; waitlistedCount: number; availableSpots: number | null;
   requiredSkills: { id: string; name: string; category: string }[];
   feedbackAvgRating: number | null;
@@ -65,9 +76,18 @@ export class EventService {
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * Recherche des missions publiées.
+   *
+   * `q` cherche dans le titre, la description, la ville et le nom de l'ONG.
+   * `lat`/`lng`/`radiusKm` restreignent au périmètre demandé — les missions sans
+   * coordonnées (dont celles en ligne) en sont alors exclues. `sort: 'distance'`
+   * trie du plus proche au plus lointain et exige `lat`/`lng`.
+   */
   listEvents(params: {
     page?: number; size?: number; type?: string; city?: string;
     orgId?: string; online?: boolean; from?: string; to?: string; skillId?: string;
+    q?: string; lat?: number; lng?: number; radiusKm?: number; sort?: string;
   } = {}): Observable<ApiResponse<PageResponse<EventSummary>>> {
     let httpParams = new HttpParams();
     if (params.page != null) httpParams = httpParams.set('page', params.page);
@@ -79,6 +99,11 @@ export class EventService {
     if (params.from) httpParams = httpParams.set('from', params.from);
     if (params.to) httpParams = httpParams.set('to', params.to);
     if (params.skillId) httpParams = httpParams.set('skillId', params.skillId);
+    if (params.q) httpParams = httpParams.set('q', params.q);
+    if (params.lat != null) httpParams = httpParams.set('lat', params.lat);
+    if (params.lng != null) httpParams = httpParams.set('lng', params.lng);
+    if (params.radiusKm != null) httpParams = httpParams.set('radiusKm', params.radiusKm);
+    if (params.sort) httpParams = httpParams.set('sort', params.sort);
     return this.http.get<ApiResponse<PageResponse<EventSummary>>>(`${this.apiUrl}/events`, { params: httpParams });
   }
 

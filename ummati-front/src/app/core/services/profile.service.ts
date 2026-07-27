@@ -11,6 +11,29 @@ export interface ProfileResponse {
   skills: { id: string; name: string; category: string }[];
   stats: { organizationCount: number; eventsAttended: number; volunteerHours: number };
   onboardingDone: boolean; emailVerified: boolean; createdAt: string;
+  profilePublic: boolean;
+}
+
+/** Passeport bénévole : la vitrine d'un bénévole (missions, heures, causes). */
+export interface VolunteerPassport {
+  userId: string;
+  firstName: string;
+  /** Nom complet sur son propre passeport, initiale seule en vue publique. */
+  lastName: string;
+  photoUrl: string | null;
+  bio: string | null;
+  city: string | null;
+  memberSince: string;
+  missionsCompleted: number;
+  hoursTotal: number;
+  organizationCount: number;
+  skills: { id: string; name: string; category: string }[];
+  causes: { domain: string; missionCount: number }[];
+  recentMissions: {
+    eventId: string; title: string;
+    organizationName: string; organizationSlug: string; date: string;
+  }[];
+  profilePublic: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +62,23 @@ export class ProfileService {
 
   delete(password: string): Observable<void> {
     return this.http.delete<void>(this.apiUrl, { body: { password } });
+  }
+
+  // --- Passeport bénévole ---
+
+  getMyPassport(): Observable<ApiResponse<VolunteerPassport>> {
+    return this.http.get<ApiResponse<VolunteerPassport>>(`${this.apiUrl}/passport`);
+  }
+
+  setPassportVisibility(isPublic: boolean): Observable<ApiResponse<VolunteerPassport>> {
+    return this.http.put<ApiResponse<VolunteerPassport>>(
+      `${this.apiUrl}/passport/visibility`, { public: isPublic });
+  }
+
+  /** Passeport public d'un bénévole — 404 s'il ne l'a pas publié. */
+  getPublicPassport(userId: string): Observable<ApiResponse<VolunteerPassport>> {
+    return this.http.get<ApiResponse<VolunteerPassport>>(
+      `${environment.apiUrl}/public/volunteers/${userId}`);
   }
 }
 

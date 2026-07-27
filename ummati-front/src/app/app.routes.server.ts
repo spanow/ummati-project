@@ -70,6 +70,12 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    // Passeport bénévole : contenu propre à chaque bénévole, rendu côté client
+    // (le prérendu exigerait d'énumérer les identifiants à la compilation).
+    path: 'volunteers/:id',
+    renderMode: RenderMode.Client,
+  },
+  {
     path: 'my-activities',
     renderMode: RenderMode.Client,
   },

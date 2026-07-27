@@ -1,5 +1,6 @@
 import { Component, signal, OnInit, computed } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,7 +21,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
   imports: [
     ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatChipsModule, MatTabsModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule, TPipe,
+    MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule, RouterLink, TPipe,
   ],
   template: `
     @if (loading()) {
@@ -50,6 +51,13 @@ import { TPipe } from '../../shared/pipes/t.pipe';
             @if (profile()!.bio) {
               <p class="bio">{{ profile()!.bio }}</p>
             }
+            <a mat-stroked-button class="passport-link" [routerLink]="['/volunteers', profile()!.id]">
+              <mat-icon>badge</mat-icon>
+              {{ 'Mon passeport bénévole' | t }}
+              @if (!profile()!.profilePublic) {
+                <span class="passport-private">{{ 'privé' | t }}</span>
+              }
+            </a>
           </div>
           <div class="stats-row">
             <div class="stat">
@@ -167,6 +175,12 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     .location { display: flex; align-items: center; gap: 4px; color: var(--brand-text-soft); font-size: 0.9rem; margin: 0; }
     .location mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .bio { color: var(--brand-text); line-height: 1.6; margin: 8px 0 0; font-size: 0.95rem; }
+    .passport-link { margin-top: 14px; }
+    .passport-private {
+      margin-inline-start: 8px; padding: 1px 8px; border-radius: 10px;
+      background: var(--brand-surface-3); color: var(--brand-text-soft);
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    }
     .stats-row { display: flex; gap: 16px; margin-left: auto; flex-wrap: wrap; }
     .stat { display: flex; flex-direction: column; align-items: center; padding: 12px 20px; background: var(--brand-surface-2); border: 1px solid var(--brand-border); border-radius: var(--radius-sm); }
     .stat-val { font-size: 1.5rem; font-weight: 800; color: var(--brand-primary); }

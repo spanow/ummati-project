@@ -6,6 +6,8 @@ import orga.takwa.ummati.config.security.CurrentUser;
 import orga.takwa.ummati.dto.ApiResponse;
 import orga.takwa.ummati.dto.PageResponse;
 import orga.takwa.ummati.dto.event.*;
+import orga.takwa.ummati.entity.enums.EventType;
+import orga.takwa.ummati.exception.BusinessRuleException;
 import orga.takwa.ummati.service.EventService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +25,9 @@ import java.util.UUID;
 @RequestMapping("/api/v1")
 @Tag(name = "Événements", description = "Gestion des événements, inscriptions et feedbacks")
 public class EventController {
+
+    /** Garde-fou : au-delà, un « autour de moi » n'a plus de sens et scanne toute la table. */
+    private static final double MAX_RADIUS_KM = 500;
 
     private final EventService eventService;
 
@@ -67,6 +72,15 @@ public class EventController {
     }
 
     // T-073: List events (public)
+    /**
+     * Recherche publique des missions.
+     *
+     * <p>{@code q} cherche dans le titre, la description, les objectifs, la ville et le nom
+     * de l'ONG. {@code lat}/{@code lng}/{@code radiusKm} restreignent aux missions situées
+     * dans le rayon donné — les missions sans coordonnées (dont les missions en ligne) en
+     * sont alors exclues, {@code online=true} reste le filtre dédié. {@code sort=distance}
+     * trie du plus proche au plus lointain et exige {@code lat}/{@code lng}.
+     */
     @GetMapping("/events")
     public ResponseEntity<ApiResponse<PageResponse<EventSummary>>> listEvents(
             @RequestParam(defaultValue = "0") int page,
@@ -78,12 +92,42 @@ public class EventController {
             @RequestParam(required = false) LocalDateTime from,
             @RequestParam(required = false) LocalDateTime to,
             @RequestParam(required = false) UUID skillId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double radiusKm,
             @RequestParam(defaultValue = "startDate,asc") String sort) {
-        String[] sortParts = sort.split(",");
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by(sortParts.length > 1 && "desc".equalsIgnoreCase(sortParts[1])
-                        ? Sort.Direction.DESC : Sort.Direction.ASC, sortParts[0]));
-        var result = eventService.listEvents(type, city, orgId, online, from, to, skillId, pageable);
+
+        boolean sortByDistance = "distance".equalsIgnoreCase(sort.split(",")[0]);
+        if (sortByDistance && (lat == null || lng == null)) {
+            throw new BusinessRuleException("Le tri par distance nécessite les paramètres lat et lng");
+        }
+        if (radiusKm != null && (radiusKm <= 0 || radiusKm > MAX_RADIUS_KM)) {
+            throw new BusinessRuleException("Le rayon doit être compris entre 1 et " + MAX_RADIUS_KM + " km");
+        }
+        if ((lat != null) != (lng != null)) {
+            throw new BusinessRuleException("lat et lng doivent être fournis ensemble");
+        }
+        if (lat != null && (lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
+            throw new BusinessRuleException("Coordonnées hors limites");
+        }
+
+        // Le tri par distance est porté par la Specification : on laisse alors le Pageable
+        // non trié, sinon le Sort de Spring Data écraserait le ORDER BY calculé.
+        Pageable pageable;
+        if (sortByDistance) {
+            pageable = PageRequest.of(page, size);
+        } else {
+            String[] sortParts = sort.split(",");
+            pageable = PageRequest.of(page, size,
+                    Sort.by(sortParts.length > 1 && "desc".equalsIgnoreCase(sortParts[1])
+                            ? Sort.Direction.DESC : Sort.Direction.ASC, sortParts[0]));
+        }
+
+        var criteria = new EventSearchCriteria(
+                type != null ? EventType.valueOf(type) : null,
+                city, orgId, online, from, to, skillId, q, lat, lng, radiusKm, sortByDistance);
+        var result = eventService.listEvents(criteria, pageable);
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(result)));
     }
 

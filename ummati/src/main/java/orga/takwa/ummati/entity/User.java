@@ -78,6 +78,13 @@ public class User {
     @Column(name = "onboarding_done", nullable = false)
     private boolean onboardingDone = false;
 
+    /**
+     * Opt-in du passeport bénévole : tant que c'est faux, le profil public renvoie 404.
+     * Par défaut faux — la visibilité est un choix explicite, jamais un défaut.
+     */
+    @Column(name = "profile_public", nullable = false)
+    private boolean profilePublic = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -170,6 +177,9 @@ public class User {
 
     public boolean isOnboardingDone() { return onboardingDone; }
     public void setOnboardingDone(boolean onboardingDone) { this.onboardingDone = onboardingDone; }
+
+    public boolean isProfilePublic() { return profilePublic; }
+    public void setProfilePublic(boolean profilePublic) { this.profilePublic = profilePublic; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

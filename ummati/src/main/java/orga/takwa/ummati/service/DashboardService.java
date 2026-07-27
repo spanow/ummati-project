@@ -2,6 +2,7 @@ package orga.takwa.ummati.service;
 
 import orga.takwa.ummati.dto.dashboard.OrgAdminDashboard;
 import orga.takwa.ummati.dto.dashboard.VolunteerDashboard;
+import orga.takwa.ummati.dto.event.EventSearchCriteria;
 import orga.takwa.ummati.dto.event.EventSummary;
 import orga.takwa.ummati.dto.organization.OrganizationSummary;
 import orga.takwa.ummati.entity.*;
@@ -68,7 +69,8 @@ public class DashboardService {
         Pageable pageable = PageRequest.of(0, 4, Sort.by("startDate"));
         var suggested = eventRepository.findAll(
                 EventSpecification.search(EventStatus.PUBLISHED, LocalDateTime.now(),
-                        null, user.getAddressCity(), null, null, null, null, null),
+                        new EventSearchCriteria(null, user.getAddressCity(), null, null,
+                                null, null, null, null, null, null, null, false)),
                 pageable);
         List<EventSummary> suggestedEvents = suggested.getContent().stream()
                 .map(eventService::toSummary)

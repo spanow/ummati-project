@@ -25,6 +25,7 @@ import { OrgDocumentsComponent } from '../org-documents/org-documents.component'
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { GeoResult } from '../../../core/services/geocoding.service';
+import { ImageService } from '../../../core/services/image.service';
 
 @Component({
   selector: 'app-organization-manage',
@@ -288,6 +289,77 @@ import { GeoResult } from '../../../core/services/geocoding.service';
           </div>
         </mat-tab>
 
+        <!-- Visuels tab -->
+        <mat-tab>
+          <ng-template matTabLabel>
+            <mat-icon>image</mat-icon>
+            {{ 'Visuels' | t }}
+          </ng-template>
+
+          <div class="tab-section">
+            <p class="visual-intro">
+              <mat-icon>info</mat-icon>
+              {{ 'Un logo et une bannière rendent votre ONG immédiatement reconnaissable dans les listes et les résultats de recherche. JPG, PNG ou WebP, 5 Mo maximum.' | t }}
+            </p>
+
+            <section class="visual-block">
+              <h3>{{ 'Logo' | t }}</h3>
+              <p class="visual-help">{{ 'Affiché sur votre fiche, vos missions et dans les listes. Une image carrée donne le meilleur rendu.' | t }}</p>
+              <div class="visual-editor">
+                <div class="logo-preview" [class.is-empty]="!logoUrl()">
+                  @if (logoUrl()) {
+                    <img [src]="logoUrl()" alt="" />
+                  } @else {
+                    <mat-icon>apartment</mat-icon>
+                  }
+                </div>
+                <div class="visual-actions">
+                  <button mat-flat-button type="button" [disabled]="uploadingLogo()"
+                          (click)="logoInput.click()">
+                    @if (uploadingLogo()) { <mat-spinner diameter="18" /> } @else { <mat-icon>upload</mat-icon> }
+                    {{ (logoUrl() ? 'Remplacer' : 'Ajouter un logo') | t }}
+                  </button>
+                  @if (logoUrl()) {
+                    <button mat-stroked-button type="button" (click)="removeLogo()">
+                      <mat-icon>delete</mat-icon> {{ 'Retirer' | t }}
+                    </button>
+                  }
+                  <input #logoInput type="file" hidden [accept]="acceptedTypes"
+                         (change)="onLogoSelected($event)" />
+                </div>
+              </div>
+            </section>
+
+            <section class="visual-block">
+              <h3>{{ 'Bannière' | t }}</h3>
+              <p class="visual-help">{{ 'Grande image en tête de votre fiche publique. Format panoramique recommandé.' | t }}</p>
+              <div class="visual-editor">
+                <div class="banner-preview" [class.is-empty]="!bannerUrl()">
+                  @if (bannerUrl()) {
+                    <img [src]="bannerUrl()" alt="" />
+                  } @else {
+                    <mat-icon>panorama</mat-icon>
+                  }
+                </div>
+                <div class="visual-actions">
+                  <button mat-flat-button type="button" [disabled]="uploadingBanner()"
+                          (click)="bannerInput.click()">
+                    @if (uploadingBanner()) { <mat-spinner diameter="18" /> } @else { <mat-icon>upload</mat-icon> }
+                    {{ (bannerUrl() ? 'Remplacer' : 'Ajouter une bannière') | t }}
+                  </button>
+                  @if (bannerUrl()) {
+                    <button mat-stroked-button type="button" (click)="removeBanner()">
+                      <mat-icon>delete</mat-icon> {{ 'Retirer' | t }}
+                    </button>
+                  }
+                  <input #bannerInput type="file" hidden [accept]="acceptedTypes"
+                         (change)="onBannerSelected($event)" />
+                </div>
+              </div>
+            </section>
+          </div>
+        </mat-tab>
+
         <!-- Documents tab -->
         <mat-tab>
           <ng-template matTabLabel>
@@ -334,6 +406,26 @@ import { GeoResult } from '../../../core/services/geocoding.service';
     .role-accountant { --mdc-chip-label-text-color: var(--brand-warn); background: var(--brand-accent-soft); }
     .danger-item { color: var(--brand-danger); }
     .tab-section { padding: 24px 0; }
+    .visual-intro { display: flex; align-items: center; gap: 8px; color: var(--brand-text-soft);
+      font-size: 0.9rem; background: var(--brand-primary-soft); border-radius: var(--radius-sm);
+      padding: 10px 14px; margin: 0 0 24px; }
+    .visual-intro mat-icon { color: var(--brand-primary); font-size: 20px; width: 20px; height: 20px; flex: 0 0 auto; }
+    .visual-block { margin-bottom: 32px; }
+    .visual-block h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 4px; }
+    .visual-help { color: var(--brand-text-soft); font-size: 0.88rem; margin: 0 0 14px; }
+    .visual-editor { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+    .visual-actions { display: flex; flex-direction: column; gap: 10px; }
+    .logo-preview, .banner-preview {
+      border-radius: var(--radius-sm); overflow: hidden; flex: 0 0 auto;
+      background: var(--brand-surface-2); border: 1px solid var(--brand-border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-preview { width: 120px; height: 120px; }
+    .banner-preview { width: 320px; aspect-ratio: 21 / 9; }
+    .logo-preview img, .banner-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-preview.is-empty mat-icon, .banner-preview.is-empty mat-icon {
+      font-size: 36px; width: 36px; height: 36px; color: var(--brand-text-faint);
+    }
     .announce-form { background: var(--brand-surface-2); border: 1px solid var(--brand-border); border-radius: var(--radius-md);
       padding: 20px 24px; margin-bottom: 28px; }
     .announce-form h3 { margin: 0 0 16px; font-size: 1rem; font-weight: 700; color: var(--brand-ink); }
@@ -385,11 +477,18 @@ export class OrganizationManageComponent implements OnInit {
     email: '', phone: '', website: '',
   };
 
+  logoUrl = signal<string | null>(null);
+  bannerUrl = signal<string | null>(null);
+  uploadingLogo = signal(false);
+  uploadingBanner = signal(false);
+  readonly acceptedTypes = ImageService.ACCEPTED_TYPES;
+
   constructor(
     private route: ActivatedRoute,
     private membershipService: MembershipService,
     private announcementService: OrgAnnouncementService,
     private orgService: OrganizationService,
+    private imageService: ImageService,
     private snackBar: MatSnackBar,
   ) {}
 
@@ -399,6 +498,8 @@ export class OrganizationManageComponent implements OnInit {
     this.orgService.getBySlug(this.orgSlug).subscribe({
       next: res => {
         this.org.set(res.data);
+        this.logoUrl.set(res.data.logoUrl ?? null);
+        this.bannerUrl.set(res.data.bannerUrl ?? null);
         this.editModel = {
           description: res.data.description ?? '',
           mission: res.data.mission ?? '',
@@ -430,6 +531,73 @@ export class OrganizationManageComponent implements OnInit {
   onCoords(c: { lat: number; lng: number }) {
     this.editModel.addressLat = c.lat;
     this.editModel.addressLng = c.lng;
+  }
+
+  // --- Visuels (logo & bannière) ---
+
+  onLogoSelected(event: Event) {
+    const file = this.takeFile(event);
+    if (!file) return;
+    this.uploadingLogo.set(true);
+    this.imageService.uploadOrgLogo(this.orgId, file).subscribe({
+      next: res => {
+        this.logoUrl.set(res.data.logoUrl);
+        this.uploadingLogo.set(false);
+        this.snackBar.open('Logo mis à jour', 'OK', { duration: 3000 });
+      },
+      error: err => {
+        this.uploadingLogo.set(false);
+        this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 4000 });
+      },
+    });
+  }
+
+  removeLogo() {
+    this.imageService.deleteOrgLogo(this.orgId).subscribe({
+      next: () => { this.logoUrl.set(null); this.snackBar.open('Logo retiré', 'OK', { duration: 3000 }); },
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  onBannerSelected(event: Event) {
+    const file = this.takeFile(event);
+    if (!file) return;
+    this.uploadingBanner.set(true);
+    this.imageService.uploadOrgBanner(this.orgId, file).subscribe({
+      next: res => {
+        this.bannerUrl.set(res.data.bannerUrl);
+        this.uploadingBanner.set(false);
+        this.snackBar.open('Bannière mise à jour', 'OK', { duration: 3000 });
+      },
+      error: err => {
+        this.uploadingBanner.set(false);
+        this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 4000 });
+      },
+    });
+  }
+
+  removeBanner() {
+    this.imageService.deleteOrgBanner(this.orgId).subscribe({
+      next: () => { this.bannerUrl.set(null); this.snackBar.open('Bannière retirée', 'OK', { duration: 3000 }); },
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  /**
+   * Extrait le fichier choisi et vide l'input : sans ça, resélectionner le même
+   * fichier après une erreur ne déclencherait aucun événement « change ».
+   */
+  private takeFile(event: Event): File | null {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) return null;
+    const error = ImageService.validate(file);
+    if (error) {
+      this.snackBar.open(error, 'OK', { duration: 4000 });
+      return null;
+    }
+    return file;
   }
 
   onAddressResolved(r: GeoResult) {

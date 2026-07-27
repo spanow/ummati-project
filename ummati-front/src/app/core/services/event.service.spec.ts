@@ -38,6 +38,32 @@ describe('EventService', () => {
     req.flush({ success: true, data: { content: [], totalElements: 0 } });
   });
 
+  it('listEvents should pass the full-text query', () => {
+    service.listEvents({ q: 'maraude' }).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/events'));
+    expect(req.request.params.get('q')).toBe('maraude');
+    req.flush({ success: true, data: { content: [], totalElements: 0 } });
+  });
+
+  it('listEvents should pass geolocation params for a "near me" search', () => {
+    service.listEvents({ lat: 48.8566, lng: 2.3522, radiusKm: 25, sort: 'distance' }).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/events'));
+    expect(req.request.params.get('lat')).toBe('48.8566');
+    expect(req.request.params.get('lng')).toBe('2.3522');
+    expect(req.request.params.get('radiusKm')).toBe('25');
+    expect(req.request.params.get('sort')).toBe('distance');
+    req.flush({ success: true, data: { content: [], totalElements: 0 } });
+  });
+
+  it('listEvents should keep a zero longitude, not drop it as falsy', () => {
+    // lng = 0 (méridien de Greenwich) est une valeur légitime : un test de vérité
+    // simple l'écarterait et décalerait silencieusement la recherche.
+    service.listEvents({ lat: 51.4778, lng: 0 }).subscribe();
+    const req = httpMock.expectOne(r => r.url.includes('/events'));
+    expect(req.request.params.get('lng')).toBe('0');
+    req.flush({ success: true, data: { content: [], totalElements: 0 } });
+  });
+
   it('getEvent should call GET /events/:id', () => {
     service.getEvent('abc-123').subscribe();
     const req = httpMock.expectOne(r => r.url.endsWith('/events/abc-123'));

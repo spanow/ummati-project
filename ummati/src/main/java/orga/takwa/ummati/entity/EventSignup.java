@@ -41,6 +41,13 @@ public class EventSignup {
     @Column(name = "attended_at")
     private LocalDateTime attendedAt;
 
+    /**
+     * Heures de bénévolat validées par l'ONG (colonne V15). Quand elle est nulle,
+     * le passeport retombe sur la durée du créneau — cf. PassportService.
+     */
+    @Column(name = "hours_validated", precision = 5, scale = 2)
+    private java.math.BigDecimal hoursValidated;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -73,6 +80,9 @@ public class EventSignup {
 
     public LocalDateTime getAttendedAt() { return attendedAt; }
     public void setAttendedAt(LocalDateTime attendedAt) { this.attendedAt = attendedAt; }
+
+    public java.math.BigDecimal getHoursValidated() { return hoursValidated; }
+    public void setHoursValidated(java.math.BigDecimal hoursValidated) { this.hoursValidated = hoursValidated; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,13 +32,16 @@ public class EventService {
     private final MembershipRepository membershipRepository;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final EventPhotoRepository eventPhotoRepository;
+    private final ImageService imageService;
 
     public EventService(EventRepository eventRepository, EventOccurrenceRepository occurrenceRepository,
                         EventSignupRepository eventSignupRepository,
                         EventFeedbackRepository eventFeedbackRepository, OrganizationService organizationService,
                         UserRepository userRepository, SkillRepository skillRepository,
                         MembershipRepository membershipRepository, NotificationService notificationService,
-                        AuditService auditService) {
+                        AuditService auditService, EventPhotoRepository eventPhotoRepository,
+                        ImageService imageService) {
         this.eventRepository = eventRepository;
         this.occurrenceRepository = occurrenceRepository;
         this.eventSignupRepository = eventSignupRepository;
@@ -48,7 +52,12 @@ public class EventService {
         this.membershipRepository = membershipRepository;
         this.notificationService = notificationService;
         this.auditService = auditService;
+        this.eventPhotoRepository = eventPhotoRepository;
+        this.imageService = imageService;
     }
+
+    /** Garde-fou galerie : au-delà, c'est un album photo, plus une preuve d'impact. */
+    static final int MAX_PHOTOS_PER_EVENT = 30;
 
     // T-070: Create event (+ ses créneaux)
     @Transactional
@@ -291,16 +300,11 @@ public class EventService {
 
     // T-073: List events (public)
     @Transactional(readOnly = true)
-    public Page<EventSummary> listEvents(String type, String city, UUID orgId, Boolean online,
-                                          LocalDateTime startAfter, LocalDateTime startBefore,
-                                          UUID skillId, Pageable pageable) {
+    public Page<EventSummary> listEvents(EventSearchCriteria criteria, Pageable pageable) {
         Page<Event> page = eventRepository.findAll(
-                EventSpecification.search(
-                        EventStatus.PUBLISHED, LocalDateTime.now(),
-                        type != null ? EventType.valueOf(type) : null,
-                        city, orgId, online, startAfter, startBefore, skillId),
+                EventSpecification.search(EventStatus.PUBLISHED, LocalDateTime.now(), criteria),
                 pageable);
-        return page.map(this::toSummary);
+        return page.map(event -> toSummary(event, criteria));
     }
 
     // List all events of an org (all statuses) — org admin only
@@ -628,6 +632,81 @@ public class EventService {
 
     // --- Helpers ---
 
+    // --- Visuels (couverture & galerie) ---
+
+    /** Remplace l'image de couverture de la mission. Réservé aux admins de l'ONG porteuse. */
+    @Transactional
+    public String uploadCover(UUID userId, UUID eventId, MultipartFile file) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(userId, event.getOrganization().getId());
+        event.setCoverUrl(imageService.replace(file, "events/" + eventId, event.getCoverUrl()));
+        eventRepository.save(event);
+        return event.getCoverUrl();
+    }
+
+    @Transactional
+    public void deleteCover(UUID userId, UUID eventId) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(userId, event.getOrganization().getId());
+        imageService.deleteByPublicUrl(event.getCoverUrl());
+        event.setCoverUrl(null);
+        eventRepository.save(event);
+    }
+
+    /**
+     * Ajoute une photo à la galerie de la mission (après coup, comme preuve d'impact).
+     * Réservé aux admins de l'ONG porteuse.
+     */
+    @Transactional
+    public EventPhotoResponse addPhoto(UUID userId, UUID eventId, MultipartFile file, String caption) {
+        Event event = findEvent(eventId);
+        organizationService.verifyAdmin(userId, event.getOrganization().getId());
+
+        if (eventPhotoRepository.countByEventId(eventId) >= MAX_PHOTOS_PER_EVENT) {
+            throw new BusinessRuleException(
+                    "La galerie est limitée à " + MAX_PHOTOS_PER_EVENT + " photos par événement");
+        }
+
+        User uploader = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        List<EventPhoto> existing = eventPhotoRepository.findByEventIdOrderByPositionAscCreatedAtAsc(eventId);
+        int nextPosition = existing.isEmpty() ? 0 : existing.get(existing.size() - 1).getPosition() + 1;
+
+        EventPhoto photo = new EventPhoto();
+        photo.setEvent(event);
+        photo.setUrl(imageService.store(file, "events/" + eventId + "/gallery"));
+        photo.setCaption(caption);
+        photo.setPosition(nextPosition);
+        photo.setUploadedBy(uploader);
+        photo = eventPhotoRepository.save(photo);
+
+        auditService.log(userId, "EVENT_PHOTO_ADDED", "Event", eventId);
+        return toPhotoResponse(photo);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventPhotoResponse> listPhotos(UUID eventId) {
+        return eventPhotoRepository.findByEventIdOrderByPositionAscCreatedAtAsc(eventId).stream()
+                .map(this::toPhotoResponse)
+                .toList();
+    }
+
+    @Transactional
+    public void deletePhoto(UUID userId, UUID photoId) {
+        EventPhoto photo = eventPhotoRepository.findById(photoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Photo non trouvée"));
+        organizationService.verifyAdmin(userId, photo.getEvent().getOrganization().getId());
+        imageService.deleteByPublicUrl(photo.getUrl());
+        eventPhotoRepository.delete(photo);
+        auditService.log(userId, "EVENT_PHOTO_DELETED", "Event", photo.getEvent().getId());
+    }
+
+    private EventPhotoResponse toPhotoResponse(EventPhoto photo) {
+        return new EventPhotoResponse(photo.getId(), photo.getUrl(), photo.getCaption(),
+                photo.getPosition(), photo.getCreatedAt());
+    }
+
     Event findEvent(UUID eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Événement non trouvé"));
@@ -700,8 +779,8 @@ public class EventService {
                 event.isOnline(), event.getOnlineLink(),
                 event.getStartDate(), event.getEndDate(), event.getRegistrationDeadline(),
                 event.getMaxParticipants(), event.getMinAge(),
-                event.getStatus().name(), event.getCancellationReason(),
-                org.getId(), org.getName(), org.getSlug(),
+                event.getStatus().name(), event.getCancellationReason(), event.getCoverUrl(),
+                org.getId(), org.getName(), org.getSlug(), org.getLogoUrl(),
                 registeredCount, waitlistedCount, availableSpots, skills, avgRating,
                 event.getCreatedAt(), currentUserSignupStatus, occResponses);
     }
@@ -720,6 +799,14 @@ public class EventService {
     }
 
     EventSummary toSummary(Event event) {
+        return toSummary(event, null);
+    }
+
+    /**
+     * @param origin point de référence de la recherche géolocalisée, ou null : sert
+     *               uniquement à renseigner {@code distanceKm} dans la réponse.
+     */
+    EventSummary toSummary(Event event, EventSearchCriteria origin) {
         long registeredCount = eventSignupRepository.countByEventIdAndStatus(event.getId(), SignupStatus.REGISTERED);
         List<EventOccurrence> occs = occurrenceRepository.findByEventIdOrderByStartDateAsc(event.getId());
         LocalDateTime now = LocalDateTime.now();
@@ -729,11 +816,22 @@ public class EventService {
                 .findFirst()
                 .orElse(null);
         Organization org = event.getOrganization();
+
+        Double distanceKm = null;
+        if (origin != null && origin.hasOrigin()
+                && event.getLocationLat() != null && event.getLocationLng() != null) {
+            distanceKm = EventSpecification.distanceKm(
+                    origin.lat(), origin.lng(),
+                    event.getLocationLat().doubleValue(), event.getLocationLng().doubleValue());
+            distanceKm = Math.round(distanceKm * 10.0) / 10.0;
+        }
+
         return new EventSummary(event.getId(), event.getTitle(), event.getType().name(),
                 event.getLocationCity(), event.isOnline(), event.getLocationLat(), event.getLocationLng(),
                 event.getStartDate(), event.getEndDate(),
                 event.getMaxParticipants(), registeredCount, event.getStatus().name(),
-                org.getName(), org.getSlug(), nextOccurrenceDate, occs.size());
+                org.getName(), org.getSlug(), org.getLogoUrl(), event.getCoverUrl(),
+                nextOccurrenceDate, occs.size(), distanceKm);
     }
 
     SignupResponse toSignupResponse(EventSignup signup) {

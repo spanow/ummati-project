@@ -16,8 +16,9 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { EventService, EventSummary, SignupResponse } from '../../../core/services/event.service';
+import { EventService, EventPhoto, EventSummary, SignupResponse } from '../../../core/services/event.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
+import { ImageService } from '../../../core/services/image.service';
 import { OrganizationService } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
@@ -82,6 +83,9 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
                             <mat-icon>people</mat-icon> {{ 'Participants' | t }}
                           </button>
                         }
+                        <button mat-stroked-button (click)="openVisuals(event)">
+                          <mat-icon>image</mat-icon> {{ 'Visuels' | t }}
+                        </button>
                         <button mat-stroked-button (click)="openDocuments(event)">
                           <mat-icon>folder</mat-icon> {{ 'Documents' | t }}
                         </button>
@@ -181,6 +185,79 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
             }
           </mat-tab>
 
+          <mat-tab [label]="'Visuels' | t" [disabled]="!selectedEvent()">
+            @if (selectedEvent()) {
+              <div class="tab-section-docs">
+                <p class="docs-intro">
+                  <mat-icon>info</mat-icon>
+                  {{ 'Une mission avec un visuel attire nettement plus de bénévoles. JPG, PNG ou WebP, 5 Mo maximum.' | t }}
+                </p>
+
+                <section class="visual-block">
+                  <h3>{{ 'Image de couverture' | t }}</h3>
+                  <p class="visual-help">{{ 'Affichée en tête de la mission et sur les cartes de la liste. Format paysage recommandé.' | t }}</p>
+                  <div class="cover-editor">
+                    <div class="cover-preview" [class.is-empty]="!coverUrl()">
+                      @if (coverUrl()) {
+                        <img [src]="coverUrl()" alt="" />
+                      } @else {
+                        <mat-icon>image</mat-icon>
+                      }
+                    </div>
+                    <div class="visual-actions">
+                      <button mat-flat-button type="button" [disabled]="uploadingCover()"
+                              (click)="coverInput.click()">
+                        @if (uploadingCover()) { <mat-spinner diameter="18" /> }
+                        @else { <mat-icon>upload</mat-icon> }
+                        {{ (coverUrl() ? 'Remplacer' : 'Ajouter une couverture') | t }}
+                      </button>
+                      @if (coverUrl()) {
+                        <button mat-stroked-button type="button" (click)="removeCover()">
+                          <mat-icon>delete</mat-icon> {{ 'Retirer' | t }}
+                        </button>
+                      }
+                      <input #coverInput type="file" hidden [accept]="acceptedTypes"
+                             (change)="onCoverSelected($event)" />
+                    </div>
+                  </div>
+                </section>
+
+                <section class="visual-block">
+                  <h3>{{ 'Galerie' | t }}</h3>
+                  <p class="visual-help">
+                    {{ 'Ajoutez des photos après la mission : c\\'est la meilleure preuve d\\'impact et le meilleur argument pour la prochaine édition.' | t }}
+                    <strong>{{ 'Assurez-vous d\\'avoir l\\'accord des personnes reconnaissables.' | t }}</strong>
+                  </p>
+                  <button mat-flat-button type="button" [disabled]="uploadingPhoto()"
+                          (click)="photoInput.click()">
+                    @if (uploadingPhoto()) { <mat-spinner diameter="18" /> }
+                    @else { <mat-icon>add_photo_alternate</mat-icon> }
+                    {{ 'Ajouter une photo' | t }}
+                  </button>
+                  <input #photoInput type="file" hidden [accept]="acceptedTypes"
+                         (change)="onPhotoSelected($event)" />
+
+                  @if (photos().length > 0) {
+                    <div class="photo-grid">
+                      @for (photo of photos(); track photo.id) {
+                        <figure class="photo-item">
+                          <img [src]="photo.url" [alt]="photo.caption || ''" loading="lazy" />
+                          <button mat-icon-button class="photo-delete" type="button"
+                                  [attr.aria-label]="'Supprimer cette photo' | t"
+                                  (click)="removePhoto(photo.id)">
+                            <mat-icon>delete</mat-icon>
+                          </button>
+                        </figure>
+                      }
+                    </div>
+                  } @else {
+                    <p class="empty-ann">{{ 'Aucune photo pour le moment.' | t }}</p>
+                  }
+                </section>
+              </div>
+            }
+          </mat-tab>
+
           <mat-tab [label]="'Documents' | t" [disabled]="!selectedEvent()">
             @if (selectedEvent()) {
               <div class="tab-section-docs">
@@ -237,6 +314,34 @@ import { OrgDocumentsComponent } from '../../organizations/org-documents/org-doc
     .docs-intro { display: flex; align-items: center; gap: 8px; color: var(--brand-text-soft); font-size: 0.9rem;
       background: var(--brand-primary-soft); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 16px; }
     .docs-intro mat-icon { color: var(--brand-primary); font-size: 20px; width: 20px; height: 20px; }
+
+    .visual-block { margin-bottom: 32px; }
+    .visual-block h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 4px; }
+    .visual-help { color: var(--brand-text-soft); font-size: 0.88rem; margin: 0 0 14px; line-height: 1.55; }
+    .cover-editor { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+    .cover-preview {
+      width: 280px; aspect-ratio: 16 / 9; border-radius: var(--radius-sm); overflow: hidden;
+      background: var(--brand-surface-2); border: 1px solid var(--brand-border);
+      display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    }
+    .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .cover-preview.is-empty mat-icon {
+      font-size: 40px; width: 40px; height: 40px; color: var(--brand-text-faint);
+    }
+    .visual-actions { display: flex; flex-direction: column; gap: 10px; }
+    .photo-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px; margin-top: 16px;
+    }
+    .photo-item { position: relative; margin: 0; }
+    .photo-item img {
+      width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
+      border-radius: var(--radius-sm); background: var(--brand-surface-2);
+    }
+    .photo-delete {
+      position: absolute; inset-block-start: 6px; inset-inline-end: 6px;
+      background: var(--brand-surface); box-shadow: var(--brand-shadow-xs);
+    }
   `],
 })
 export class EventManageComponent implements OnInit {
@@ -254,10 +359,17 @@ export class EventManageComponent implements OnInit {
   newAnnPinned = false;
   tabIndex = signal(0);
 
+  photos = signal<EventPhoto[]>([]);
+  coverUrl = signal<string | null>(null);
+  uploadingCover = signal(false);
+  uploadingPhoto = signal(false);
+  readonly acceptedTypes = ImageService.ACCEPTED_TYPES;
+
   constructor(
     private route: ActivatedRoute,
     private eventService: EventService,
     private announcementService: EventAnnouncementService,
+    private imageService: ImageService,
     private snackBar: MatSnackBar,
   ) {}
 
@@ -297,9 +409,95 @@ export class EventManageComponent implements OnInit {
     this.tabIndex.set(2); // onglet « Inscrits »
   }
 
+  openVisuals(event: EventSummary) {
+    this.selectedEvent.set(event);
+    this.coverUrl.set(event.coverUrl);
+    this.loadPhotos(event.id);
+    this.tabIndex.set(3); // onglet « Visuels »
+  }
+
   openDocuments(event: EventSummary) {
     this.selectedEvent.set(event);
-    this.tabIndex.set(3); // onglet « Documents »
+    this.tabIndex.set(4); // onglet « Documents »
+  }
+
+  // --- Visuels ---
+
+  loadPhotos(eventId: string) {
+    this.imageService.listEventPhotos(eventId).subscribe({
+      next: res => this.photos.set(res.data),
+      error: () => this.photos.set([]),
+    });
+  }
+
+  onCoverSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // On vide l'input tout de suite : sans ça, resélectionner le même fichier
+    // après une erreur ne déclencherait aucun événement « change ».
+    input.value = '';
+    const eventId = this.selectedEvent()?.id;
+    if (!file || !eventId) return;
+
+    const error = ImageService.validate(file);
+    if (error) { this.snackBar.open(error, 'OK', { duration: 4000 }); return; }
+
+    this.uploadingCover.set(true);
+    this.imageService.uploadEventCover(eventId, file).subscribe({
+      next: res => {
+        this.coverUrl.set(res.data.coverUrl);
+        this.uploadingCover.set(false);
+        this.snackBar.open('Couverture mise à jour', 'OK', { duration: 3000 });
+        this.loadEvents();
+      },
+      error: err => {
+        this.uploadingCover.set(false);
+        this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 4000 });
+      },
+    });
+  }
+
+  removeCover() {
+    const eventId = this.selectedEvent()?.id;
+    if (!eventId) return;
+    this.imageService.deleteEventCover(eventId).subscribe({
+      next: () => {
+        this.coverUrl.set(null);
+        this.snackBar.open('Couverture retirée', 'OK', { duration: 3000 });
+        this.loadEvents();
+      },
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
+  }
+
+  onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const eventId = this.selectedEvent()?.id;
+    if (!file || !eventId) return;
+
+    const error = ImageService.validate(file);
+    if (error) { this.snackBar.open(error, 'OK', { duration: 4000 }); return; }
+
+    this.uploadingPhoto.set(true);
+    this.imageService.addEventPhoto(eventId, file).subscribe({
+      next: res => {
+        this.photos.update(list => [...list, res.data]);
+        this.uploadingPhoto.set(false);
+      },
+      error: err => {
+        this.uploadingPhoto.set(false);
+        this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 4000 });
+      },
+    });
+  }
+
+  removePhoto(photoId: string) {
+    this.imageService.deleteEventPhoto(photoId).subscribe({
+      next: () => this.photos.update(list => list.filter(p => p.id !== photoId)),
+      error: err => this.snackBar.open(err.error?.message || 'Erreur', 'OK', { duration: 3000 }),
+    });
   }
 
   loadAnnouncements(eventId: string) {

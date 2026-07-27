@@ -4,8 +4,18 @@ spring:
     username: ummati
     password: ummati
 
+  # ===== FLYWAY =====
+  # Les migrations db/migration/V*.sql sont appliquées automatiquement au démarrage.
+  # baseline-version = 17 : reprise en main des bases dev créées « à la main » avant
+  # l'activation de Flyway (schéma déjà à jour jusqu'à V17, historique absent).
+  # Flyway pose alors la ligne de base à 17 et n'exécute que V18 et suivantes.
+  # Sur une base vide, ce réglage est sans effet : tout est joué depuis V1.
+  # → Voir LANCEMENT.md pour vérifier l'état de flyway_schema_history / repartir de zéro.
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 17
+    out-of-order: false
 
   # ===== SMTP DEV (MailHog) =====
   mail:

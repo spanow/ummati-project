@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/skills/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/public/**").permitAll()
+                        // Images uploadées : seuls images/ et users/ sont montés statiquement
+                        // (cf. WebMvcConfig) — les documents privés restent hors de portée.
+                        .requestMatchers(HttpMethod.GET, "/uploads/images/**", "/uploads/users/**").permitAll()
                         // Swagger / Actuator
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()

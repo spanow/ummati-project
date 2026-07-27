@@ -1,6 +1,8 @@
 package orga.takwa.ummati.service;
 
 import orga.takwa.ummati.dto.profile.*;
+import orga.takwa.ummati.entity.EventSignup;
+import orga.takwa.ummati.entity.Organization;
 import orga.takwa.ummati.entity.Skill;
 import orga.takwa.ummati.entity.User;
 import orga.takwa.ummati.entity.enums.MembershipRole;
@@ -11,7 +13,6 @@ import orga.takwa.ummati.exception.BusinessRuleException;
 import orga.takwa.ummati.exception.ForbiddenException;
 import orga.takwa.ummati.exception.ResourceNotFoundException;
 import orga.takwa.ummati.repository.*;
-import orga.takwa.ummati.util.FileStorageUtil;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,17 +32,17 @@ public class ProfileService {
     private final MembershipRepository membershipRepository;
     private final EventSignupRepository eventSignupRepository;
     private final PasswordEncoder passwordEncoder;
-    private final FileStorageUtil fileStorageUtil;
+    private final ImageService imageService;
 
     public ProfileService(UserRepository userRepository, SkillRepository skillRepository,
                           MembershipRepository membershipRepository, EventSignupRepository eventSignupRepository,
-                          PasswordEncoder passwordEncoder, FileStorageUtil fileStorageUtil) {
+                          PasswordEncoder passwordEncoder, ImageService imageService) {
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
         this.membershipRepository = membershipRepository;
         this.eventSignupRepository = eventSignupRepository;
         this.passwordEncoder = passwordEncoder;
-        this.fileStorageUtil = fileStorageUtil;
+        this.imageService = imageService;
     }
 
     @Transactional(readOnly = true)
@@ -91,16 +93,9 @@ public class ProfileService {
     @Transactional
     public String uploadPhoto(UUID userId, MultipartFile file) throws IOException {
         User user = findUser(userId);
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
-            throw new BusinessRuleException("Seuls les fichiers JPG et PNG sont acceptés");
-        }
-        if (file.getSize() > 5 * 1024 * 1024) {
-            throw new BusinessRuleException("La photo ne doit pas dépasser 5 Mo");
-        }
-
-        String path = fileStorageUtil.store(file, "users/" + userId);
-        user.setPhotoUrl("/uploads/" + path);
+        // La validation (taille, type réel déduit des octets) et le stockage sont centralisés
+        // dans ImageService — même traitement que les logos, bannières et couvertures.
+        user.setPhotoUrl(imageService.replace(file, "users/" + userId, user.getPhotoUrl()));
         userRepository.save(user);
         return user.getPhotoUrl();
     }
@@ -235,6 +230,101 @@ public class ProfileService {
         return export;
     }
 
+    // --- Passeport bénévole ---
+
+    /**
+     * Passeport du bénévole connecté : toujours accessible, nom complet, et indique
+     * l'état de l'option de publication.
+     */
+    @Transactional(readOnly = true)
+    public VolunteerPassport getOwnPassport(UUID userId) {
+        return buildPassport(findUser(userId), false);
+    }
+
+    /**
+     * Passeport public d'un bénévole.
+     *
+     * @throws ResourceNotFoundException si le bénévole n'a pas activé la publication, ou si
+     *         son compte est désactivé — un 404 plutôt qu'un 403 pour ne pas révéler
+     *         l'existence d'un profil non publié.
+     */
+    @Transactional(readOnly = true)
+    public VolunteerPassport getPublicPassport(UUID userId) {
+        User user = findUser(userId);
+        if (!user.isProfilePublic() || !user.isEnabled()) {
+            throw new ResourceNotFoundException("Profil non trouvé");
+        }
+        return buildPassport(user, true);
+    }
+
+    /** Active ou désactive la visibilité publique du passeport. */
+    @Transactional
+    public VolunteerPassport setPassportVisibility(UUID userId, boolean makePublic) {
+        User user = findUser(userId);
+        user.setProfilePublic(makePublic);
+        userRepository.save(user);
+        return buildPassport(user, false);
+    }
+
+    private VolunteerPassport buildPassport(User user, boolean publicView) {
+        List<EventSignup> attended = eventSignupRepository.findAttendedWithEventByUserId(user.getId());
+
+        // Causes : domaines des ONG pour lesquelles le bénévole a effectivement participé,
+        // pas celles où il est simplement inscrit — l'engagement se mesure aux missions faites.
+        Map<String, Integer> missionsByDomain = new LinkedHashMap<>();
+        Set<UUID> orgIds = new HashSet<>();
+        for (EventSignup signup : attended) {
+            Organization org = signup.getEvent().getOrganization();
+            orgIds.add(org.getId());
+            missionsByDomain.merge(org.getDomain().name(), 1, Integer::sum);
+        }
+
+        List<VolunteerPassport.CauseDto> causes = missionsByDomain.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .map(e -> new VolunteerPassport.CauseDto(e.getKey(), e.getValue()))
+                .toList();
+
+        List<VolunteerPassport.MissionDto> recentMissions = attended.stream()
+                .sorted(Comparator.comparing(
+                        (EventSignup s) -> missionDate(s),
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(5)
+                .map(s -> new VolunteerPassport.MissionDto(
+                        s.getEvent().getId(),
+                        s.getEvent().getTitle(),
+                        s.getEvent().getOrganization().getName(),
+                        s.getEvent().getOrganization().getSlug(),
+                        missionDate(s)))
+                .toList();
+
+        List<VolunteerPassport.SkillDto> skills = user.getSkills().stream()
+                .map(s -> new VolunteerPassport.SkillDto(s.getId(), s.getName(), s.getCategory().name()))
+                .toList();
+
+        String displayedLastName = publicView ? initial(user.getLastName()) : user.getLastName();
+
+        return new VolunteerPassport(
+                user.getId(), user.getFirstName(), displayedLastName,
+                user.getPhotoUrl(), user.getBio(), user.getAddressCity(),
+                user.getCreatedAt(),
+                attended.size(), computeVolunteerHours(user.getId()), orgIds.size(),
+                skills, causes, recentMissions, user.isProfilePublic());
+    }
+
+    /** Date effective d'une mission : celle du créneau réservé, sinon celle de l'événement. */
+    private LocalDateTime missionDate(EventSignup signup) {
+        return signup.getOccurrence() != null
+                ? signup.getOccurrence().getStartDate()
+                : signup.getEvent().getStartDate();
+    }
+
+    private String initial(String lastName) {
+        if (lastName == null || lastName.isBlank()) {
+            return "";
+        }
+        return lastName.trim().substring(0, 1).toUpperCase() + ".";
+    }
+
     // --- Mapping ---
 
     private User findUser(UUID userId) {
@@ -258,18 +348,41 @@ public class ProfileService {
                         user.getAddressZip(), user.getAddressCountry()),
                 skills,
                 new ProfileResponse.StatsDto(orgCount, attendedCount, volunteerHours),
-                user.isOnboardingDone(), user.isEmailVerified(), user.getCreatedAt()
+                user.isOnboardingDone(), user.isEmailVerified(), user.getCreatedAt(),
+                user.isProfilePublic()
         );
     }
 
-    // Somme des durées des événements ATTENDED, arrondie à 0.5h près
+    /**
+     * Total des heures de bénévolat, arrondi à la demi-heure.
+     *
+     * <p>Priorité aux heures validées par l'ONG ({@code hours_validated}) : ce sont les
+     * seules qui font foi pour une attestation. À défaut, on retombe sur la durée du
+     * créneau réservé, sinon sur celle de l'enveloppe événement.
+     */
     private double computeVolunteerHours(UUID userId) {
-        long totalMinutes = eventSignupRepository.findAttendedWithEventByUserId(userId).stream()
-                .filter(s -> s.getEvent().getStartDate() != null && s.getEvent().getEndDate() != null)
-                .mapToLong(s -> java.time.Duration.between(
-                        s.getEvent().getStartDate(), s.getEvent().getEndDate()).toMinutes())
-                .filter(minutes -> minutes > 0)
-                .sum();
+        double totalMinutes = 0;
+        for (EventSignup signup : eventSignupRepository.findAttendedWithEventByUserId(userId)) {
+            if (signup.getHoursValidated() != null) {
+                totalMinutes += signup.getHoursValidated().doubleValue() * 60;
+                continue;
+            }
+            LocalDateTime start;
+            LocalDateTime end;
+            if (signup.getOccurrence() != null) {
+                start = signup.getOccurrence().getStartDate();
+                end = signup.getOccurrence().getEndDate();
+            } else {
+                start = signup.getEvent().getStartDate();
+                end = signup.getEvent().getEndDate();
+            }
+            if (start != null && end != null) {
+                long minutes = java.time.Duration.between(start, end).toMinutes();
+                if (minutes > 0) {
+                    totalMinutes += minutes;
+                }
+            }
+        }
         return Math.round(totalMinutes / 30.0) / 2.0;
     }
 }

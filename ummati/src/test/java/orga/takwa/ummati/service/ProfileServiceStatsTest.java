@@ -10,7 +10,6 @@ import orga.takwa.ummati.repository.EventSignupRepository;
 import orga.takwa.ummati.repository.MembershipRepository;
 import orga.takwa.ummati.repository.SkillRepository;
 import orga.takwa.ummati.repository.UserRepository;
-import orga.takwa.ummati.util.FileStorageUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +34,7 @@ class ProfileServiceStatsTest {
     @Mock private MembershipRepository membershipRepository;
     @Mock private EventSignupRepository eventSignupRepository;
     @Mock private PasswordEncoder passwordEncoder;
-    @Mock private FileStorageUtil fileStorageUtil;
+    @Mock private ImageService imageService;
 
     @InjectMocks
     private ProfileService profileService;

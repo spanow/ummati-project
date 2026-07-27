@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -23,16 +24,19 @@ public class OrganizationService {
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final EventRepository eventRepository;
+    private final ImageService imageService;
 
     public OrganizationService(OrganizationRepository organizationRepository, UserRepository userRepository,
                                MembershipRepository membershipRepository, NotificationService notificationService,
-                               AuditService auditService, EventRepository eventRepository) {
+                               AuditService auditService, EventRepository eventRepository,
+                               ImageService imageService) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.membershipRepository = membershipRepository;
         this.notificationService = notificationService;
         this.auditService = auditService;
         this.eventRepository = eventRepository;
+        this.imageService = imageService;
     }
 
     // T-046: Create organization
@@ -171,6 +175,46 @@ public class OrganizationService {
 
         org = organizationRepository.save(org);
         return toDetail(org);
+    }
+
+    // --- Visuels (logo & bannière) ---
+
+    /** Remplace le logo de l'ONG. Réservé aux admins de l'ONG. */
+    @Transactional
+    public String uploadLogo(UUID userId, UUID orgId, MultipartFile file) {
+        verifyAdmin(userId, orgId);
+        Organization org = findOrg(orgId);
+        org.setLogoUrl(imageService.replace(file, "organizations/" + orgId, org.getLogoUrl()));
+        organizationRepository.save(org);
+        return org.getLogoUrl();
+    }
+
+    @Transactional
+    public void deleteLogo(UUID userId, UUID orgId) {
+        verifyAdmin(userId, orgId);
+        Organization org = findOrg(orgId);
+        imageService.deleteByPublicUrl(org.getLogoUrl());
+        org.setLogoUrl(null);
+        organizationRepository.save(org);
+    }
+
+    /** Remplace la bannière de l'ONG. Réservé aux admins de l'ONG. */
+    @Transactional
+    public String uploadBanner(UUID userId, UUID orgId, MultipartFile file) {
+        verifyAdmin(userId, orgId);
+        Organization org = findOrg(orgId);
+        org.setBannerUrl(imageService.replace(file, "organizations/" + orgId, org.getBannerUrl()));
+        organizationRepository.save(org);
+        return org.getBannerUrl();
+    }
+
+    @Transactional
+    public void deleteBanner(UUID userId, UUID orgId) {
+        verifyAdmin(userId, orgId);
+        Organization org = findOrg(orgId);
+        imageService.deleteByPublicUrl(org.getBannerUrl());
+        org.setBannerUrl(null);
+        organizationRepository.save(org);
     }
 
     // --- Helpers ---

@@ -18,7 +18,12 @@ public record EventSummary(
         String status,
         String organizationName,
         String organizationSlug,
+        String organizationLogoUrl,
+        /** Visuel d'annonce de la mission (null si l'ONG n'en a pas défini). */
+        String coverUrl,
         // Prochain créneau à venir (null si aucun) + nombre total de créneaux de la série.
         LocalDateTime nextOccurrenceDate,
-        int occurrenceCount
+        int occurrenceCount,
+        /** Distance en km depuis le point de référence — null hors recherche géolocalisée. */
+        Double distanceKm
 ) {}

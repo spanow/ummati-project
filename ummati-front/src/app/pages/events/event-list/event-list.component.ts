@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { Component, signal, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,30 +31,60 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
         </div>
       </header>
 
+      <mat-form-field appearance="outline" class="q-field" subscriptSizing="dynamic">
+        <mat-label>{{ 'Rechercher une mission' | t }}</mat-label>
+        <input matInput [(ngModel)]="searchQuery" (keyup.enter)="resetAndLoad()"
+               [placeholder]="'maraude, cours de soutien, collecte...' | t" />
+        <mat-icon matPrefix>search</mat-icon>
+        @if (searchQuery) {
+          <button matSuffix mat-icon-button type="button" [attr.aria-label]="'Effacer' | t"
+                  (click)="searchQuery = ''; resetAndLoad()">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+
       <div class="filters-row">
         <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
           <mat-label>{{ 'Ville' | t }}</mat-label>
-          <input matInput [(ngModel)]="cityFilter" (keyup.enter)="loadEvents()"
+          <input matInput [(ngModel)]="cityFilter" (keyup.enter)="resetAndLoad()"
                  placeholder="Lyon, Paris..." />
           <mat-icon matSuffix>location_on</mat-icon>
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>{{ 'Type' | t }}</mat-label>
-          <mat-select [(ngModel)]="typeFilter" (selectionChange)="loadEvents()">
+          <mat-select [(ngModel)]="typeFilter" (selectionChange)="resetAndLoad()">
             <mat-option [value]="null">{{ 'Tous' | t }}</mat-option>
             @for (t of eventTypes; track t.value) {
               <mat-option [value]="t.value">{{ t.label }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
-        <mat-checkbox [(ngModel)]="onlineOnly" (change)="loadEvents()">{{ 'En ligne uniquement' | t }}</mat-checkbox>
+        @if (userLoc()) {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="radius-field">
+            <mat-label>{{ 'Rayon' | t }}</mat-label>
+            <mat-select [(ngModel)]="radiusKm" (selectionChange)="resetAndLoad()">
+              @for (r of radiusOptions; track r) {
+                <mat-option [value]="r">{{ r }} km</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        <mat-checkbox [(ngModel)]="onlineOnly" (change)="resetAndLoad()">{{ 'En ligne uniquement' | t }}</mat-checkbox>
         <button mat-stroked-button type="button" class="near-btn" [class.active]="userLoc()"
                 [disabled]="locating()" (click)="toggleNearMe()">
           @if (locating()) { <mat-spinner diameter="18" /> } @else { <mat-icon>near_me</mat-icon> }
-          {{ (userLoc() ? 'Trié par distance' : 'Près de chez moi') | t }}
+          {{ (userLoc() ? 'Autour de moi' : 'Près de chez moi') | t }}
         </button>
       </div>
       @if (geoError()) { <p class="geo-error">{{ geoError() }}</p> }
+      @if (userLoc() && !onlineOnly) {
+        <p class="geo-hint">
+          <mat-icon>info</mat-icon>
+          {{ 'Missions à moins de' | t }} {{ radiusKm }} km, de la plus proche à la plus lointaine.
+          {{ 'Les missions en ligne sont exclues de ce périmètre.' | t }}
+        </p>
+      }
 
       @if (loading()) {
         <div class="event-grid" aria-busy="true">
@@ -68,17 +98,27 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
         </div>
       } @else {
         <div class="event-grid">
-          @for (event of displayedEvents(); track event.id) {
+          @for (event of events(); track event.id) {
             <a class="event-card hover-lift no-underline" [routerLink]="['/events', event.id]">
-              <div class="ev-head">
+              <!-- Visuel d'annonce : premier élément de décision pour le bénévole.
+                   Sans couverture, un aplat dégradé conserve le rythme de la grille. -->
+              <div class="ev-cover" [class.is-placeholder]="!event.coverUrl">
+                @if (event.coverUrl) {
+                  <img [src]="event.coverUrl" alt="" loading="lazy" decoding="async" />
+                } @else {
+                  <mat-icon aria-hidden="true">volunteer_activism</mat-icon>
+                }
                 <time class="ev-date" [attr.datetime]="event.startDate">
                   <b>{{ event.startDate | date:'d' }}</b>
                   <span>{{ event.startDate | date:'MMM' }}</span>
                 </time>
+              </div>
+
+              <div class="ev-head">
                 <div class="ev-tags">
                   <span class="badge badge-neutral">{{ event.type }}</span>
                   @if (event.online) { <span class="badge badge-info">{{ 'En ligne' | t }}</span> }
-                  @if (distanceKm(event) !== null) {
+                  @if (event.distanceKm !== null) {
                     <span class="badge badge-brand"><mat-icon>near_me</mat-icon>{{ distanceLabel(event) }}</span>
                   }
                 </div>
@@ -123,13 +163,20 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
     </div>
   `,
   styles: [`
+    .q-field { width: 100%; margin-bottom: var(--space-3); }
     .search-field { flex: 1; min-width: 200px; }
+    .radius-field { width: 120px; }
     .near-btn { height: 54px; border-radius: var(--radius-md) !important; }
     .near-btn.active {
       background: var(--brand-primary-100); color: var(--brand-primary-dark);
       border-color: var(--brand-primary);
     }
     .geo-error { color: var(--brand-danger); font-size: 0.85rem; margin: -12px 0 16px; }
+    .geo-hint {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--brand-text-soft); font-size: 0.85rem; margin: -8px 0 16px;
+    }
+    .geo-hint mat-icon { font-size: 16px; width: 16px; height: 16px; flex: 0 0 auto; }
 
     .empty-state { text-align: center; padding: var(--space-9) var(--space-5); }
     .empty-badge {
@@ -145,18 +192,32 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
 
     /* Carte = lien : toute la surface est cliquable et focalisable au clavier */
     .event-card {
-      display: flex; flex-direction: column;
+      display: flex; flex-direction: column; overflow: hidden;
       background: var(--brand-surface); border: 1px solid var(--brand-border);
       border-radius: var(--radius-card); box-shadow: var(--brand-shadow-xs);
-      padding: var(--space-5); color: inherit;
+      padding: 0 var(--space-5) var(--space-5); color: inherit;
     }
 
-    .ev-head { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4); }
-    /* Bloc date façon page de calendrier : repère visuel immédiat */
+    .ev-cover {
+      position: relative; margin: 0 calc(-1 * var(--space-5)) var(--space-4);
+      aspect-ratio: 16 / 9; background: var(--brand-surface-2); overflow: hidden;
+    }
+    .ev-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ev-cover.is-placeholder {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--brand-primary-soft);
+    }
+    .ev-cover.is-placeholder mat-icon {
+      font-size: 40px; width: 40px; height: 40px; color: var(--brand-primary-100);
+    }
+
+    .ev-head { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-3); }
+    /* Bloc date façon page de calendrier, posé sur le visuel : repère immédiat */
     .ev-date {
-      flex: 0 0 auto; width: 54px; height: 54px; border-radius: var(--radius-sm);
-      background: var(--brand-primary-soft); border: 1px solid var(--brand-primary-100);
-      color: var(--brand-primary-dark);
+      position: absolute; inset-block-start: var(--space-3); inset-inline-start: var(--space-3);
+      width: 54px; height: 54px; border-radius: var(--radius-sm);
+      background: var(--brand-surface); border: 1px solid var(--brand-primary-100);
+      color: var(--brand-primary-dark); box-shadow: var(--brand-shadow-xs);
       display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05;
     }
     .ev-date b { font-size: 1.3rem; font-weight: 800; }
@@ -195,30 +256,23 @@ export class EventListComponent implements OnInit {
   totalElements = signal(0);
   currentPage = signal(0);
 
+  searchQuery = '';
   cityFilter = '';
   typeFilter: string | null = null;
   onlineOnly = false;
+  radiusKm = 25;
+
+  readonly radiusOptions = [5, 10, 25, 50, 100];
 
   /** Nombre de squelettes affichés pendant le chargement (= taille de page). */
   readonly skeletonSlots = Array.from({ length: 6 }, (_, i) => i);
 
-  // « Près de chez moi » — géolocalisation navigateur + tri par distance (côté client)
+  // « Autour de moi » — géolocalisation navigateur, puis filtrage et tri côté serveur :
+  // trier la seule page courante ne remonterait jamais une mission proche située page 2.
   userLoc = signal<{ lat: number; lng: number } | null>(null);
   locating = signal(false);
   geoError = signal('');
   private platformId = inject(PLATFORM_ID);
-
-  /** Événements affichés : triés par distance croissante quand la position est connue. */
-  displayedEvents = computed(() => {
-    const list = this.events();
-    if (!this.userLoc()) return list;
-    return [...list].sort((a, b) => {
-      const da = this.distanceKm(a), db = this.distanceKm(b);
-      if (da === null) return 1;
-      if (db === null) return -1;
-      return da - db;
-    });
-  });
 
   readonly eventTypes = EVENT_TYPES;
 
@@ -238,7 +292,11 @@ export class EventListComponent implements OnInit {
   }
 
   toggleNearMe() {
-    if (this.userLoc()) { this.userLoc.set(null); return; }
+    if (this.userLoc()) {
+      this.userLoc.set(null);
+      this.resetAndLoad();
+      return;
+    }
     if (!isPlatformBrowser(this.platformId) || !navigator.geolocation) {
       this.geoError.set('La géolocalisation n\'est pas disponible sur cet appareil.');
       return;
@@ -249,6 +307,7 @@ export class EventListComponent implements OnInit {
       pos => {
         this.userLoc.set({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         this.locating.set(false);
+        this.resetAndLoad();
       },
       () => {
         this.geoError.set('Impossible d\'obtenir votre position. Autorisez la géolocalisation pour trier par distance.');
@@ -258,26 +317,34 @@ export class EventListComponent implements OnInit {
     );
   }
 
-  /** Distance à vol d'oiseau (km) entre l'utilisateur et l'événement, ou null si non calculable. */
-  distanceKm(event: EventSummary): number | null {
-    const u = this.userLoc();
-    if (!u || event.online || event.locationLat == null || event.locationLng == null) return null;
-    return haversineKm(u.lat, u.lng, +event.locationLat, +event.locationLng);
-  }
-
+  /** Distance renvoyée par le serveur, mise en forme. */
   distanceLabel(event: EventSummary): string {
-    const d = this.distanceKm(event);
+    const d = event.distanceKm;
     if (d === null) return '';
     return d < 1 ? `${Math.round(d * 1000)} m` : `${d < 10 ? d.toFixed(1) : Math.round(d)} km`;
   }
 
+  /** Tout changement de critère renvoie à la première page : sinon on pagine un résultat qui n'existe plus. */
+  resetAndLoad() {
+    this.currentPage.set(0);
+    this.loadEvents();
+  }
+
   loadEvents() {
     this.loading.set(true);
+    const loc = this.userLoc();
     this.eventService.listEvents({
       page: this.currentPage(), size: 10,
       type: this.typeFilter || undefined,
       city: this.cityFilter || undefined,
       online: this.onlineOnly ? true : undefined,
+      q: this.searchQuery.trim() || undefined,
+      // Le périmètre ne s'applique qu'aux missions physiques : le combiner avec
+      // « en ligne uniquement » ne renverrait jamais rien.
+      lat: loc?.lat,
+      lng: loc?.lng,
+      radiusKm: loc && !this.onlineOnly ? this.radiusKm : undefined,
+      sort: loc ? 'distance' : undefined,
     }).subscribe({
       next: res => {
         this.events.set(res.data.content);
@@ -292,15 +359,4 @@ export class EventListComponent implements OnInit {
     this.currentPage.set(event.pageIndex);
     this.loadEvents();
   }
-}
-
-/** Distance à vol d'oiseau en km (formule de Haversine). */
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

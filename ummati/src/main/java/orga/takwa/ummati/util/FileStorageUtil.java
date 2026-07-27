@@ -43,6 +43,21 @@ public class FileStorageUtil {
         return subDir + "/" + filename;
     }
 
+    /**
+     * Stocke un fichier en imposant l'extension (déduite du contenu réel, pas du nom
+     * fourni par le client) et retourne le chemin relatif.
+     */
+    public String store(MultipartFile file, String subDir, String forcedExtension) throws IOException {
+        String filename = UUID.randomUUID() + forcedExtension;
+
+        Path targetDir = uploadDir.resolve(subDir);
+        Files.createDirectories(targetDir);
+        Path targetPath = targetDir.resolve(filename);
+        file.transferTo(targetPath);
+
+        return subDir + "/" + filename;
+    }
+
     public void delete(String relativePath) throws IOException {
         Path path = uploadDir.resolve(relativePath);
         Files.deleteIfExists(path);

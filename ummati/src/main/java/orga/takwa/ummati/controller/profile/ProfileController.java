@@ -57,6 +57,20 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("photoUrl", url)));
     }
 
+    @Operation(summary = "Mon passeport bénévole (missions, heures, causes)")
+    @GetMapping("/passport")
+    public ResponseEntity<ApiResponse<VolunteerPassport>> getPassport(@CurrentUser UUID userId) {
+        return ResponseEntity.ok(ApiResponse.ok(profileService.getOwnPassport(userId)));
+    }
+
+    @Operation(summary = "Publier ou dépublier mon passeport bénévole")
+    @PutMapping("/passport/visibility")
+    public ResponseEntity<ApiResponse<VolunteerPassport>> setPassportVisibility(
+            @CurrentUser UUID userId, @RequestBody Map<String, Boolean> body) {
+        boolean isPublic = Boolean.TRUE.equals(body.get("public"));
+        return ResponseEntity.ok(ApiResponse.ok(profileService.setPassportVisibility(userId, isPublic)));
+    }
+
     @DeleteMapping
     public ResponseEntity<Void> deleteAccount(
             @CurrentUser UUID userId, @RequestBody Map<String, String> body) {

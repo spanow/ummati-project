@@ -9,7 +9,9 @@ public record ProfileResponse(
         UUID id, String email, String firstName, String lastName,
         String phone, LocalDate dateOfBirth, String photoUrl, String bio,
         AddressDto address, List<SkillDto> skills, StatsDto stats,
-        boolean onboardingDone, boolean emailVerified, LocalDateTime createdAt
+        boolean onboardingDone, boolean emailVerified, LocalDateTime createdAt,
+        /** Visibilité publique du passeport bénévole (opt-in). */
+        boolean profilePublic
 ) {
     public record AddressDto(String street, String city, String zip, String country) {}
     public record SkillDto(UUID id, String name, String category) {}

@@ -46,21 +46,35 @@ docker start ummati-mailhog
 
 ---
 
-## 3. 🗄️ Initialiser la base de données (première fois uniquement)
+## 3. 🗄️ Base de données — migrations automatiques
 
-Les migrations Flyway ne s'exécutent pas automatiquement en dev (conflit avec DevTools). Il faut les lancer manuellement **une seule fois** après création du container :
+**Rien à faire.** Depuis l'activation de Flyway en dev, toutes les migrations
+`src/main/resources/db/migration/V*.sql` sont appliquées **automatiquement au démarrage
+du backend** (étape 4). Sur une base vide, Flyway crée tout le schéma depuis `V1` et
+insère les données de démo (`V7__seed_data.sql`).
+
+### Vous aviez déjà une base migrée à la main ?
+
+`application-dev.yaml` pose `baseline-on-migrate: true` avec `baseline-version: 17` :
+Flyway considère qu'une base déjà peuplée mais sans historique est à jour jusqu'à `V17`,
+enregistre cette ligne de base et n'exécute que `V18` et suivantes.
+
+⚠️ Ce réglage suppose que votre base est bien à jour jusqu'à `V17`. Si vous n'aviez
+appliqué qu'une partie des scripts, les migrations manquantes seraient **silencieusement
+sautées**. Dans le doute, repartez d'une base propre — les données de dev sont jetables :
 
 ```powershell
-cd ummati
-
-foreach ($f in (Get-ChildItem "src\main\resources\db\migration\*.sql" | Sort-Object Name)) {
-  Write-Host "=== $($f.Name) ==="
-  $sql = Get-Content $f.FullName -Raw
-  $sql | docker exec -i ummati-postgres psql -U ummati -d ummati_db
-}
+docker exec -i ummati-postgres psql -U ummati -d postgres -c "DROP DATABASE ummati_db;"
+docker exec -i ummati-postgres psql -U ummati -d postgres -c "CREATE DATABASE ummati_db OWNER ummati;"
 ```
 
-> ✅ Vous devriez voir `CREATE TABLE`, `CREATE INDEX`, `INSERT` pour chaque script V1 à V7.
+Puis relancez le backend : Flyway rejouera l'intégralité des scripts depuis `V1`.
+
+### Vérifier ce que Flyway a appliqué
+
+```powershell
+docker exec -i ummati-postgres psql -U ummati -d ummati_db -c "SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;"
+```
 
 ---
 
@@ -74,8 +88,9 @@ cd ummati
 ✅ Le backend démarre sur **http://localhost:8080**
 
 > Les credentials DB sont hardcodés dans `application-dev.yaml` (url: 5433, user: ummati, pass: ummati).
-> Flyway est désactivé en dev (`spring.flyway.enabled: false`) — les migrations sont gérées manuellement.
+> Flyway applique les migrations au démarrage (cf. étape 3) — plus rien à lancer à la main.
 > SMTP pointe vers MailHog (localhost:1025) — aucun vrai email envoyé.
+> Les images uploadées sont écrites sous `ummati/uploads/images/` et servies sur `/uploads/images/**`.
 
 ---
 
@@ -131,7 +146,13 @@ Il y a un PostgreSQL local Windows sur le port 5432 qui interfère. Le projet es
 Vérifiez que le container tourne : `docker ps`
 
 ### La base est vide / tables manquantes
-Relancer les migrations manuellement (étape 3 ci-dessus).
+Flyway applique les migrations au démarrage du backend. Vérifiez l'historique
+(`flyway_schema_history`, étape 3) : si des versions manquent, repartez d'une base propre
+avec le `DROP DATABASE` / `CREATE DATABASE` de l'étape 3, puis relancez le backend.
+
+### `FlywayValidateException` : migration checksum mismatch
+Un fichier `V*.sql` déjà appliqué a été modifié. Les migrations sont **immuables** : rétablissez
+le fichier d'origine et ajoutez plutôt un nouveau `V{n}__description.sql`.
 
 ### Le port 8080 est déjà utilisé
 ```powershell

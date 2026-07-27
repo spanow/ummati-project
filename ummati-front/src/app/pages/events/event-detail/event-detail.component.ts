@@ -15,7 +15,8 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { EventService, EventDetail, FeedbackResponse } from '../../../core/services/event.service';
+import { EventService, EventDetail, EventPhoto, FeedbackResponse } from '../../../core/services/event.service';
+import { ImageService } from '../../../core/services/image.service';
 import { EventAnnouncementService, AnnouncementResponse } from '../../../core/services/event-announcement.service';
 import { EventCommentService, CommentResponse } from '../../../core/services/event-comment.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -36,6 +37,9 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
       @if (loading()) {
         <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (event()) {
+        @if (event()!.coverUrl) {
+          <img class="event-cover" [src]="event()!.coverUrl" alt="" />
+        }
         <div class="event-header">
           <div class="header-top">
             <a mat-button [routerLink]="['/organizations', event()!.organizationSlug]" class="org-link">
@@ -294,6 +298,24 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
               </mat-card>
             }
 
+            @if (photos().length > 0) {
+              <mat-card class="gallery-card">
+                <mat-card-content>
+                  <h3>{{ 'En images' | t }}</h3>
+                  <p class="gallery-sub">{{ 'Retour sur cette mission' | t }}</p>
+                  <div class="gallery-grid">
+                    @for (photo of photos(); track photo.id) {
+                      <figure class="gallery-item">
+                        <img [src]="photo.url" [alt]="photo.caption || ''"
+                             loading="lazy" decoding="async" />
+                        @if (photo.caption) { <figcaption>{{ photo.caption }}</figcaption> }
+                      </figure>
+                    }
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            }
+
             @if (!event()!.online && event()!.locationLat && event()!.locationLng) {
               <app-location-picker [editable]="false"
                 [lat]="+event()!.locationLat" [lng]="+event()!.locationLng" />
@@ -320,6 +342,26 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     </div>
   `,
   styles: [`
+    .event-cover {
+      width: 100%; aspect-ratio: 21 / 9; object-fit: cover; display: block;
+      border-radius: var(--radius-card); margin-bottom: var(--space-5);
+      background: var(--brand-surface-2);
+    }
+
+    .gallery-card h3 { margin: 0 0 4px; }
+    .gallery-sub { color: var(--brand-text-soft); font-size: 0.88rem; margin: 0 0 16px; }
+    .gallery-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
+    }
+    .gallery-item { margin: 0; }
+    .gallery-item img {
+      width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
+      border-radius: var(--radius-sm); background: var(--brand-surface-2);
+    }
+    .gallery-item figcaption {
+      font-size: 0.78rem; color: var(--brand-text-soft); margin-top: 6px; line-height: 1.35;
+    }
+
     .event-header { margin-bottom: 32px; }
     .header-top { display: flex; align-items: center; justify-content: space-between; }
     .org-link { color: var(--brand-primary); margin-bottom: 8px; }
@@ -410,6 +452,7 @@ export class EventDetailComponent implements OnInit {
   feedbackAnonymous = false;
   submittingFeedback = signal(false);
   feedbackSubmitted = signal(false);
+  photos = signal<EventPhoto[]>([]);
 
   get isLoggedIn() { return this.authService.isLoggedIn; }
 
@@ -422,6 +465,7 @@ export class EventDetailComponent implements OnInit {
     private announcementService: EventAnnouncementService,
     private commentService: EventCommentService,
     private authService: AuthService,
+    private imageService: ImageService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
   ) {}
@@ -434,6 +478,7 @@ export class EventDetailComponent implements OnInit {
     this.loadFeedbacks();
     this.loadAnnouncements();
     this.loadComments();
+    this.loadPhotos();
     if (this.authService.isLoggedIn()) {
       this.eventService.getMySignup(this.eventId).subscribe({
         next: res => {
@@ -458,6 +503,14 @@ export class EventDetailComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  /** La galerie est publique : une erreur ici ne doit pas dégrader la page. */
+  loadPhotos() {
+    this.imageService.listEventPhotos(this.eventId).subscribe({
+      next: res => this.photos.set(res.data),
+      error: () => this.photos.set([]),
     });
   }
 

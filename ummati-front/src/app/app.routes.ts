@@ -96,6 +96,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/dashboard/org-dashboard.component').then(m => m.OrgDashboardComponent),
   },
   {
+    // Passeport bénévole : public si le bénévole l'a publié, sinon 404 côté API.
+    path: 'volunteers/:id',
+    loadComponent: () => import('./pages/profile/volunteer-passport.component').then(m => m.VolunteerPassportComponent),
+  },
+  {
     path: 'my-activities',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/profile/my-activities.component').then(m => m.MyActivitiesComponent),
