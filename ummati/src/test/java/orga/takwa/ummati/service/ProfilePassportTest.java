@@ -102,9 +102,10 @@ class ProfilePassportTest {
         Organization croixRouge = org("Croix-Rouge", "croix-rouge", OrganizationDomain.SANTE);
         Organization resto = org("Resto du Coeur", "resto", OrganizationDomain.SOCIAL);
         when(eventSignupRepository.findAttendedWithEventByUserId(userId)).thenReturn(List.of(
-                attendedSignup(croixRouge, "Maraude", 120, null),
-                attendedSignup(croixRouge, "Collecte", 60, null),
-                attendedSignup(resto, "Distribution", 90, null)));
+                attendedSignup(croixRouge, "Maraude", 120, new BigDecimal("2.0")),
+                attendedSignup(croixRouge, "Collecte", 60, new BigDecimal("1.0")),
+                attendedSignup(resto, "Distribution", 90, new BigDecimal("1.5"))));
+        when(eventSignupRepository.sumValidatedHoursByUserId(userId)).thenReturn(new BigDecimal("4.5"));
 
         VolunteerPassport passport = profileService.getOwnPassport(userId);
 
@@ -118,12 +119,14 @@ class ProfilePassportTest {
     }
 
     @Test
-    void passport_shouldPreferHoursValidatedByTheOrganization_overEventDuration() {
+    void passport_shouldUseTheHoursCertifiedByTheOrganization_notTheSlotDuration() {
+        // Créneau de 3h mais l'ONG n'en a certifié que 2 (le bénévole est parti plus tôt) :
+        // c'est la valeur figée qui fait foi, jamais un recalcul à partir des dates.
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         Organization o = org("ONG", "ong", OrganizationDomain.SOCIAL);
-        // Créneau de 3h mais l'ONG n'en a validé que 2 (le bénévole est parti plus tôt).
         when(eventSignupRepository.findAttendedWithEventByUserId(userId)).thenReturn(List.of(
                 attendedSignup(o, "Mission", 180, new BigDecimal("2.0"))));
+        when(eventSignupRepository.sumValidatedHoursByUserId(userId)).thenReturn(new BigDecimal("2.0"));
 
         VolunteerPassport passport = profileService.getOwnPassport(userId);
 

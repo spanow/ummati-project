@@ -45,6 +45,13 @@ public interface EventSignupRepository extends JpaRepository<EventSignup, UUID> 
     @Query("SELECT SUM(s.hoursValidated) FROM EventSignup s WHERE s.user.id = :userId AND s.status = 'ATTENDED'")
     BigDecimal sumValidatedHoursByUserId(@Param("userId") UUID userId);
 
+    // Toutes les présences validées d'un bénévole, événement chargé — passeport et stats
+    // de profil. Contrairement à findAttendedWithHoursByUserId, aucune condition sur les
+    // heures : les présences enregistrées avant la certification systématique doivent
+    // rester comptées.
+    @Query("SELECT s FROM EventSignup s JOIN FETCH s.event WHERE s.user.id = :userId AND s.status = 'ATTENDED'")
+    List<EventSignup> findAttendedWithEventByUserId(@Param("userId") UUID userId);
+
     // Présences validées d'un bénévole, avec créneau + événement + ONG chargés — pour l'attestation.
     @Query("""
             SELECT s FROM EventSignup s

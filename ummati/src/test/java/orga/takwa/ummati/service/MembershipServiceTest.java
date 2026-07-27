@@ -219,7 +219,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByOrganizationIdAndRoleAndStatus(
                 orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE)).thenReturn(Collections.emptyList());
 
-        membershipService.requestMembership(user.getId(), orgId, new MembershipRequest("Je reviens"));
+        membershipService.requestMembership(user.getId(), orgId, new MembershipRequest("Je reviens", null));
 
         assertThat(previous.getStatus()).isEqualTo(MembershipStatus.PENDING);
         assertThat(previous.getRole()).isEqualTo(MembershipRole.MEMBER);
@@ -243,7 +243,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByOrganizationIdAndRoleAndStatus(
                 orgId, MembershipRole.ADMIN, MembershipStatus.ACTIVE)).thenReturn(Collections.emptyList());
 
-        membershipService.requestMembership(user.getId(), orgId, new MembershipRequest("Nouvelle demande"));
+        membershipService.requestMembership(user.getId(), orgId, new MembershipRequest("Nouvelle demande", null));
 
         assertThat(previous.getRole()).isEqualTo(MembershipRole.MEMBER);
         assertThat(previous.getRejectedAt()).isNull();

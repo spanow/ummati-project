@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -356,36 +357,14 @@ public class ProfileService {
     /**
      * Total des heures de bénévolat, arrondi à la demi-heure.
      *
-     * <p>Priorité aux heures certifiées par l'ONG ({@code hours_validated}) : ce sont les
-     * seules qui font foi pour une attestation. Depuis la validation de présence, elles
-     * sont systématiquement renseignées ; le repli sur la durée du créneau ne sert donc
-     * qu'aux présences enregistrées avant cette bascule, qui seraient sinon comptées à
-     * zéro heure.
+     * <p>Somme des heures certifiées et stockées à la validation de présence, jamais
+     * recalculées à partir des dates : une attestation doit rester stable et auditable,
+     * même si l'ONG corrige ensuite l'horaire du créneau. Les présences antérieures à la
+     * certification systématique ont été renseignées par la migration V20.
      */
     private double computeVolunteerHours(UUID userId) {
-        double totalMinutes = 0;
-        for (EventSignup signup : eventSignupRepository.findAttendedWithEventByUserId(userId)) {
-            if (signup.getHoursValidated() != null) {
-                totalMinutes += signup.getHoursValidated().doubleValue() * 60;
-                continue;
-            }
-            LocalDateTime start;
-            LocalDateTime end;
-            if (signup.getOccurrence() != null) {
-                start = signup.getOccurrence().getStartDate();
-                end = signup.getOccurrence().getEndDate();
-            } else {
-                start = signup.getEvent().getStartDate();
-                end = signup.getEvent().getEndDate();
-            }
-            if (start != null && end != null) {
-                long minutes = java.time.Duration.between(start, end).toMinutes();
-                if (minutes > 0) {
-                    totalMinutes += minutes;
-                }
-            }
-        }
-        return Math.round(totalMinutes / 30.0) / 2.0;
+        BigDecimal sum = eventSignupRepository.sumValidatedHoursByUserId(userId);
+        return sum == null ? 0.0 : sum.doubleValue();
     }
 }
 

@@ -445,7 +445,10 @@ public class EventService {
             case REGISTERED -> 0;
             case WAITLISTED -> 1;
             case ATTENDED -> 2;
-            case CANCELLED -> 3;
+            // Une absence constatée prime sur une annulation : c'est l'état le plus
+            // récent et le plus signifiant à réafficher au bénévole.
+            case NO_SHOW -> 3;
+            case CANCELLED -> 4;
         };
     }
 
