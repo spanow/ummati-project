@@ -1,6 +1,7 @@
 package orga.takwa.ummati.service;
 
 import nl.martijndwars.webpush.PushService;
+import org.springframework.beans.factory.ObjectProvider;
 import orga.takwa.ummati.dto.push.SubscribeRequest;
 import orga.takwa.ummati.entity.PushSubscription;
 import orga.takwa.ummati.entity.User;
@@ -42,10 +43,20 @@ class PushNotificationServiceTest {
     private UUID userId;
     private User user;
 
+    /** Le service reçoit un ObjectProvider : le push est facultatif et peut être absent. */
+    private static ObjectProvider<PushService> providerOf(PushService service) {
+        return new ObjectProvider<>() {
+            @Override public PushService getObject() { return service; }
+            @Override public PushService getObject(Object... args) { return service; }
+            @Override public PushService getIfAvailable() { return service; }
+            @Override public PushService getIfUnique() { return service; }
+        };
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         Security.addProvider(new BouncyCastleProvider());
-        pushNotificationService = new PushNotificationService(subscriptionRepository, pushService);
+        pushNotificationService = new PushNotificationService(subscriptionRepository, providerOf(pushService));
         Field vapidField = PushNotificationService.class.getDeclaredField("vapidPublicKey");
         vapidField.setAccessible(true);
         vapidField.set(pushNotificationService, "test-public-key");

@@ -1,0 +1,22 @@
+# Secrets de déploiement — ne doivent jamais être committés.
+.env
+.env.*
+!.env.example
+
+# Build
+ummati/target/
+ummati-front/dist/
+ummati-front/node_modules/
+ummati-front/.angular/
+
+# Données locales
+ummati/uploads/
+ummati/test-uploads/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log

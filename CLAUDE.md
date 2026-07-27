@@ -31,12 +31,14 @@ Product/ticket context (sprints, feature scope, RM-xx business rules) lives in `
 
 ## Local environment setup
 
-Full step-by-step local setup (Docker Postgres on port **5433**, MailHog for dev email, manual Flyway migration run, ports) is documented in `LANCEMENT.md` — read it before trying to run the stack for the first time. Key points:
+Full step-by-step local setup (Docker Postgres on port **5433**, MailHog for dev email, ports) is documented in `LANCEMENT.md` — read it before trying to run the stack for the first time. Production deployment (containers, secrets, rotation, CI) is documented separately in `DEPLOIEMENT.md`. Key points:
 
 - Dev Postgres runs in Docker on port **5433** (not 5432, which conflicts with a local Windows install).
-- `spring.flyway.enabled: false` in the `dev` profile — migrations under `ummati/src/main/resources/db/migration/V*.sql` must be applied manually against the Docker container the first time (Flyway is disabled in dev to avoid conflicts with DevTools restarts).
+- Flyway is **enabled** and applies `ummati/src/main/resources/db/migration/V*.sql` automatically at startup, in every profile. The `dev` profile sets `baseline-version: 17` to adopt databases that were migrated by hand before Flyway was turned on.
+- Migrations must work **on an empty database**, not just on an already-migrated one — `V8` silently broke fresh installs for months because it added a constraint that `V3` had already created. The CI job "Déploiement depuis zéro" now guards this.
 - MailHog intercepts all dev emails at http://localhost:8025 — no real email is ever sent locally.
-- Frontend dev proxy (`ummati-front/proxy.conf.json`) forwards `/api/*` → `http://localhost:8080`.
+- Frontend dev proxy (`ummati-front/proxy.conf.json`) forwards `/api/*` and `/uploads/*` → `http://localhost:8080`.
+- Spring Boot 4 ships auto-configurations as separate modules: a library on the classpath (e.g. `flyway-core`) does nothing without its `spring-boot-*` companion. Check the dependency tree when an integration seems inert.
 
 ## Common commands
 

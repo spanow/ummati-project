@@ -1,0 +1,87 @@
+# Déploiement de production d'Ummati.
+#
+# Topologie : nginx est le seul point d'entrée exposé. Il route /api et /uploads vers
+# le backend, tout le reste vers le serveur SSR Angular. Sans ce reverse proxy, le
+# navigateur appellerait /api/v1 sur l'origine du frontend, qui ne le connaît pas.
+#
+# Démarrage : cp .env.example .env, remplir TOUS les secrets, puis docker compose up -d
+# Voir DEPLOIEMENT.md pour générer chaque valeur.
+
+name: ummati
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME manquant}
+      POSTGRES_USER: ${DB_USER:?DB_USER manquant}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD manquant}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Pas de ports exposés : la base n'est joignable que depuis le réseau interne.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ummati]
+
+  backend:
+    build:
+      context: ./ummati
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_USERNAME: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL manquant}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD manquant}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      APP_BASE_URL: ${PUBLIC_URL:?PUBLIC_URL manquant}
+      CORS_ORIGINS: ${PUBLIC_URL}
+      # nginx est en amont et réécrit X-Forwarded-For : le rate limiter peut s'y fier
+      # pour distinguer les clients. Sans cela, tous partageraient l'IP du proxy.
+      TRUST_FORWARDED_FOR: "true"
+    volumes:
+      # Les images et documents uploadés survivent au redéploiement grâce à ce volume.
+      - uploads:/app/uploads
+    networks: [ummati]
+
+  frontend:
+    build:
+      context: ./ummati-front
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks: [ummati]
+
+  proxy:
+    build:
+      context: ./deploy
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    networks: [ummati]
+
+volumes:
+  db-data:
+  uploads:
+
+networks:
+  ummati:

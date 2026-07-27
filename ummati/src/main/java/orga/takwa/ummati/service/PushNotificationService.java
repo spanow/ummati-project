@@ -10,6 +10,7 @@ import orga.takwa.ummati.entity.User;
 import orga.takwa.ummati.repository.PushSubscriptionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,13 +29,16 @@ public class PushNotificationService {
     private final PushService pushService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${app.vapid.public-key}")
+    @Value("${app.vapid.public-key:}")
     private String vapidPublicKey;
 
     public PushNotificationService(PushSubscriptionRepository subscriptionRepository,
-                                    PushService pushService) {
+                                    ObjectProvider<PushService> pushServiceProvider) {
         this.subscriptionRepository = subscriptionRepository;
-        this.pushService = pushService;
+        // ObjectProvider et non injection directe : sans clés VAPID, PushNotificationConfig
+        // ne fournit pas de client et l'injection obligatoire ferait échouer tout le
+        // démarrage pour une fonctionnalité facultative.
+        this.pushService = pushServiceProvider.getIfAvailable();
     }
 
     public String getVapidPublicKey() {
@@ -59,6 +63,10 @@ public class PushNotificationService {
 
     // Best-effort: push failures never interrupt the caller (in-app notif + email already succeeded)
     public void sendToUser(User user, String title, String body, String link) {
+        // pushService est null quand les clés VAPID ne sont pas configurées : le push est
+        // alors simplement désactivé, sans incidence sur les notifications in-app.
+        if (pushService == null) return;
+
         List<PushSubscription> subs = subscriptionRepository.findByUserId(user.getId());
         if (subs.isEmpty()) return;
 

@@ -60,7 +60,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/uploads/images/**", "/uploads/users/**").permitAll()
                         // Swagger / Actuator
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // /actuator/health/** et non seulement /actuator/health : les sondes
+                        // liveness et readiness sont sur des sous-chemins, et sans cette
+                        // ouverture le healthcheck du conteneur reçoit un 403 et déclare
+                        // l'application malsaine alors qu'elle fonctionne.
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         // Admin endpoints
                         .requestMatchers("/api/v1/admin/**").hasAuthority("PLATFORM_ADMIN")
                         // Everything else requires authentication

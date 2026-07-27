@@ -67,6 +67,17 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!--
+            Spring Boot 4 a sorti les auto-configurations dans des modules dédiés :
+            sans spring-boot-flyway, flyway-core est bien sur le classpath mais rien ne
+            le déclenche au démarrage. Les migrations ne s'exécutaient pas et le schéma
+            restait vide, l'erreur ne remontant que plus tard via la validation Hibernate
+            (« missing table audit_logs »).
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>

@@ -1,5 +1,11 @@
 # 🚀 Lancer le projet Ummati en local
 
+> Ce document couvre le **développement local**. Pour la mise en production
+> (conteneurs, secrets, rotation, CI), voir [`DEPLOIEMENT.md`](DEPLOIEMENT.md).
+>
+> Raccourci : `docker compose up -d --build` monte la stack complète (base, backend,
+> frontend, reverse proxy) sans rien installer — un `.env` renseigné suffit.
+
 ## Prérequis
 
 - Java 21+

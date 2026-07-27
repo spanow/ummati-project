@@ -1,0 +1,7 @@
+target/
+uploads/
+test-uploads/
+.idea/
+.mvn/wrapper/maven-wrapper.jar
+*.log
+*.iml

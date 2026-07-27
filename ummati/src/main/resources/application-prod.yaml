@@ -2,9 +2,23 @@ spring:
   jpa:
     show-sql: false
 
+management:
+  endpoint:
+    health:
+      # Sondes liveness (le processus tourne) et readiness (la base répond) : ce sont
+      # elles que doivent interroger Docker et les orchestrateurs, pas l'agrégat.
+      probes:
+        enabled: true
+  health:
+    mail:
+      # La sonde SMTP ouvre une connexion au serveur mail à chaque appel de /health.
+      # Injoignable, elle faisait passer TOUTE l'application en DOWN : le conteneur
+      # était déclaré malsain et redémarré alors que la plateforme fonctionne
+      # parfaitement sans email pendant une panne du relais.
+      enabled: false
+
 logging:
   level:
     orga.takwa.ummati: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
-
