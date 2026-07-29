@@ -22,6 +22,12 @@ public enum NotificationType {
     ORG_ANNOUNCEMENT,
     /** Relance de l'ONG pour alimenter la galerie d'une mission terminée. */
     EVENT_PHOTOS_REQUESTED,
+    /** Nouvelles missions correspondant à une alerte enregistrée. */
+    MISSION_ALERT,
+    /** Nouvelle mission publiée par une association suivie. */
+    ORG_NEW_EVENT,
+    /** Les inscriptions d'une mission mise en favori vont fermer. */
+    FAVORITE_CLOSING,
     GENERAL
 }
 

@@ -39,6 +39,9 @@ class EventServiceTest {
     @Mock private MembershipRepository membershipRepository;
     @Mock private NotificationService notificationService;
     @Mock private AuditService auditService;
+    @Mock private EventPhotoRepository eventPhotoRepository;
+    @Mock private ImageService imageService;
+    @Mock private OrganizationFollowRepository organizationFollowRepository;
 
     @InjectMocks
     private EventService eventService;

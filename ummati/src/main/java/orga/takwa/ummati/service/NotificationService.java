@@ -3,6 +3,7 @@ package orga.takwa.ummati.service;
 import orga.takwa.ummati.dto.notification.NotificationResponse;
 import orga.takwa.ummati.entity.Notification;
 import orga.takwa.ummati.entity.User;
+import orga.takwa.ummati.entity.enums.NotificationCategory;
 import orga.takwa.ummati.entity.enums.NotificationType;
 import orga.takwa.ummati.exception.ForbiddenException;
 import orga.takwa.ummati.exception.ResourceNotFoundException;
@@ -22,14 +23,17 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final PushNotificationService pushNotificationService;
+    private final NotificationPreferenceService preferenceService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                UserRepository userRepository, EmailService emailService,
-                               PushNotificationService pushNotificationService) {
+                               PushNotificationService pushNotificationService,
+                               NotificationPreferenceService preferenceService) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.pushNotificationService = pushNotificationService;
+        this.preferenceService = preferenceService;
     }
 
     // Save notification to DB only (no email) — used internally by domain services
@@ -43,7 +47,15 @@ public class NotificationService {
         notificationRepository.save(notif);
     }
 
-    // T-100: Create notification in-app + async email
+    /**
+     * Notification dans l'application, plus l'email correspondant si le bénévole
+     * l'accepte.
+     *
+     * <p>La notification in-app et le push partent toujours : ils ne dérangent pas et
+     * restent consultables. Seul l'email est soumis aux préférences, et uniquement
+     * quand il relève de la sollicitation — un compte-rendu d'inscription ou une
+     * annulation de mission passe dans tous les cas (cf. NotificationCategory.of).
+     */
     public void notify(User user, NotificationType type, String title, String message, String link) {
         Notification notif = new Notification();
         notif.setUser(user);
@@ -53,11 +65,21 @@ public class NotificationService {
         notif.setLink(link);
         notificationRepository.save(notif);
 
-        // Async email for non-GENERAL types
-        if (type != NotificationType.GENERAL) {
-            emailService.sendNotificationEmail(user.getEmail(), user.getFirstName(), title, message, link);
+        NotificationCategory category = NotificationCategory.of(type);
+        if (type != NotificationType.GENERAL && preferenceService.allowsEmail(user, category)) {
+            String unsubscribeUrl = category == NotificationCategory.TRANSACTIONAL
+                    ? null
+                    : unsubscribeUrlFor(user, category);
+            emailService.sendNotificationEmail(user.getEmail(), user.getFirstName(),
+                    title, message, link, unsubscribeUrl);
         }
         pushNotificationService.sendToUser(user, title, message, link);
+    }
+
+    /** Lien « se désabonner » propre à ce bénévole et à cette catégorie. */
+    public String unsubscribeUrlFor(User user, NotificationCategory category) {
+        String token = preferenceService.unsubscribeTokenFor(user);
+        return "/api/v1/public/unsubscribe?token=" + token + "&category=" + category.name();
     }
 
     // T-101: List notifications

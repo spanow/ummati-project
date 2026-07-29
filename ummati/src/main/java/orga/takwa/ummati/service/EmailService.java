@@ -76,12 +76,23 @@ public class EmailService {
 
     @Async
     public void sendNotificationEmail(String to, String firstName, String title, String message, String link) {
-        // Generic notification email - reuses welcome template structure
+        sendNotificationEmail(to, firstName, title, message, link, null);
+    }
+
+    /**
+     * @param unsubscribeUrl lien de désinscription, obligatoire pour tout email de
+     *                       sollicitation ; null pour un email transactionnel, qui
+     *                       n'est pas désactivable.
+     */
+    @Async
+    public void sendNotificationEmail(String to, String firstName, String title, String message,
+                                      String link, String unsubscribeUrl) {
         Map<String, Object> vars = new java.util.HashMap<>();
         vars.put("firstName", firstName);
         vars.put("title", title);
         vars.put("message", message);
         if (link != null) vars.put("actionUrl", baseUrl + link);
+        if (unsubscribeUrl != null) vars.put("unsubscribeUrl", baseUrl + unsubscribeUrl);
         sendTemplateEmail(to, title + " — Ummati", "email/notification", vars);
     }
 

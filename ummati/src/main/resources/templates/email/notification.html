@@ -14,6 +14,10 @@
     </div>
     <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;"/>
     <p style="color: #999; font-size: 12px;">Cet email a été envoyé automatiquement par Ummati.</p>
+    <p th:if="${unsubscribeUrl}" style="color: #999; font-size: 12px;">
+      Vous ne souhaitez plus recevoir ce type de message ?
+      <a th:href="${unsubscribeUrl}" style="color: #999;">Se désabonner en un clic</a>.
+    </p>
   </div>
 </body>
 </html>

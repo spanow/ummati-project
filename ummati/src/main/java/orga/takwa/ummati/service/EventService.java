@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class EventService {
@@ -37,6 +38,7 @@ public class EventService {
     private final AuditService auditService;
     private final EventPhotoRepository eventPhotoRepository;
     private final ImageService imageService;
+    private final OrganizationFollowRepository organizationFollowRepository;
 
     public EventService(EventRepository eventRepository, EventOccurrenceRepository occurrenceRepository,
                         EventSignupRepository eventSignupRepository,
@@ -44,7 +46,9 @@ public class EventService {
                         UserRepository userRepository, SkillRepository skillRepository,
                         MembershipRepository membershipRepository, NotificationService notificationService,
                         AuditService auditService, EventPhotoRepository eventPhotoRepository,
-                        ImageService imageService) {
+                        ImageService imageService,
+                        OrganizationFollowRepository organizationFollowRepository) {
+        this.organizationFollowRepository = organizationFollowRepository;
         this.eventRepository = eventRepository;
         this.occurrenceRepository = occurrenceRepository;
         this.eventSignupRepository = eventSignupRepository;
@@ -210,6 +214,25 @@ public class EventService {
                         .forEach(m -> notificationService.saveNotification(m.getUser(), NotificationType.EVENT_PUBLISHED,
                                 "Nouvel événement", "'" + publishTitle + "' par " + publishOrgName,
                                 "/events/" + eventId));
+
+                // Abonnés de l'ONG : ils ne sont pas membres, c'est justement pour cette
+                // annonce qu'ils se sont abonnés. Notification complète (email compris,
+                // sous réserve de leurs préférences), là où les membres n'ont qu'une
+                // entrée in-app.
+                Set<UUID> alreadyNotified = membershipRepository.findByOrganizationIdAndRoleInAndStatus(
+                                event.getOrganization().getId(),
+                                List.of(MembershipRole.MEMBER, MembershipRole.ADMIN),
+                                MembershipStatus.ACTIVE)
+                        .stream().map(m -> m.getUser().getId()).collect(Collectors.toSet());
+
+                organizationFollowRepository.findFollowersWithUser(event.getOrganization().getId())
+                        .stream()
+                        .filter(f -> !alreadyNotified.contains(f.getUser().getId()))
+                        .forEach(f -> notificationService.notify(f.getUser(), NotificationType.ORG_NEW_EVENT,
+                                publishOrgName + " publie une mission",
+                                "« " + publishTitle + " » vient d'être publiée.",
+                                "/events/" + eventId));
+
                 auditService.log(userId, "EVENT_PUBLISHED", "Event", eventId);
             }
             case "CANCEL" -> {

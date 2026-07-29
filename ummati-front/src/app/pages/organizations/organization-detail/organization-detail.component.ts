@@ -20,6 +20,7 @@ import { JoinDialogComponent } from '../join-dialog/join-dialog.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
+import { RetentionService } from '../../../core/services/retention.service';
 
 @Component({
   selector: 'app-organization-detail',
@@ -96,6 +97,16 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
             } @else {
               <button mat-flat-button class="join-btn" [disabled]="joining()" (click)="joinOrg()">
                 {{ (joining() ? 'Envoi…' : 'Rejoindre') | t }}
+              </button>
+            }
+
+            @if (isLoggedIn()) {
+              <!-- Suivre n'est pas adhérer : aucun engagement, aucune validation.
+                   C'est le geste pour « prévenez-moi quand ils publient ». -->
+              <button mat-stroked-button class="follow-btn" [class.is-on]="following()"
+                      [attr.aria-pressed]="following()" (click)="toggleFollow()">
+                <mat-icon>{{ following() ? 'notifications_active' : 'notifications' }}</mat-icon>
+                {{ (following() ? 'Suivi' : 'Suivre') | t }}
               </button>
             }
           </div>
@@ -235,6 +246,12 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
     .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--brand-primary); }
     .stat-label { font-size: 0.8rem; color: var(--brand-text-soft); margin-top: 2px; }
     .join-btn { margin-left: auto; height: 44px; padding: 0 32px; }
+    .follow-btn { height: 44px; border-radius: var(--radius-md) !important; }
+    .follow-btn.is-on {
+      background: var(--brand-primary-soft); color: var(--brand-primary-dark);
+      border-color: var(--brand-primary-100);
+    }
+    .follow-btn mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .admin-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
     .events-admin-bar { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
     .tab-content { padding: 24px 0; }
@@ -293,7 +310,28 @@ export class OrganizationDetailComponent implements OnInit {
     private eventService: EventService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
+    private retention: RetentionService,
   ) {}
+
+  following = signal(false);
+
+  /**
+   * Bascule l'abonnement. L'état change d'abord et revient en arrière si l'appel
+   * échoue : un bouton qui attend le serveur donne l'impression de ne pas répondre.
+   */
+  toggleFollow() {
+    const next = !this.following();
+    this.following.set(next);
+    const orgId = this.org()?.id;
+    if (!orgId) return;
+
+    this.retention.toggleFollow(orgId, next).subscribe({
+      next: () => this.snackBar.open(
+        next ? 'Vous serez prévenu de ses prochaines missions' : 'Vous ne suivez plus cette association',
+        'OK', { duration: 3000 }),
+      error: () => this.following.set(!next),
+    });
+  }
 
   ngOnInit() {
     const slug = this.route.snapshot.paramMap.get('slug')!;
@@ -304,6 +342,12 @@ export class OrganizationDetailComponent implements OnInit {
         this.loadAnnouncements(res.data.id);
         this.loadEvents(res.data.id);
         this.checkMembership(res.data.id);
+        if (this.authService.isLoggedIn()) {
+          this.retention.followState(res.data.id).subscribe({
+            next: state => this.following.set(state.data.following),
+            error: () => {},
+          });
+        }
       },
       error: () => this.loading.set(false),
     });

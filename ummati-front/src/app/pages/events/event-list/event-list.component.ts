@@ -16,6 +16,8 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { CardSkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
+import { AuthService } from '../../../core/services/auth.service';
+import { RetentionService } from '../../../core/services/retention.service';
 
 @Component({
   selector: 'app-event-list',
@@ -123,6 +125,19 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
                   <b>{{ event.startDate | date:'d' }}</b>
                   <span>{{ event.startDate | date:'MMM' }}</span>
                 </time>
+
+                @if (isLoggedIn()) {
+                  <!-- La carte entière est un lien : sans stopPropagation ni
+                       preventDefault, mettre en favori naviguerait vers la mission. -->
+                  <button type="button" class="ev-fav"
+                          [class.is-on]="retention.isFavorite(event.id)"
+                          [attr.aria-pressed]="retention.isFavorite(event.id)"
+                          [attr.aria-label]="(retention.isFavorite(event.id)
+                              ? 'Retirer des favoris' : 'Mettre de côté') | t"
+                          (click)="toggleFavorite($event, event.id)">
+                    <mat-icon>{{ retention.isFavorite(event.id) ? 'favorite' : 'favorite_border' }}</mat-icon>
+                  </button>
+                }
               </div>
 
               <div class="ev-head">
@@ -263,6 +278,18 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
       color: var(--brand-primary-dark); box-shadow: var(--brand-shadow-xs);
       display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05;
     }
+    .ev-fav {
+      position: absolute; inset-block-start: var(--space-3); inset-inline-end: var(--space-3);
+      width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--brand-surface); border: 1px solid var(--brand-border);
+      box-shadow: var(--brand-shadow-xs); color: var(--brand-text-soft);
+      transition: color 0.18s var(--ease-out), transform 0.18s var(--ease-out);
+    }
+    .ev-fav:hover { color: var(--brand-danger); transform: scale(1.08); }
+    .ev-fav.is-on { color: var(--brand-danger); --icon-fill: 1; }
+    .ev-fav mat-icon { font-size: 20px; width: 20px; height: 20px; }
+
     .ev-date b { font-size: 1.3rem; font-weight: 800; }
     .ev-date span { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
     .ev-tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-inline-start: auto; }
@@ -328,9 +355,38 @@ export class EventListComponent implements OnInit {
 
   readonly eventTypes = EVENT_TYPES;
 
-  constructor(private eventService: EventService) {}
+  get isLoggedIn() { return this.authService.isLoggedIn; }
 
-  ngOnInit() { this.loadEvents(); }
+  constructor(
+    private eventService: EventService,
+    private authService: AuthService,
+    public retention: RetentionService,
+  ) {}
+
+  ngOnInit() {
+    this.loadEvents();
+    // Une seule requête pour marquer tous les cœurs de la page : interroger le
+    // serveur carte par carte ferait dix appels pour dix missions.
+    if (this.authService.isLoggedIn()) {
+      this.retention.listFavorites(0, 100).subscribe({ error: () => {} });
+    }
+  }
+
+  /**
+   * Bascule le favori sans suivre le lien de la carte.
+   *
+   * L'affichage change tout de suite et revient en arrière si l'appel échoue :
+   * attendre le serveur donnerait un cœur qui ne répond pas au clic.
+   */
+  toggleFavorite(mouseEvent: Event, eventId: string) {
+    mouseEvent.preventDefault();
+    mouseEvent.stopPropagation();
+
+    const next = !this.retention.isFavorite(eventId);
+    this.retention.toggleFavorite(eventId, next).subscribe({
+      error: () => this.retention.setLocalFavorite(eventId, !next),
+    });
+  }
 
   isFull(e: EventSummary): boolean {
     return !!e.maxParticipants && e.registeredCount >= e.maxParticipants;

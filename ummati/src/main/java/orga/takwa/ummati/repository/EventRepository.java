@@ -19,6 +19,22 @@ public interface EventRepository extends JpaRepository<Event, UUID>, JpaSpecific
     long countByOrganizationIdAndCreatedAtAfter(UUID orgId, LocalDateTime date);
     Page<Event> findByStatusAndStartDateAfter(EventStatus status, LocalDateTime date, Pageable pageable);
 
+    /**
+     * Missions publiées depuis une date et pas encore passées, ONG chargée.
+     *
+     * <p>Base des alertes : sans ce filtre en base, chaque alerte relirait toute la
+     * table pour n'en garder qu'une poignée de lignes.
+     */
+    @Query("""
+            SELECT e FROM Event e
+            JOIN FETCH e.organization
+            WHERE e.status = 'PUBLISHED'
+              AND e.createdAt > :since
+              AND e.startDate > :now
+            ORDER BY e.startDate ASC
+            """)
+    List<Event> findPublishedSince(@Param("since") LocalDateTime since, @Param("now") LocalDateTime now);
+
     @Query("SELECT e FROM Event e WHERE e.status = 'PUBLISHED' AND e.endDate < :now")
     List<Event> findPublishedPastEvents(@Param("now") LocalDateTime now);
 

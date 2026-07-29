@@ -15,6 +15,9 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
     Optional<User> findByEmail(String email);
+
+    /** Résolution du lien « se désabonner » présent dans les emails. */
+    Optional<User> findByUnsubscribeToken(String unsubscribeToken);
     boolean existsByEmail(String email);
 
     long countByCreatedAtAfter(LocalDateTime date);

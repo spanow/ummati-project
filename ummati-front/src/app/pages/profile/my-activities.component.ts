@@ -11,7 +11,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { MembershipService, MembershipResponse } from '../../core/services/membership.service';
-import { EventService, SignupResponse } from '../../core/services/event.service';
+import { EventService, EventSummary, SignupResponse } from '../../core/services/event.service';
+import { RetentionService } from '../../core/services/retention.service';
 import { TPipe } from '../../shared/pipes/t.pipe';
 import { LabelPipe } from '../../shared/pipes/label.pipe';
 
@@ -95,6 +96,37 @@ import { LabelPipe } from '../../shared/pipes/label.pipe';
             <mat-paginator [length]="signupTotal()" [pageSize]="10" (page)="onSignupPage($event)" />
           }
         </mat-tab>
+
+        <mat-tab [label]="('Mises de côté' | t) + ' (' + favoriteTotal() + ')'">
+          @if (favorites().length === 0) {
+            <div class="empty-tab">
+              <mat-icon>favorite_border</mat-icon>
+              <p>{{ 'Vous n\\'avez mis aucune mission de côté.' | t }}</p>
+              <p class="empty-hint">{{ 'Le cœur sur une mission la garde ici, et nous vous rappelons avant qu\\'elle n\\'ait lieu.' | t }}</p>
+              <a mat-flat-button routerLink="/events">{{ 'Voir les événements' | t }}</a>
+            </div>
+          } @else {
+            <div class="activity-list">
+              @for (e of favorites(); track e.id) {
+                <mat-card class="activity-card">
+                  <mat-card-content>
+                    <div class="activity-row">
+                      <div class="activity-info">
+                        <a class="no-underline" [routerLink]="['/events', e.id]"><strong>{{ e.title }}</strong></a>
+                        <span class="date">
+                          {{ e.startDate | date:'EEE d MMM yyyy, HH:mm' }} ·
+                          {{ e.online ? ('À distance' | t) : e.locationCity }}
+                        </span>
+                      </div>
+                      <mat-chip>{{ e.type | label: 'eventType' }}</mat-chip>
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+              }
+            </div>
+            <mat-paginator [length]="favoriteTotal()" [pageSize]="10" (page)="onFavoritePage($event)" />
+          }
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -126,13 +158,29 @@ export class MyActivitiesComponent implements OnInit {
   signupsLoading = signal(true);
   signupTotal = signal(0);
 
+  favorites = signal<EventSummary[]>([]);
+  favoriteTotal = signal(0);
+
   constructor(
     private membershipService: MembershipService,
     private eventService: EventService,
+    private retention: RetentionService,
     private snackBar: MatSnackBar,
   ) {}
 
-  ngOnInit() { this.loadMemberships(); this.loadSignups(); }
+  ngOnInit() { this.loadMemberships(); this.loadSignups(); this.loadFavorites(0); }
+
+  loadFavorites(page: number) {
+    this.retention.listFavorites(page, 10).subscribe({
+      next: res => {
+        this.favorites.set(res.data.content);
+        this.favoriteTotal.set(res.data.totalElements);
+      },
+      error: () => {},
+    });
+  }
+
+  onFavoritePage(event: PageEvent) { this.loadFavorites(event.pageIndex); }
 
   leaveOrg(m: MembershipResponse) {
     if (!confirm(`Quitter l'organisation « ${m.organizationName} » ?`)) return;

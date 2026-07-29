@@ -85,6 +85,14 @@ public class User {
     @Column(name = "profile_public", nullable = false)
     private boolean profilePublic = false;
 
+    /**
+     * Jeton du lien « se désabonner » présent dans les emails non transactionnels.
+     * Permet de se désinscrire en un clic, sans connexion — exigence de délivrabilité
+     * autant que de conformité.
+     */
+    @Column(name = "unsubscribe_token", length = 64)
+    private String unsubscribeToken;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -180,6 +188,9 @@ public class User {
 
     public boolean isProfilePublic() { return profilePublic; }
     public void setProfilePublic(boolean profilePublic) { this.profilePublic = profilePublic; }
+
+    public String getUnsubscribeToken() { return unsubscribeToken; }
+    public void setUnsubscribeToken(String unsubscribeToken) { this.unsubscribeToken = unsubscribeToken; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

@@ -64,6 +64,10 @@ public class AuthService {
         user.setFirstName(request.firstName().trim());
         user.setLastName(request.lastName().trim());
         user.setRole(UserRole.VOLUNTEER);
+        // Jeton de désinscription posé dès la création : la migration V21 n'a couvert
+        // que les comptes existants, et un compte sans jeton ne pourrait pas se
+        // désabonner depuis un email tant qu'aucun envoi n'aurait eu lieu.
+        user.setUnsubscribeToken(generateUnsubscribeToken());
         user = userRepository.save(user);
 
         // Verification token (24h)
@@ -262,6 +266,12 @@ public class AuthService {
 
         userRepository.save(user);
         auditService.log(user.getId(), "LOGIN_FAILED", "User", user.getId(), ipAddress);
+    }
+
+    private static String generateUnsubscribeToken() {
+        byte[] bytes = new byte[24];
+        new java.security.SecureRandom().nextBytes(bytes);
+        return java.util.HexFormat.of().formatHex(bytes);
     }
 
     private String createVerificationToken(User user, TokenType type, int expirationHours) {
