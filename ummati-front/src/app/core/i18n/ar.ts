@@ -458,4 +458,43 @@ export const AR: Record<string, string> = {
   'Contenu inapproprié': 'محتوى غير لائق',
   'Fraude': 'احتيال',
   'Harcèlement': 'تحرّش',
+
+  // ===== Pagination =====
+  'Par page': 'لكل صفحة',
+  'Page suivante': 'الصفحة التالية',
+  'Page précédente': 'الصفحة السابقة',
+  'Première page': 'الصفحة الأولى',
+  'Dernière page': 'الصفحة الأخيرة',
+  'Aucun résultat': 'لا توجد نتائج',
+  'sur': 'من',
+
+  // ===== Libellés dynamiques : types de mission =====
+
+  // ===== Libellés dynamiques : domaines d'action =====
+
+  // ===== Libellés dynamiques : états =====
+  'Brouillon': 'مسودة',
+  'Publiée': 'منشورة',
+  'Annulée': 'ملغاة',
+  'Terminée': 'منتهية',
+  'Ouvert': 'مفتوح',
+  'Inscrit': 'مسجَّل',
+  "Liste d'attente": 'قائمة الانتظار',
+  'Participation validée': 'مشاركة مؤكَّدة',
+  'Absence': 'غياب',
+  'Membre actif': 'عضو نشط',
+  'Refusée': 'مرفوضة',
+  'Départ': 'مغادرة',
+  'Administrateur': 'مدير',
+  'Trésorier': 'أمين الصندوق',
+  'En attente de validation': 'في انتظار المصادقة',
+  'Validée': 'مصادق عليها',
+  'À traiter': 'قيد المعالجة',
+  'Examiné': 'تمت المراجعة',
+  'Résolu': 'تمت التسوية',
+  'Classé sans suite': 'حُفظ دون متابعة',
+
+  // ===== Listes de missions =====
+  'Filtrer': 'تصفية',
+  'Soyez le premier': 'كن أول المشاركين',
 };

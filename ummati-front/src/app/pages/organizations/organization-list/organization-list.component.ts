@@ -10,14 +10,37 @@ import { FormsModule } from '@angular/forms';
 import { OrganizationService, OrganizationSummary } from '../../../core/services/organization.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { CardSkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
+import { LabelPipe } from '../../../shared/pipes/label.pipe';
 
 /** Teintes de bandeau retenues — famille froide + chaudes franches, pas de jaune-vert. */
-const ORG_COVER_HUES = [172, 196, 214, 232, 258, 286, 320, 344, 12, 26];
+/**
+ * Teinte du bandeau par domaine d'action.
+ *
+ * Auparavant la teinte venait d'un hachage du nom sur une palette allant jusqu'au
+ * magenta : des cartes violettes et fuchsia dans une identité crème et vert sarcelle,
+ * et une couleur qui ne voulait rien dire. Elle porte désormais une information — le
+ * domaine — et reste dans une gamme accordée à la marque : verts, bleus sourds,
+ * terracotta et ocres, jamais de teintes saturées froides.
+ */
+const DOMAIN_COVER_HUES: Readonly<Record<string, number>> = {
+  SOCIAL: 174,          // sarcelle de marque
+  SANTE: 8,             // terracotta
+  ENVIRONNEMENT: 138,   // vert feuille
+  EDUCATION: 205,       // bleu ardoise
+  CULTURE: 32,          // ocre
+  SPORT: 190,           // cyan profond
+  HUMANITAIRE: 350,     // rose brique
+  DROITS_HUMAINS: 224,  // indigo sourd
+  AIDE_URGENCE: 20,     // orange brûlé
+  AUTRE: 165,           // vert-de-gris
+};
+
+const DEFAULT_COVER_HUE = 174;
 
 @Component({
   selector: 'app-organization-list',
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
+  imports: [LabelPipe, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatPaginatorModule, RouterLink, FormsModule, TPipe, CardSkeletonComponent],
   template: `
     <div class="page">
@@ -64,10 +87,10 @@ const ORG_COVER_HUES = [172, 196, 214, 232, 258, 286, 320, 344, 12, 26];
         <div class="org-grid">
           @for (org of organizations(); track org.id) {
             <a class="org-card hover-lift no-underline" [routerLink]="['/organizations', org.slug]">
-              <!-- Bandeau : couleur dérivée du nom, stable d'une visite à l'autre -->
-              <div class="org-cover" [style.--cover-hue]="hueFor(org.name)">
+              <!-- Bandeau : couleur portée par le domaine, pas par le nom -->
+              <div class="org-cover" [style.--cover-hue]="hueFor(org.domain)">
                 <span class="org-cover-pattern pattern-stars" aria-hidden="true"></span>
-                <span class="badge badge-neutral domain-badge">{{ org.domain }}</span>
+                <span class="badge badge-neutral domain-badge">{{ org.domain | label: 'domain' }}</span>
               </div>
 
               <div class="org-body">
@@ -114,12 +137,17 @@ const ORG_COVER_HUES = [172, 196, 214, 232, 258, 286, 320, 344, 12, 26];
       border-radius: var(--radius-card); box-shadow: var(--brand-shadow-xs);
     }
 
+    /*
+      Saturation volontairement basse (32/36 %) : les bandeaux servent de repère
+      de domaine, pas de point focal. Trop vifs, ils écrasaient le nom de l'ONG
+      et le logo, qui sont l'information utile.
+    */
     .org-cover {
       position: relative; height: 84px;
       background: linear-gradient(
         135deg,
-        hsl(var(--cover-hue) 42% 42%) 0%,
-        hsl(calc(var(--cover-hue) + 28) 48% 52%) 100%
+        hsl(var(--cover-hue) 32% 34%) 0%,
+        hsl(calc(var(--cover-hue) + 16) 36% 44%) 100%
       );
     }
     .org-cover-pattern { position: absolute; inset: 0; opacity: 0.16; filter: invert(1) brightness(3); }
@@ -198,19 +226,9 @@ export class OrganizationListComponent implements OnInit {
       .toUpperCase();
   }
 
-  /**
-   * Teinte du bandeau dérivée du nom : chaque ONG garde la même couleur
-   * d'une page à l'autre, sans rien stocker côté serveur.
-   *
-   * On tire dans une palette fermée plutôt que sur les 360°, sinon les
-   * teintes jaune-vert (~60-100°) sortent ternes et jurent avec le teal.
-   */
-  hueFor(name: string): number {
-    let hash = 0;
-    for (let i = 0; i < (name?.length ?? 0); i++) {
-      hash = (hash * 31 + name.charCodeAt(i)) % 997;
-    }
-    return ORG_COVER_HUES[hash % ORG_COVER_HUES.length];
+  /** Teinte du bandeau : portée par le domaine, donc lisible et stable. */
+  hueFor(domain: string): number {
+    return DOMAIN_COVER_HUES[domain] ?? DEFAULT_COVER_HUE;
   }
 
   loadOrganizations() {

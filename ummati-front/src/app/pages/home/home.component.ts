@@ -87,6 +87,7 @@ interface Feature { icon: string; title: string; description: string; }
     </section>
 
     <!-- ===== Chiffres ===== -->
+    @if (hasStats()) {
     <section class="stats-section" aria-label="Statistiques de la plateforme">
       <div class="stats-container">
         @for (stat of stats(); track stat.label) {
@@ -98,6 +99,7 @@ interface Feature { icon: string; title: string; description: string; }
         }
       </div>
     </section>
+    }
 
     <!-- ===== Fonctionnalités ===== -->
     <section class="features-section" aria-labelledby="features-title">
@@ -397,6 +399,9 @@ export class HomeComponent implements OnInit {
   private platformId = inject(PLATFORM_ID);
   private tt = (s: string) => this.i18n.t(s);
 
+  /** Faux tant qu'aucun compteur n'est alimenté : la bande reste alors masquée. */
+  hasStats = signal(false);
+
   stats = signal<PlatformStat[]>([
     { icon: 'diversity_3', value: '—', label: this.tt('Bénévoles inscrits') },
     { icon: 'apartment', value: '—', label: this.tt('Associations actives') },
@@ -427,7 +432,15 @@ export class HomeComponent implements OnInit {
             { icon: 'event', label: this.tt('Événements organisés'), target: res.data.totalEvents },
             { icon: 'volunteer_activism', label: this.tt('Participations validées'), target: res.data.totalParticipations },
           ];
-          this.revealStats(targets);
+
+          // Une bande de zéros dessert plus la plateforme qu'elle ne la sert : sur une
+          // instance qui démarre, on ne montre que les compteurs déjà alimentés, et
+          // rien du tout s'ils le sont tous à zéro.
+          const alimentes = targets.filter(t => t.target > 0);
+          this.hasStats.set(alimentes.length > 0);
+          if (alimentes.length > 0) {
+            this.revealStats(alimentes);
+          }
         }
       },
       error: () => {} // garde les tirets si l'API est indisponible

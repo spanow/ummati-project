@@ -26,11 +26,12 @@ import { OrganizationService } from '../../../core/services/organization.service
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
 import { forkJoin } from 'rxjs';
+import { LabelPipe } from '../../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-event-manage',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
+  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
     RouterLink, DatePipe, DecimalPipe, FormsModule, TPipe, OrgDocumentsComponent],
@@ -60,7 +61,7 @@ import { forkJoin } from 'rxjs';
                       <div class="em-info">
                         <h3>{{ event.title }}</h3>
                         <div class="em-meta">
-                          <mat-chip [class]="'status-' + event.status.toLowerCase()">{{ event.status }}</mat-chip>
+                          <mat-chip [class]="'status-' + event.status.toLowerCase()">{{ event.status | label: 'eventStatus' }}</mat-chip>
                           <span>{{ event.startDate | date:'d MMM yyyy, HH:mm' }}</span>
                           <span>{{ event.registeredCount }}@if(event.maxParticipants){/{{ event.maxParticipants }}} {{ 'inscrits' | t }}</span>
                         </div>
@@ -190,7 +191,7 @@ import { forkJoin } from 'rxjs';
                           }
                         </td>
                         <td>{{ s.occurrenceStartDate ? (s.occurrenceStartDate | date:'d MMM, HH:mm') : '—' }}</td>
-                        <td><mat-chip [class]="'signup-' + s.status.toLowerCase()">{{ s.status }}</mat-chip></td>
+                        <td><mat-chip [class]="'signup-' + s.status.toLowerCase()">{{ s.status | label: 'signupStatus' }}</mat-chip></td>
                         <td>
                           @if (s.status === 'ATTENDED') {
                             <span class="hours-cell">

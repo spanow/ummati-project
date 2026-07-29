@@ -16,11 +16,12 @@ import { OrganizationService, OrganizationDetail } from '../../../core/services/
 import { AdminService } from '../../../core/services/admin.service';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
+import { LabelPipe } from '../../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-admin-org-validation',
   standalone: true,
-  imports: [
+  imports: [LabelPipe, 
     DatePipe, RouterLink, ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
@@ -55,7 +56,7 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                 <span class="status-badge" [class]="'status-' + org()!.status.toLowerCase()">
                   {{ statusLabel(org()!.status) | t }}
                 </span>
-                <span>{{ org()!.domain }}</span>
+                <span>{{ org()!.domain | label: 'domain' }}</span>
                 @if (org()!.addressCity) { <span>📍 {{ org()!.addressCity }}</span> }
               </div>
             </div>

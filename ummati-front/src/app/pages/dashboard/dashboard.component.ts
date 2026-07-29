@@ -8,11 +8,12 @@ import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { DashboardService, VolunteerDashboard } from '../../core/services/dashboard.service';
 import { TPipe } from '../../shared/pipes/t.pipe';
+import { LabelPipe } from '../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
+  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
     MatProgressSpinnerModule, RouterLink, DatePipe, TPipe],
   template: `
     <div class="page">
@@ -93,7 +94,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
               @for (e of dashboard()!.suggestedEvents; track e.id) {
                 <mat-card class="event-mini hover-lift" [routerLink]="['/events', e.id]">
                   <mat-card-content>
-                    <mat-chip class="type-chip">{{ e.type }}</mat-chip>
+                    <mat-chip class="type-chip">{{ e.type | label: 'eventType' }}</mat-chip>
                     <strong>{{ e.title }}</strong>
                     <span class="meta">{{ e.startDate | date:'d MMM' }} · {{ e.organizationName }}</span>
                   </mat-card-content>

@@ -416,6 +416,23 @@ mat-card,
 .mat-mdc-form-field-icon-suffix,
 .mat-mdc-form-field-icon-prefix { color: var(--brand-text-faint); }
 
+/*
+  Icônes de préfixe/suffixe de champ.
+  Material leur laisse une boîte de 24px mais une taille de glyphe héritée plus
+  petite : le symbole se dessinait décalé dans son cadre et donnait une loupe
+  tronquée dans toutes les barres de recherche. On accorde explicitement la
+  taille du glyphe, la boîte et l'axe optique de la police variable.
+*/
+.mat-mdc-form-field-icon-suffix .mat-icon,
+.mat-mdc-form-field-icon-prefix .mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  font-variation-settings: 'FILL' var(--icon-fill, 0), 'wght' var(--icon-wght, 350), 'GRAD' 0, 'opsz' 20;
+  overflow: visible;
+}
+
 /* ---- Puces ---- */
 .mat-mdc-chip,
 .mat-mdc-standard-chip {

@@ -24,11 +24,12 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
 import { StarRatingComponent } from '../../../shared/components/star-rating/star-rating.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
+import { LabelPipe } from '../../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-event-detail',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
+  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
     MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, MatFormFieldModule, MatInputModule,
     MatMenuModule, MatDialogModule, MatCheckboxModule, FormsModule, RouterLink, DatePipe, DecimalPipe,
     StarRatingComponent, TPipe, LocationPickerComponent],
@@ -58,9 +59,11 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
           </div>
           <h1>{{ event()!.title }}</h1>
           <div class="event-badges">
-            <mat-chip>{{ event()!.type }}</mat-chip>
+            <mat-chip>{{ event()!.type | label: 'eventType' }}</mat-chip>
             @if (event()!.online) { <mat-chip>🌐 {{ 'En ligne' | t }}</mat-chip> }
-            <mat-chip [class]="'status-' + event()!.status.toLowerCase()">{{ event()!.status }}</mat-chip>
+            @if (event()!.status !== 'PUBLISHED') {
+              <mat-chip [class]="'status-' + event()!.status.toLowerCase()">{{ event()!.status | label: 'eventStatus' }}</mat-chip>
+            }
           </div>
           <div class="event-quick-actions">
             <button mat-stroked-button type="button" (click)="addToCalendar()">
@@ -104,7 +107,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
                   <h3>📢 {{ 'Annonces de l\\'organisateur' | t }}</h3>
                   @for (ann of announcements(); track ann.id) {
                     <div class="announcement-item" [class.pinned]="ann.pinned">
-                      @if (ann.pinned) { <span class="pin-badge">📌 {{ 'Épinglée' | t }}</span> }
+                      @if (ann.pinned) { <span class="pin-badge"><mat-icon aria-hidden="true">push_pin</mat-icon>{{ 'Épinglée' | t }}</span> }
                       <p class="ann-content">{{ ann.content }}</p>
                       <span class="ann-meta">{{ ann.authorFirstName }} {{ ann.authorLastName }} · {{ ann.createdAt | date:'d MMM yyyy, HH:mm' }}</span>
                     </div>
@@ -115,7 +118,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
 
             <mat-card class="comments-card">
               <mat-card-content>
-                <h3>💬 {{ 'Discussion' | t }} ({{ totalComments() }})</h3>
+                <h3><mat-icon aria-hidden="true">forum</mat-icon>{{ 'Discussion' | t }} ({{ totalComments() }})</h3>
 
                 @if (isLoggedIn() && isParticipant()) {
                   <div class="comment-form">
@@ -236,8 +239,12 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
                     <div>
                       <strong>{{ 'Places' | t }}</strong>
                       <p>{{ event()!.registeredCount }}/{{ event()!.maxParticipants }} {{ 'inscrits' | t }}</p>
-                      <mat-progress-bar mode="determinate"
-                        [value]="(event()!.registeredCount / event()!.maxParticipants!) * 100" />
+                      <!-- Jauge affichée dès la première inscription : à zéro, la barre
+                           vide se lisait comme un trait de soulignement parasite. -->
+                      @if (event()!.registeredCount > 0) {
+                        <mat-progress-bar mode="determinate"
+                          [value]="(event()!.registeredCount / event()!.maxParticipants!) * 100" />
+                      }
                       @if (event()!.availableSpots === 0) {
                         <p class="waitlist-info">{{ 'Liste d\\'attente :' | t }} {{ event()!.waitlistedCount }} {{ 'personnes' | t }}</p>
                       }
@@ -403,7 +410,16 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
     .announcement-item { padding: 12px 0; border-bottom: 1px solid var(--brand-border); }
     .announcement-item:last-child { border-bottom: none; }
     .announcement-item.pinned { background: var(--brand-primary-soft); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; }
-    .pin-badge { font-size: 0.75rem; color: var(--brand-primary); font-weight: 700; display: block; margin-bottom: 4px; }
+    /* Icônes de titre : alignées sur le texte, jamais à la taille par défaut de 24px. */
+    .pin-badge {
+      font-size: 0.75rem; color: var(--brand-primary); font-weight: 700;
+      display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px;
+    }
+    .pin-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    .comments-card h3 { display: flex; align-items: center; gap: 8px; }
+    .comments-card h3 mat-icon {
+      font-size: 20px; width: 20px; height: 20px; color: var(--brand-primary);
+    }
     .ann-content { margin: 4px 0; white-space: pre-line; line-height: 1.6; }
     .ann-meta { font-size: 0.8rem; color: var(--brand-text-faint); }
     .comment-form { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 20px; }

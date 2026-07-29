@@ -6,10 +6,13 @@ import { registerLocaleData } from '@angular/common';
 import localeFr from '@angular/common/locales/fr';
 import localeAr from '@angular/common/locales/ar';
 
+import { MatPaginatorIntl } from '@angular/material/paginator';
+
 import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { getStoredLang } from './core/services/i18n.service';
+import { UmmatiPaginatorIntl } from './core/i18n/paginator-intl';
 
 registerLocaleData(localeFr, 'fr');
 registerLocaleData(localeAr, 'ar');
@@ -29,5 +32,8 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     // Dates (DatePipe/DecimalPipe) localisées selon la langue choisie
     { provide: LOCALE_ID, useValue: getStoredLang() },
+    // Étiquettes du paginateur : sans cela Material affiche « Items per page »
+    // et « 1 – 6 of 6 » en anglais sur toutes les listes.
+    { provide: MatPaginatorIntl, useClass: UmmatiPaginatorIntl },
   ]
 };

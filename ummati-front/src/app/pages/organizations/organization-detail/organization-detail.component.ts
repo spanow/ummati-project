@@ -19,11 +19,12 @@ import { ReportDialogComponent } from '../../../shared/components/report-dialog/
 import { JoinDialogComponent } from '../join-dialog/join-dialog.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
+import { LabelPipe } from '../../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
+  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink, TPipe,
     LocationPickerComponent],
   template: `
@@ -42,7 +43,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
               <div>
                 <h1>{{ org()!.name }}</h1>
                 <div class="meta-row">
-                  <mat-chip>{{ org()!.domain }}</mat-chip>
+                  <mat-chip>{{ org()!.domain | label: 'domain' }}</mat-chip>
                   <span class="location"><mat-icon>location_on</mat-icon> {{ org()!.addressCity }}</span>
                 </div>
               </div>
@@ -163,7 +164,7 @@ import { LocationPickerComponent } from '../../../shared/components/location-pic
                             } @else {
                               <span><mat-icon>location_on</mat-icon> {{ e.locationCity }}</span>
                             }
-                            <mat-chip class="event-type-chip">{{ e.type }}</mat-chip>
+                            <mat-chip class="event-type-chip">{{ e.type | label: 'eventType' }}</mat-chip>
                           </div>
                         </div>
                         @if (e.maxParticipants) {

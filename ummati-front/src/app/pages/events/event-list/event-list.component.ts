@@ -15,11 +15,12 @@ import { EventService, EventSummary } from '../../../core/services/event.service
 import { EVENT_TYPES } from '../../../core/constants/event-types';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { CardSkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
+import { LabelPipe } from '../../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-event-list',
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
+  imports: [LabelPipe, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatPaginatorModule, MatProgressSpinnerModule, MatCheckboxModule,
     RouterLink, FormsModule, DatePipe, TPipe, CardSkeletonComponent],
   template: `
@@ -44,7 +45,17 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
         }
       </mat-form-field>
 
-      <div class="filters-row">
+      <!-- Sur mobile, les filtres consommaient les deux tiers du premier écran avant
+           la moindre mission. Ils sont repliés par défaut et se déploient à la demande ;
+           sur grand écran le bouton disparaît et la barre reste toujours visible. -->
+      <button mat-stroked-button type="button" class="filters-toggle"
+              [attr.aria-expanded]="filtersOpen()" (click)="filtersOpen.set(!filtersOpen())">
+        <mat-icon>tune</mat-icon>
+        {{ 'Filtrer' | t }}
+        @if (activeFilterCount() > 0) { <span class="badge badge-brand">{{ activeFilterCount() }}</span> }
+      </button>
+
+      <div class="filters-row" [class.is-collapsed]="!filtersOpen()">
         <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
           <mat-label>{{ 'Ville' | t }}</mat-label>
           <input matInput [(ngModel)]="cityFilter" (keyup.enter)="resetAndLoad()"
@@ -101,12 +112,12 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
           @for (event of events(); track event.id) {
             <a class="event-card hover-lift no-underline" [routerLink]="['/events', event.id]">
               <!-- Visuel d'annonce : premier élément de décision pour le bénévole.
-                   Sans couverture, un aplat dégradé conserve le rythme de la grille. -->
+                   Sans couverture, un bandeau court suffit à porter la date — inutile
+                   de réserver un cadre 16/9 vide qui transforme la grille en mur de
+                   boîtes creuses. -->
               <div class="ev-cover" [class.is-placeholder]="!event.coverUrl">
                 @if (event.coverUrl) {
                   <img [src]="event.coverUrl" alt="" loading="lazy" decoding="async" />
-                } @else {
-                  <mat-icon aria-hidden="true">volunteer_activism</mat-icon>
                 }
                 <time class="ev-date" [attr.datetime]="event.startDate">
                   <b>{{ event.startDate | date:'d' }}</b>
@@ -116,7 +127,7 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
 
               <div class="ev-head">
                 <div class="ev-tags">
-                  <span class="badge badge-neutral">{{ event.type }}</span>
+                  <span class="badge badge-neutral">{{ event.type | label: 'eventType' }}</span>
                   @if (event.online) { <span class="badge badge-info">{{ 'En ligne' | t }}</span> }
                   @if (event.distanceKm !== null) {
                     <span class="badge badge-brand"><mat-icon>near_me</mat-icon>{{ distanceLabel(event) }}</span>
@@ -134,14 +145,23 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
 
               <div class="ev-foot">
                 @if (event.maxParticipants) {
-                  <div class="ev-progress" role="progressbar"
-                       [attr.aria-valuenow]="event.registeredCount" aria-valuemin="0"
-                       [attr.aria-valuemax]="event.maxParticipants">
-                    <span [class.is-full]="isFull(event)" [class.is-almost]="isAlmostFull(event)"
-                          [style.width.%]="fillPercent(event)"></span>
-                  </div>
+                  <!-- Jauge affichée seulement dès la première inscription : à zéro,
+                       une barre vide se lit comme un élément cassé plutôt que comme
+                       une information. -->
+                  @if (event.registeredCount > 0) {
+                    <div class="ev-progress" role="progressbar"
+                         [attr.aria-valuenow]="event.registeredCount" aria-valuemin="0"
+                         [attr.aria-valuemax]="event.maxParticipants">
+                      <span [class.is-full]="isFull(event)" [class.is-almost]="isAlmostFull(event)"
+                            [style.width.%]="fillPercent(event)"></span>
+                    </div>
+                  }
                   <div class="ev-spots">
-                    <span class="tnum">{{ event.registeredCount }}/{{ event.maxParticipants }} {{ 'inscrits' | t }}</span>
+                    @if (event.registeredCount > 0) {
+                      <span class="tnum">{{ event.registeredCount }}/{{ event.maxParticipants }} {{ 'inscrits' | t }}</span>
+                    } @else {
+                      <span>{{ 'Soyez le premier' | t }}</span>
+                    }
                     @if (isFull(event)) {
                       <span class="badge badge-danger">{{ 'Complet' | t }}</span>
                     } @else if (isAlmostFull(event)) {
@@ -151,7 +171,9 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
                     }
                   </div>
                 } @else {
-                  <div class="ev-spots"><span class="tnum">{{ event.registeredCount }} {{ 'inscrits' | t }}</span></div>
+                  <div class="ev-spots">
+                    <span class="tnum">{{ event.registeredCount }} {{ 'inscrits' | t }}</span>
+                  </div>
                 }
               </div>
             </a>
@@ -164,6 +186,16 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
   `,
   styles: [`
     .q-field { width: 100%; margin-bottom: var(--space-3); }
+    /* Le repli n'existe que sur petit écran : au-delà, la barre est toujours ouverte. */
+    .filters-toggle { display: none; }
+    .filters-toggle .badge { margin-inline-start: 6px; }
+    @media (max-width: 720px) {
+      .filters-toggle {
+        display: inline-flex; align-items: center; gap: 6px;
+        margin-bottom: var(--space-3); border-radius: var(--radius-md) !important;
+      }
+      .filters-row.is-collapsed { display: none; }
+    }
     .search-field { flex: 1; min-width: 200px; }
     .radius-field { width: 120px; }
     .near-btn { height: 54px; border-radius: var(--radius-md) !important; }
@@ -203,13 +235,24 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
       aspect-ratio: 16 / 9; background: var(--brand-surface-2); overflow: hidden;
     }
     .ev-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /*
+      Sans visuel, on ne réserve plus un 16/9 : un bandeau de 74px porte la date et
+      la carte laisse la place au titre et aux informations pratiques, qui sont ce
+      que le bénévole lit réellement.
+    */
     .ev-cover.is-placeholder {
-      display: flex; align-items: center; justify-content: center;
-      background: var(--brand-primary-soft);
+      aspect-ratio: auto; height: 74px;
+      background: linear-gradient(135deg,
+        var(--brand-primary-soft) 0%,
+        color-mix(in oklab, var(--brand-primary-soft) 55%, var(--brand-surface)) 100%);
+      border-bottom: 1px solid var(--brand-border);
     }
-    .ev-cover.is-placeholder mat-icon {
-      font-size: 40px; width: 40px; height: 40px; color: var(--brand-primary-100);
-    }
+    /*
+      Le bandeau reste un aplat dégradé, sans filigrane : à la taille nominale du
+      motif une seule rangée d'étoiles entrait dans les 74px et paraissait tronquée,
+      et une trame resserrée virait au papier peint. Multiplié par six cartes, le
+      calme l'emporte.
+    */
 
     .ev-head { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-3); }
     /* Bloc date façon page de calendrier, posé sur le visuel : repère immédiat */
@@ -263,6 +306,15 @@ export class EventListComponent implements OnInit {
   radiusKm = 25;
 
   readonly radiusOptions = [5, 10, 25, 50, 100];
+
+  /** Repli des filtres sur mobile (toujours déployés au-delà de 720px, cf. CSS). */
+  filtersOpen = signal(false);
+
+  /** Nombre de filtres actifs — signalé sur le bouton quand la barre est repliée. */
+  activeFilterCount(): number {
+    return [this.cityFilter, this.typeFilter, this.onlineOnly || null, this.userLoc()]
+      .filter(Boolean).length;
+  }
 
   /** Nombre de squelettes affichés pendant le chargement (= taille de page). */
   readonly skeletonSlots = Array.from({ length: 6 }, (_, i) => i);

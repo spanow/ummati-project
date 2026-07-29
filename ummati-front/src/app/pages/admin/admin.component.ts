@@ -16,11 +16,12 @@ import { RouterLink } from '@angular/router';
 import { AdminService, AdminStats, AdminUserSummary } from '../../core/services/admin.service';
 import { ReportService, ReportResponse, ReportStatus, REPORT_REASON_LABELS } from '../../core/services/report.service';
 import { TPipe } from '../../shared/pipes/t.pipe';
+import { LabelPipe } from '../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatFormFieldModule,
+  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, FormsModule, DatePipe, RouterLink, TPipe],
   template: `
@@ -108,7 +109,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
                   @for (o of orgs(); track o.id) {
                     <tr>
                       <td>{{ o.name }}</td>
-                      <td>{{ o.domain }}</td>
+                      <td>{{ o.domain | label: 'domain' }}</td>
                       <td>{{ o.city }}</td>
                       <td><mat-chip>{{ o.status || 'ACTIVE' }}</mat-chip></td>
                       <td>{{ o.memberCount }}</td>
@@ -159,7 +160,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
                       <div class="report-header">
                         <mat-chip>{{ r.targetType }}</mat-chip>
                         <mat-chip>{{ reasonLabels[r.reason] | t }}</mat-chip>
-                        <mat-chip [class]="'status-' + r.status.toLowerCase()">{{ r.status }}</mat-chip>
+                        <mat-chip [class]="'status-' + r.status.toLowerCase()">{{ r.status | label: 'reportStatus' }}</mat-chip>
                       </div>
                       <p class="report-target"><strong>{{ 'Cible :' | t }}</strong> {{ r.targetLabel }}</p>
                       <p class="report-reporter">{{ 'Signalé par' | t }} {{ r.reporterName }} {{ 'le' | t }} {{ r.createdAt | date:'d MMM yyyy, HH:mm' }}</p>

@@ -13,11 +13,12 @@ import { DatePipe } from '@angular/common';
 import { MembershipService, MembershipResponse } from '../../core/services/membership.service';
 import { EventService, SignupResponse } from '../../core/services/event.service';
 import { TPipe } from '../../shared/pipes/t.pipe';
+import { LabelPipe } from '../../shared/pipes/label.pipe';
 
 @Component({
   selector: 'app-my-activities',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatChipsModule,
+  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatChipsModule,
     MatMenuModule, MatPaginatorModule, MatProgressSpinnerModule, MatSnackBarModule, RouterLink, DatePipe, TPipe],
   template: `
     <div class="page page-narrow">
@@ -85,7 +86,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
                         <strong>{{ s.eventTitle }}</strong>
                         <span class="meta">{{ 'Inscrit le' | t }} {{ s.registeredAt | date:'d MMM yyyy' }}</span>
                       </div>
-                      <mat-chip [class]="'status-' + s.status.toLowerCase()">{{ s.status }}</mat-chip>
+                      <mat-chip [class]="'status-' + s.status.toLowerCase()">{{ s.status | label: 'signupStatus' }}</mat-chip>
                     </div>
                   </mat-card-content>
                 </mat-card>
