@@ -4,7 +4,11 @@
 
 UPDATE event_signups s
 SET hours_validated = (
-        SELECT ROUND(GREATEST(DATEDIFF('MINUTE', o.start_date, o.end_date), 0) / 60.0, 2)
+        SELECT LEAST(
+                 ROUND(GREATEST(DATEDIFF('MINUTE', o.start_date, o.end_date), 0) / 60.0, 2),
+                 -- Plafond de la colonne DECIMAL(5,2) : sans lui, un créneau aberrant
+                 -- fait échouer toute la migration.
+                 999.99)
         FROM event_occurrences o
         WHERE o.id = s.occurrence_id)
 WHERE s.status = 'ATTENDED'

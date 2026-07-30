@@ -9,8 +9,13 @@
 -- plus aucun recalcul à partir des dates par la suite.
 
 UPDATE event_signups s
-SET hours_validated = ROUND(
-        GREATEST(EXTRACT(EPOCH FROM (o.end_date - o.start_date)) / 3600.0, 0)::numeric, 2)
+SET hours_validated = LEAST(
+        ROUND(GREATEST(EXTRACT(EPOCH FROM (o.end_date - o.start_date)) / 3600.0, 0)::numeric, 2),
+        -- hours_validated est un DECIMAL(5,2) : au-delà de 999,99 l'UPDATE échoue et
+        -- fait échouer tout le démarrage. Un créneau de plusieurs mois est une anomalie
+        -- de saisie, pas une durée de bénévolat : on plafonne plutôt que de bloquer la
+        -- migration, l'ONG pourra corriger la valeur depuis l'écran de gestion.
+        999.99)
 FROM event_occurrences o
 WHERE s.occurrence_id = o.id
   AND s.status = 'ATTENDED'

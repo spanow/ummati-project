@@ -6,15 +6,22 @@ spring:
 
   # ===== FLYWAY =====
   # Les migrations db/migration/V*.sql sont appliquées automatiquement au démarrage.
-  # baseline-version = 17 : reprise en main des bases dev créées « à la main » avant
-  # l'activation de Flyway (schéma déjà à jour jusqu'à V17, historique absent).
-  # Flyway pose alors la ligne de base à 17 et n'exécute que V18 et suivantes.
-  # Sur une base vide, ce réglage est sans effet : tout est joué depuis V1.
-  # → Voir LANCEMENT.md pour vérifier l'état de flyway_schema_history / repartir de zéro.
+  #
+  # baseline-on-migrate est volontairement DÉSACTIVÉ. Il avait été mis à true avec
+  # baseline-version: 17 pour adopter les bases migrées à la main avant Flyway. Ce
+  # réglage n'était juste qu'un seul jour : il affirme « ce schéma est à V17 » sans
+  # rien vérifier. Dès que la base a dérivé — ici elle était à V18 — Flyway rejoue une
+  # migration déjà passée et le démarrage casse sur un « column already exists »
+  # incompréhensible, très loin de la vraie cause.
+  #
+  # Sans lui, une base sans historique échoue immédiatement avec un message explicite
+  # de Flyway. La marche à suivre est alors dans LANCEMENT.md : comparer le schéma aux
+  # migrations, poser la ligne de base à la bonne version, ou repartir d'une base
+  # vierge. Sur une base vide (le cas normal), rien de tout cela ne s'applique et
+  # l'intégralité des scripts est jouée depuis V1.
   flyway:
     enabled: true
-    baseline-on-migrate: true
-    baseline-version: 17
+    baseline-on-migrate: false
     out-of-order: false
 
   # ===== SMTP DEV (MailHog) =====

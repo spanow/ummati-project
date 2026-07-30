@@ -59,22 +59,44 @@ docker start ummati-mailhog
 du backend** (étape 4). Sur une base vide, Flyway crée tout le schéma depuis `V1` et
 insère les données de démo (`V7__seed_data.sql`).
 
-### Vous aviez déjà une base migrée à la main ?
+### « Found non-empty schema without schema history table »
 
-`application-dev.yaml` pose `baseline-on-migrate: true` avec `baseline-version: 17` :
-Flyway considère qu'une base déjà peuplée mais sans historique est à jour jusqu'à `V17`,
-enregistre cette ligne de base et n'exécute que `V18` et suivantes.
+Votre base existe mais n'a pas d'historique Flyway — typiquement une base créée à la
+main avant l'activation de Flyway. Le démarrage s'arrête net, et c'est voulu : Flyway
+refuse de deviner à quelle version elle se trouve.
 
-⚠️ Ce réglage suppose que votre base est bien à jour jusqu'à `V17`. Si vous n'aviez
-appliqué qu'une partie des scripts, les migrations manquantes seraient **silencieusement
-sautées**. Dans le doute, repartez d'une base propre — les données de dev sont jetables :
+**Le plus simple — repartir d'une base propre.** Les données de dev sont jetables et
+`V7__seed_data.sql` recrée le nécessaire :
 
 ```powershell
 docker exec -i ummati-postgres psql -U ummati -d postgres -c "DROP DATABASE ummati_db;"
 docker exec -i ummati-postgres psql -U ummati -d postgres -c "CREATE DATABASE ummati_db OWNER ummati;"
 ```
 
-Puis relancez le backend : Flyway rejouera l'intégralité des scripts depuis `V1`.
+**Si vous tenez à vos données**, posez la ligne de base à la version réellement
+présente. Repérez d'abord jusqu'où va le schéma, en cherchant le dernier objet créé
+par chaque migration :
+
+```powershell
+docker exec -i ummati-postgres psql -U ummati -d ummati_db -c "\d event_signups"
+docker exec -i ummati-postgres psql -U ummati -d ummati_db -c "\dt"
+```
+
+Puis créez l'historique à cette version — ici `18` si `events.cover_url` et la table
+`event_photos` existent mais pas `event_favorites` :
+
+```powershell
+cd ummati
+.\mvnw.cmd flyway:baseline "-Dflyway.baselineVersion=18" `
+  "-Dflyway.url=jdbc:postgresql://localhost:5433/ummati_db" `
+  "-Dflyway.user=ummati" "-Dflyway.password=ummati"
+```
+
+Relancez le backend : Flyway applique `V19` et les suivantes.
+
+> ⚠️ Se tromper de version fait **sauter silencieusement** les migrations
+> intermédiaires. Une ligne de base trop haute est bien plus dangereuse qu'une base
+> recréée — dans le doute, recréez.
 
 ### Vérifier ce que Flyway a appliqué
 
