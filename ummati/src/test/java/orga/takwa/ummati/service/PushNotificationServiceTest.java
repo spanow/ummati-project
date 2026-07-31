@@ -1,10 +1,12 @@
 package orga.takwa.ummati.service;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 import nl.martijndwars.webpush.PushService;
 import org.springframework.beans.factory.ObjectProvider;
 import orga.takwa.ummati.dto.push.SubscribeRequest;
 import orga.takwa.ummati.entity.PushSubscription;
 import orga.takwa.ummati.entity.User;
+import orga.takwa.ummati.repository.DeviceTokenRepository;
 import orga.takwa.ummati.repository.PushSubscriptionRepository;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ class PushNotificationServiceTest {
             Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[16]);
 
     @Mock private PushSubscriptionRepository subscriptionRepository;
+    @Mock private DeviceTokenRepository deviceTokenRepository;
     @Mock private PushService pushService;
     @Mock private HttpResponse<Void> httpResponse;
 
@@ -44,19 +47,23 @@ class PushNotificationServiceTest {
     private User user;
 
     /** Le service reçoit un ObjectProvider : le push est facultatif et peut être absent. */
-    private static ObjectProvider<PushService> providerOf(PushService service) {
+    private static <T> ObjectProvider<T> providerOf(T service) {
         return new ObjectProvider<>() {
-            @Override public PushService getObject() { return service; }
-            @Override public PushService getObject(Object... args) { return service; }
-            @Override public PushService getIfAvailable() { return service; }
-            @Override public PushService getIfUnique() { return service; }
+            @Override public T getObject() { return service; }
+            @Override public T getObject(Object... args) { return service; }
+            @Override public T getIfAvailable() { return service; }
+            @Override public T getIfUnique() { return service; }
         };
     }
 
     @BeforeEach
     void setUp() throws Exception {
         Security.addProvider(new BouncyCastleProvider());
-        pushNotificationService = new PushNotificationService(subscriptionRepository, providerOf(pushService));
+        // Canal natif absent : ces cas ne couvrent que le Web Push, et un FCM non
+        // configuré doit rester sans effet sur lui.
+        pushNotificationService = new PushNotificationService(
+                subscriptionRepository, deviceTokenRepository,
+                providerOf(pushService), providerOf((FirebaseMessaging) null));
         Field vapidField = PushNotificationService.class.getDeclaredField("vapidPublicKey");
         vapidField.setAccessible(true);
         vapidField.set(pushNotificationService, "test-public-key");

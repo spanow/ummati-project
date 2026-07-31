@@ -20,6 +20,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -90,10 +92,33 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
+    /**
+     * Origines des webviews natives Capacitor.
+     *
+     * <p>Une app installée n'a pas de domaine : iOS sert l'app depuis
+     * {@code capacitor://localhost} et Android depuis {@code http://localhost}. Ces
+     * valeurs sont figées par le conteneur natif et ne peuvent pas être revendiquées
+     * par un site distant, contrairement à un domaine — les inscrire en dur ici est
+     * donc sans effet sur la surface d'attaque du web.
+     */
+    private static final List<String> NATIVE_APP_ORIGINS = List.of(
+            "capacitor://localhost",
+            "ionic://localhost",
+            "http://localhost"
+    );
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+
+        List<String> origins = new ArrayList<>(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(o -> !o.isEmpty())
+                .toList());
+        NATIVE_APP_ORIGINS.stream()
+                .filter(o -> !origins.contains(o))
+                .forEach(origins::add);
+        config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

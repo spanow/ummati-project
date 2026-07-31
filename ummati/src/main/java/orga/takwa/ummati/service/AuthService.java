@@ -36,11 +36,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(UserRepository userRepository, VerificationTokenRepository tokenRepository,
                        NotificationService notificationService, AuditService auditService,
                        PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider,
-                       EmailService emailService) {
+                       EmailService emailService, RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.notificationService = notificationService;
@@ -48,6 +49,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.emailService = emailService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     // ===== REGISTER (T-023) =====
@@ -130,8 +132,14 @@ public class AuthService {
 
     // ===== LOGIN (T-026) =====
 
+    /** Connexion d'un client web : conserve le refresh JWT sans état d'origine. */
     @Transactional
     public AuthResponse login(LoginRequest request, String ipAddress) {
+        return login(request, ipAddress, DeviceContext.web());
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest request, String ipAddress, DeviceContext device) {
         User user = userRepository.findByEmail(request.email().toLowerCase().trim())
                 .orElseThrow(() -> new BusinessRuleException("Email ou mot de passe incorrect"));
 
@@ -166,7 +174,13 @@ public class AuthService {
         userRepository.save(user);
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        // Une app installée reçoit une session longue, révocable et rotative ; un
+        // navigateur garde le refresh JWT de 7 jours. Les deux régimes coexistent pour
+        // que le déploiement ne déconnecte aucune session web ouverte.
+        String refreshToken = device.isNative()
+                ? refreshTokenService.issue(user, device).rawToken()
+                : jwtTokenProvider.generateRefreshToken(user.getId());
 
         auditService.log(user.getId(), "LOGIN_SUCCESS", "User", user.getId(), ipAddress);
 
@@ -184,7 +198,29 @@ public class AuthService {
 
     // ===== REFRESH TOKEN (T-027) =====
 
+    /**
+     * Rafraîchit un access token, quel que soit le régime du porteur.
+     *
+     * <p>Les jetons natifs stockés sont examinés en premier : ce sont des chaînes
+     * aléatoires que {@code jwtTokenProvider} rejetterait de toute façon. Si la valeur
+     * n'appartient pas au registre, on retombe sur le refresh JWT sans état — c'est
+     * ce qui préserve les sessions web déjà ouvertes.
+     */
     public TokenRefreshResponse refreshToken(String refreshTokenStr) {
+        var rotated = refreshTokenService.rotate(refreshTokenStr);
+        if (rotated.isPresent()) {
+            User user = rotated.get().user();
+            if (!user.isEnabled()) {
+                throw new ForbiddenException("Compte désactivé");
+            }
+            return new TokenRefreshResponse(
+                    jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name()),
+                    jwtTokenProvider.getAccessTokenExpirationMs() / 1000,
+                    "Bearer",
+                    rotated.get().rawToken()
+            );
+        }
+
         if (!jwtTokenProvider.validateToken(refreshTokenStr) || !jwtTokenProvider.isRefreshToken(refreshTokenStr)) {
             throw new BusinessRuleException("Refresh token invalide");
         }
@@ -199,11 +235,20 @@ public class AuthService {
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
 
-        return new TokenRefreshResponse(
+        return TokenRefreshResponse.stateless(
                 newAccessToken,
-                jwtTokenProvider.getAccessTokenExpirationMs() / 1000,
-                "Bearer"
+                jwtTokenProvider.getAccessTokenExpirationMs() / 1000
         );
+    }
+
+    /**
+     * Déconnexion : révoque réellement la session native présentée, là où le web se
+     * contentait d'oublier ses jetons côté client. Sans cela, une session de 90 jours
+     * survivrait à la déconnexion sur un téléphone prêté ou revendu.
+     */
+    @Transactional
+    public void logout(String refreshTokenStr) {
+        refreshTokenService.revoke(refreshTokenStr);
     }
 
     // ===== FORGOT PASSWORD (T-028) =====
@@ -248,6 +293,11 @@ public class AuthService {
         user.setFailedAttempts(0);
         user.setLockedUntil(null);
         userRepository.save(user);
+
+        // Toutes les sessions natives tombent avec l'ancien mot de passe. Sans cela, le
+        // scénario que la réinitialisation est censée traiter — un compte compromis —
+        // laisserait l'intrus connecté 90 jours sur son propre téléphone.
+        refreshTokenService.revokeAllForUser(user.getId());
 
         auditService.log(user.getId(), "PASSWORD_RESET", "User", user.getId());
         emailService.sendPasswordChangedEmail(user.getEmail(), user.getFirstName());
