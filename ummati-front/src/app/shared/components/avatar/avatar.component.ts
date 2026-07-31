@@ -1,15 +1,16 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { MediaUrlPipe } from '../../pipes/media-url.pipe';
 
 /** Avatar utilisateur avec initiales ou photo */
 @Component({
   selector: 'app-avatar',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [MediaUrlPipe, CommonModule, MatIconModule],
   template: `
     @if (photoUrl) {
-      <img [src]="photoUrl" [alt]="name || 'Avatar'" class="avatar-img"
+      <img [src]="photoUrl | mediaUrl" [alt]="name || 'Avatar'" class="avatar-img"
            [style.width]="size + 'px'" [style.height]="size + 'px'"
            loading="lazy" (error)="photoUrl = null">
     } @else {

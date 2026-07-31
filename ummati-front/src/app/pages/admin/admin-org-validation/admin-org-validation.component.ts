@@ -17,11 +17,12 @@ import { AdminService } from '../../../core/services/admin.service';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-admin-org-validation',
   standalone: true,
-  imports: [LabelPipe, 
+  imports: [MediaUrlPipe, LabelPipe,
     DatePipe, RouterLink, ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatInputModule,
     MatFormFieldModule, MatSnackBarModule, MatProgressSpinnerModule,
@@ -44,7 +45,7 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
         <div class="page-header">
           <div class="org-info">
             @if (org()!.logoUrl) {
-              <img [src]="org()!.logoUrl" [alt]="org()!.name + ' logo'" class="org-logo">
+              <img [src]="org()!.logoUrl | mediaUrl" [alt]="org()!.name + ' logo'" class="org-logo">
             } @else {
               <div class="org-logo-placeholder" aria-hidden="true">
                 <mat-icon>business</mat-icon>

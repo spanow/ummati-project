@@ -25,11 +25,12 @@ import { StarRatingComponent } from '../../../shared/components/star-rating/star
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-event-detail',
   standalone: true,
-  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
+  imports: [MediaUrlPipe, LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatProgressBarModule,
     MatProgressSpinnerModule, MatDividerModule, MatSnackBarModule, MatFormFieldModule, MatInputModule,
     MatMenuModule, MatDialogModule, MatCheckboxModule, FormsModule, RouterLink, DatePipe, DecimalPipe,
     StarRatingComponent, TPipe, LocationPickerComponent],
@@ -39,7 +40,7 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
         <div class="state-center"><mat-spinner diameter="40" /></div>
       } @else if (event()) {
         @if (event()!.coverUrl) {
-          <img class="event-cover" [src]="event()!.coverUrl" alt="" />
+          <img class="event-cover" [src]="event()!.coverUrl | mediaUrl" alt="" />
         }
         <div class="event-header">
           <div class="header-top">
@@ -313,7 +314,7 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
                   <div class="gallery-grid">
                     @for (photo of photos(); track photo.id) {
                       <figure class="gallery-item">
-                        <img [src]="photo.url" [alt]="photo.caption || ''"
+                        <img [src]="photo.url | mediaUrl" [alt]="photo.caption || ''"
                              loading="lazy" decoding="async" />
                         @if (photo.caption) { <figcaption>{{ photo.caption }}</figcaption> }
                       </figure>

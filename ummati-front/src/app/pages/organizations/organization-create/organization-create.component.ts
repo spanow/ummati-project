@@ -14,11 +14,12 @@ import { ImageService } from '../../../core/services/image.service';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { GeoResult } from '../../../core/services/geocoding.service';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-organization-create',
   standalone: true,
-  imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule,
+  imports: [MediaUrlPipe, ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatStepperModule, TPipe,
     LocationPickerComponent],
   template: `
@@ -38,7 +39,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
             <div class="logo-row">
               <div class="logo-preview" [class.is-empty]="!logoPreview()">
                 @if (logoPreview()) {
-                  <img [src]="logoPreview()" alt="" />
+                  <img [src]="logoPreview() | mediaUrl" alt="" />
                 } @else {
                   <mat-icon>apartment</mat-icon>
                 }
