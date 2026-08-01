@@ -120,7 +120,7 @@ régénèrent ensuite avec `@capacitor/assets`.
 | `FCM_CREDENTIALS_JSON` | Compte de service Firebase (JSON) | vide → canal natif inactif |
 | `FCM_CREDENTIALS_PATH` | Variante par fichier | vide |
 | `NATIVE_REFRESH_DAYS` | Durée des sessions installées | `90` |
-| `APP_CORS_ALLOWED_ORIGINS` | Origines web autorisées | `http://localhost:4200` |
+| `CORS_ORIGINS` | Origines web autorisées | `http://localhost:4200` |
 
 Les origines des webviews natives (`capacitor://localhost`, `ionic://localhost`,
 `http://localhost`) sont ajoutées automatiquement par `SecurityConfig` : elles sont

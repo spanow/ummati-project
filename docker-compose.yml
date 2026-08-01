@@ -50,6 +50,10 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
+      # Notifications des applications mobiles. Vide = canal natif inactif, le reste
+      # de la plateforme fonctionne normalement.
+      FCM_CREDENTIALS_JSON: ${FCM_CREDENTIALS_JSON:-}
+      NATIVE_REFRESH_DAYS: ${NATIVE_REFRESH_DAYS:-90}
       APP_BASE_URL: ${PUBLIC_URL:?PUBLIC_URL manquant}
       CORS_ORIGINS: ${PUBLIC_URL}
       # nginx est en amont et réécrit X-Forwarded-For : le rate limiter peut s'y fier
