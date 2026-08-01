@@ -20,11 +20,12 @@ import { EVENT_TYPES } from '../../../core/constants/event-types';
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { GeoResult } from '../../../core/services/geocoding.service';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-event-create',
   standalone: true,
-  imports: [ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule,
+  imports: [MediaUrlPipe, ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
     MatChipsModule, MatSnackBarModule, MatProgressSpinnerModule, RouterLink, TPipe, LocationPickerComponent],
   template: `
@@ -41,7 +42,7 @@ import { GeoResult } from '../../../core/services/geocoding.service';
               <div class="cover-row">
                 <div class="cover-preview" [class.is-empty]="!coverPreview()">
                   @if (coverPreview()) {
-                    <img [src]="coverPreview()" alt="" />
+                    <img [src]="coverPreview() | mediaUrl" alt="" />
                   } @else {
                     <mat-icon>add_photo_alternate</mat-icon>
                   }

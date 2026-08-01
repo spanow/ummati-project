@@ -14,11 +14,13 @@ import { MatDividerModule } from '@angular/material/divider';
 import { ProfileService, ProfileResponse } from '../../core/services/profile.service';
 import { SkillService, Skill } from '../../core/services/skill.service';
 import { TPipe } from '../../shared/pipes/t.pipe';
+import { MediaUrlPipe } from '../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
   imports: [
+    MediaUrlPipe,
     ReactiveFormsModule, MatCardModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatChipsModule, MatTabsModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule, RouterLink, TPipe,
@@ -32,7 +34,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
         <div class="profile-hero">
           <div class="avatar-wrapper">
             @if (profile()!.photoUrl) {
-              <img [src]="profile()!.photoUrl" class="avatar" />
+              <img [src]="profile()!.photoUrl | mediaUrl" class="avatar" />
             } @else {
               <div class="avatar-placeholder">
                 {{ profile()!.firstName[0] }}{{ profile()!.lastName[0] }}

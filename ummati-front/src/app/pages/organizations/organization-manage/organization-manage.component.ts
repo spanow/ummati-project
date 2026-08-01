@@ -26,11 +26,13 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { GeoResult } from '../../../core/services/geocoding.service';
 import { ImageService } from '../../../core/services/image.service';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-organization-manage',
   standalone: true,
   imports: [
+    MediaUrlPipe,
     MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatChipsModule, MatMenuModule, MatProgressSpinnerModule, MatSnackBarModule,
     MatDialogModule, MatBadgeModule, MatFormFieldModule, MatInputModule, MatCheckboxModule,
@@ -80,7 +82,7 @@ import { ImageService } from '../../../core/services/image.service';
                   <div class="member-row">
                     <div class="member-avatar">
                       @if (m.photoUrl) {
-                        <img [src]="m.photoUrl" class="avatar-img" />
+                        <img [src]="m.photoUrl | mediaUrl" class="avatar-img" />
                       } @else {
                         <div class="avatar-placeholder">{{ m.firstName[0] }}{{ m.lastName[0] }}</div>
                       }
@@ -143,7 +145,7 @@ import { ImageService } from '../../../core/services/image.service';
                 <div class="member-row">
                   <div class="member-avatar">
                     @if (m.photoUrl) {
-                      <img [src]="m.photoUrl" class="avatar-img" />
+                      <img [src]="m.photoUrl | mediaUrl" class="avatar-img" />
                     } @else {
                       <div class="avatar-placeholder">{{ m.firstName[0] }}{{ m.lastName[0] }}</div>
                     }
@@ -392,7 +394,7 @@ import { ImageService } from '../../../core/services/image.service';
               <div class="visual-editor">
                 <div class="logo-preview" [class.is-empty]="!logoUrl()">
                   @if (logoUrl()) {
-                    <img [src]="logoUrl()" alt="" />
+                    <img [src]="logoUrl() | mediaUrl" alt="" />
                   } @else {
                     <mat-icon>apartment</mat-icon>
                   }
@@ -420,7 +422,7 @@ import { ImageService } from '../../../core/services/image.service';
               <div class="visual-editor">
                 <div class="banner-preview" [class.is-empty]="!bannerUrl()">
                   @if (bannerUrl()) {
-                    <img [src]="bannerUrl()" alt="" />
+                    <img [src]="bannerUrl() | mediaUrl" alt="" />
                   } @else {
                     <mat-icon>panorama</mat-icon>
                   }

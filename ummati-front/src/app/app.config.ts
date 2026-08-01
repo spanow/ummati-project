@@ -1,4 +1,4 @@
-import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, LOCALE_ID, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withInMemoryScrolling, withViewTransitions } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -13,6 +13,7 @@ import { provideClientHydration, withEventReplay } from '@angular/platform-brows
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { getStoredLang } from './core/services/i18n.service';
 import { UmmatiPaginatorIntl } from './core/i18n/paginator-intl';
+import { initNativeShell } from './core/native-shell';
 
 registerLocaleData(localeFr, 'fr');
 registerLocaleData(localeAr, 'ar');
@@ -35,5 +36,8 @@ export const appConfig: ApplicationConfig = {
     // Étiquettes du paginateur : sans cela Material affiche « Items per page »
     // et « 1 – 6 of 6 » en anglais sur toutes les listes.
     { provide: MatPaginatorIntl, useClass: UmmatiPaginatorIntl },
+    // Mise en route du conteneur natif. Sur le web, l'initialiseur sort aussitôt
+    // sans rien charger : aucun greffon Capacitor n'entre dans le bundle du site.
+    provideAppInitializer(initNativeShell),
   ]
 };

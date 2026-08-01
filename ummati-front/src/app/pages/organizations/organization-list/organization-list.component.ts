@@ -11,6 +11,7 @@ import { OrganizationService, OrganizationSummary } from '../../../core/services
 import { TPipe } from '../../../shared/pipes/t.pipe';
 import { CardSkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 /** Teintes de bandeau retenues — famille froide + chaudes franches, pas de jaune-vert. */
 /**
@@ -40,7 +41,7 @@ const DEFAULT_COVER_HUE = 174;
 @Component({
   selector: 'app-organization-list',
   standalone: true,
-  imports: [LabelPipe, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
+  imports: [MediaUrlPipe, LabelPipe, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatPaginatorModule, RouterLink, FormsModule, TPipe, CardSkeletonComponent],
   template: `
     <div class="page">
@@ -95,7 +96,7 @@ const DEFAULT_COVER_HUE = 174;
 
               <div class="org-body">
                 @if (org.logoUrl) {
-                  <img [src]="org.logoUrl" [alt]="org.name" class="org-logo" loading="lazy" />
+                  <img [src]="org.logoUrl | mediaUrl" [alt]="org.name" class="org-logo" loading="lazy" />
                 } @else {
                   <span class="org-logo org-logo-fallback" aria-hidden="true">{{ initials(org.name) }}</span>
                 }

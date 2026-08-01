@@ -27,11 +27,12 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
 import { OrgDocumentsComponent } from '../../organizations/org-documents/org-documents.component';
 import { forkJoin } from 'rxjs';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-event-manage',
   standalone: true,
-  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
+  imports: [MediaUrlPipe, LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatTableModule,
     MatCheckboxModule, MatChipsModule, MatPaginatorModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSlideToggleModule,
     RouterLink, DatePipe, DecimalPipe, FormsModule, TPipe, OrgDocumentsComponent],
@@ -229,7 +230,7 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
                   <div class="cover-editor">
                     <div class="cover-preview" [class.is-empty]="!coverUrl()">
                       @if (coverUrl()) {
-                        <img [src]="coverUrl()" alt="" />
+                        <img [src]="coverUrl() | mediaUrl" alt="" />
                       } @else {
                         <mat-icon>image</mat-icon>
                       }
@@ -271,7 +272,7 @@ import { LabelPipe } from '../../../shared/pipes/label.pipe';
                     <div class="photo-grid">
                       @for (photo of photos(); track photo.id) {
                         <figure class="photo-item">
-                          <img [src]="photo.url" [alt]="photo.caption || ''" loading="lazy" />
+                          <img [src]="photo.url | mediaUrl" [alt]="photo.caption || ''" loading="lazy" />
                           <button mat-icon-button class="photo-delete" type="button"
                                   [attr.aria-label]="'Supprimer cette photo' | t"
                                   (click)="removePhoto(photo.id)">

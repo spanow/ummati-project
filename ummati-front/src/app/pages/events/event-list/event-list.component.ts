@@ -18,11 +18,12 @@ import { CardSkeletonComponent } from '../../../shared/components/skeleton/skele
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
 import { AuthService } from '../../../core/services/auth.service';
 import { RetentionService } from '../../../core/services/retention.service';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-event-list',
   standalone: true,
-  imports: [LabelPipe, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
+  imports: [MediaUrlPipe, LabelPipe, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatPaginatorModule, MatProgressSpinnerModule, MatCheckboxModule,
     RouterLink, FormsModule, DatePipe, TPipe, CardSkeletonComponent],
   template: `
@@ -119,7 +120,7 @@ import { RetentionService } from '../../../core/services/retention.service';
                    boîtes creuses. -->
               <div class="ev-cover" [class.is-placeholder]="!event.coverUrl">
                 @if (event.coverUrl) {
-                  <img [src]="event.coverUrl" alt="" loading="lazy" decoding="async" />
+                  <img [src]="event.coverUrl | mediaUrl" alt="" loading="lazy" decoding="async" />
                 }
                 <time class="ev-date" [attr.datetime]="event.startDate">
                   <b>{{ event.startDate | date:'d' }}</b>

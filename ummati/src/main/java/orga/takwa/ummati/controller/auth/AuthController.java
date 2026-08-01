@@ -61,8 +61,20 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
                                                            HttpServletRequest httpRequest) {
-        AuthResponse response = authService.login(request, httpRequest.getRemoteAddr());
+        AuthResponse response = authService.login(request, httpRequest.getRemoteAddr(), deviceContext(httpRequest));
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /**
+     * Les en-têtes sont absents pour le client web : {@link DeviceContext#fromHeaders}
+     * retombe alors sur WEB et le comportement historique est conservé à l'identique.
+     */
+    private static DeviceContext deviceContext(HttpServletRequest request) {
+        return DeviceContext.fromHeaders(
+                request.getHeader(DeviceContext.HEADER_PLATFORM),
+                request.getHeader(DeviceContext.HEADER_DEVICE_ID),
+                request.getHeader(DeviceContext.HEADER_DEVICE_NAME),
+                request.getHeader(DeviceContext.HEADER_APP_VERSION));
     }
 
     @PostMapping("/refresh")
@@ -85,9 +97,16 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Mot de passe réinitialisé", null));
     }
 
+    /**
+     * Le refresh token est facultatif : sans lui on retombe sur l'ancien comportement
+     * (oubli côté client). Fourni, il révoque la session native pour de bon.
+     */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        // Client-side token removal; server-side refresh token invalidation can be added later
+    public ResponseEntity<Void> logout(
+            @RequestHeader(value = "X-Refresh-Token", required = false) String refreshToken) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            authService.logout(refreshToken.replace("Bearer ", "").trim());
+        }
         return ResponseEntity.noContent().build();
     }
 }

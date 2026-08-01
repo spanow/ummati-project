@@ -8,10 +8,14 @@ describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
 
+  // logout() redirige vers /login : sans cette route déclarée, la navigation échoue
+  // en arrière-plan et Vitest la remonte en erreur non capturée.
+  const routes = [{ path: 'login', children: [] }];
+
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), AuthService],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes), AuthService],
     });
     service = TestBed.inject(AuthService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -77,6 +81,54 @@ describe('AuthService', () => {
       expect(req.request.headers.get('Authorization')).toBe('Bearer rt-42');
       req.flush({ success: true, data: { accessToken: 'at', expiresIn: 900 } });
     });
+
+    /**
+     * Les sessions natives tournent : le serveur consomme le jeton présenté et en
+     * renvoie un autre. Ne pas l'enregistrer ferait rejouer un jeton mort au refresh
+     * suivant — le backend y voit une session volée, révoque la lignée entière et
+     * déconnecte l'utilisateur sans raison visible.
+     */
+    it('should store the rotated refresh token when the server returns one', () => {
+      localStorage.setItem('refreshToken', 'rt-1');
+
+      service.refreshToken().subscribe();
+
+      httpMock.expectOne(r => r.url.endsWith('/auth/refresh')).flush({
+        success: true,
+        data: { accessToken: 'at-2', expiresIn: 900, refreshToken: 'rt-2' },
+      });
+
+      expect(localStorage.getItem('refreshToken')).toBe('rt-2');
+    });
+
+    /** Le web n'a pas de rotation : son jeton doit rester valable jusqu'à son terme. */
+    it('should keep the existing refresh token when the server rotates nothing', () => {
+      localStorage.setItem('refreshToken', 'rt-1');
+
+      service.refreshToken().subscribe();
+
+      httpMock.expectOne(r => r.url.endsWith('/auth/refresh')).flush({
+        success: true,
+        data: { accessToken: 'at-2', expiresIn: 900, refreshToken: null },
+      });
+
+      expect(localStorage.getItem('refreshToken')).toBe('rt-1');
+    });
+  });
+
+  describe('logout', () => {
+    it('should hand the refresh token to the server so the session is revoked', () => {
+      localStorage.setItem('refreshToken', 'rt-7');
+
+      service.logout();
+
+      const req = httpMock.expectOne(r => r.url.endsWith('/auth/logout'));
+      expect(req.request.headers.get('X-Refresh-Token')).toBe('rt-7');
+      req.flush(null);
+
+      expect(localStorage.getItem('refreshToken')).toBeNull();
+      expect(service.isLoggedIn()).toBe(false);
+    });
   });
 
   describe('session state', () => {
@@ -85,7 +137,7 @@ describe('AuthService', () => {
       TestBed.resetTestingModule();
       localStorage.setItem('user', raw);
       TestBed.configureTestingModule({
-        providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), AuthService],
+        providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes), AuthService],
       });
       return TestBed.inject(AuthService);
     }

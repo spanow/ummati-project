@@ -12,6 +12,16 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
 
     <!--
+      Sans manifeste, iOS refuse l'ajout à l'écran d'accueil — et comme Safari ne
+      délivre les notifications web qu'aux sites ainsi installés, le Web Push déjà
+      implémenté (push-sw.js) était inatteignable sur iPhone.
+    -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Ummati" />
+
+    <!--
       Thème & langue appliqués AVANT le premier rendu.
       Sans ça, la page s'affiche en clair puis bascule en sombre (flash blanc),
       et le RTL arabe saute d'un cran au bootstrap Angular.

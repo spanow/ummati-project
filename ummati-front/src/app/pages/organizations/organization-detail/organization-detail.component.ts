@@ -21,11 +21,12 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
 import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 import { LabelPipe } from '../../../shared/pipes/label.pipe';
 import { RetentionService } from '../../../core/services/retention.service';
+import { MediaUrlPipe } from '../../../shared/pipes/media-url.pipe';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
+  imports: [MediaUrlPipe, LabelPipe, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule, MatMenuModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule, DecimalPipe, DatePipe, RouterLink, TPipe,
     LocationPickerComponent],
   template: `
@@ -37,7 +38,7 @@ import { RetentionService } from '../../../core/services/retention.service';
           <div class="banner-overlay">
             <div class="org-identity">
               @if (org()!.logoUrl) {
-                <img [src]="org()!.logoUrl" class="logo" />
+                <img [src]="org()!.logoUrl | mediaUrl" class="logo" />
               } @else {
                 <div class="logo-placeholder"><mat-icon>business</mat-icon></div>
               }
